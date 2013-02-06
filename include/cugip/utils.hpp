@@ -1,40 +1,27 @@
 #pragma once
 
-#define CUGIL_DECL_HOST __host
-#define CUGIL_DECL_DEVICE __device
-#define CUGIL_DECL_HYBRID CUGIL_DECL_HOST CUGIL_DECL_DEVICE
+
+
+#if defined(__CUDACC__)
+	#define CUGIL_DECL_HOST __host
+	#define CUGIL_DECL_DEVICE __device
+	#define CUGIL_DECL_HYBRID CUGIL_DECL_HOST CUGIL_DECL_DEVICE
+	#define CUGIL_GLOBAL __global__
+	#define CUGIL_CONSTANT __constant__
+	#define CUGIL_SHARED __shared__
+#else
+	#define CUGIL_DECL_HOST
+	#define CUGIL_DECL_DEVICE 
+	#define CUGIL_DECL_HYBRID
+	#define CUGIL_GLOBAL
+	#define CUGIL_CONSTANT
+	#define CUGIL_SHARED
+#endif
+
+#define CUGIL_ASSERT(...)
 
 namespace cugip {
 
-template<typename TType>
-struct device_ptr
-{
-	CUGIL_DECL_HYBRID
-	device_ptr(): p(0) 
-	{ /*empty*/ }
-
-	CUGIL_DECL_HYBRID
-	device_ptr(const device_ptr &aArg): p(aArg.p) 
-	{ /*empty*/ }
-
-	CUGIL_DECL_HYBRID TType * 
-	operator->()
-	{ return p; }
-
-	CUGIL_DECL_HYBRID device_ptr &
-	operator=(const device_ptr &aArg)
-	{ p = aArg.p; }
-
-	CUGIL_DECL_HYBRID device_ptr &
-	operator=(TType *aArg)
-	{ p = aArg; }
-
-	CUGIL_DECL_HYBRID
-	operator bool() const
-	{ return p != 0; }
-
-	TType *p;
-};
 
 template<typename TType, int tChannelCount>
 struct element
