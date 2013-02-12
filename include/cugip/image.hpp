@@ -1,13 +1,19 @@
 #pragma once
 
-#include "ImageView.hpp"
-#include "utils.hpp"
+#include <cugip/detail/include.hpp>
+#include <cugip/image_view.hpp>
+#include <cugip/utils.hpp>
+#include <cugip/memory.hpp>
 
 namespace cugip {
 
-template<typename TElement>
+template<typename TElement, size_t tDim = 2>
 class device_image
 {
+public:
+	typedef device_image_view<TElement, tDim> view_t;
+	typedef const_device_image_view<TElement, tDim> const_view_t;
+	typedef TElement element_t;
 public:
 	device_image() 
 	{}
@@ -15,7 +21,7 @@ public:
 	device_image(size_t aWidth, size_t aHeight)
 	{}
 protected:
-	device_ptr<TElement> mData;
+	device_ptr<element_t> mData;
 };
 
 template <typename TImage>

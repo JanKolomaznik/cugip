@@ -1,10 +1,10 @@
 #pragma once
 
-
+#include <cugip/detail/include.hpp>
 
 #if defined(__CUDACC__)
-	#define CUGIL_DECL_HOST __host
-	#define CUGIL_DECL_DEVICE __device
+	#define CUGIL_DECL_HOST __host__
+	#define CUGIL_DECL_DEVICE __device__
 	#define CUGIL_DECL_HYBRID CUGIL_DECL_HOST CUGIL_DECL_DEVICE
 	#define CUGIL_GLOBAL __global__
 	#define CUGIL_CONSTANT __constant__

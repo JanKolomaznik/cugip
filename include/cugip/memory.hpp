@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cugip/detail/include.hpp>
 #include "utils.hpp"
 
 namespace cugip {
@@ -21,11 +22,11 @@ struct device_ptr
 
 	CUGIL_DECL_HYBRID device_ptr &
 	operator=(const device_ptr &aArg)
-	{ p = aArg.p; }
+	{ p = aArg.p; return *this; }
 
 	CUGIL_DECL_HYBRID device_ptr &
 	operator=(TType *aArg)
-	{ p = aArg; }
+	{ p = aArg; return *this; }
 
 	CUGIL_DECL_HYBRID
 	operator bool() const
@@ -78,7 +79,7 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 		this->mData = reinterpret_cast<TType*>(devPtr);
 	}
 
-	~device_memory_2d()
+	~device_memory_2d_owner()
 	{
 		if (this->mData) {
 			CUGIL_ASSERT_RESULT(cudaFree(this->mData.p));

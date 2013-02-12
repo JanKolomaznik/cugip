@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cugip/detail/include.hpp>
+
+namespace cugip {
 
 template<typename TType>
 struct negate
@@ -10,3 +13,5 @@ struct negate
 		return -aArg;
 	}
 };
+
+}//namespace cugip

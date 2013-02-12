@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cugip/detail/include.hpp>
+
 namespace cugip {
 	
 #define CUGIL_THROW(...)\
@@ -23,4 +25,6 @@ namespace cugip {
 //TODO - provide assertion
 #define CUGIL_ASSERT_RESULT( ... ) \
 	CUGIL_CHECK_RESULT_MSG( "Assertion failure!", __VA_ARGS__ )
+
 }//namespace cugip
+

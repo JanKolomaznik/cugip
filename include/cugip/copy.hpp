@@ -1,15 +1,17 @@
 #pragma once
 
+#include <cugip/detail/include.hpp>
+
 namespace cugip {
 
 namespace detail {
 
 	template<bool tFromDevice, bool tToDevice>
-	struct copy_methods;
+	struct copy_methods_impl;
 
 	//device to device
-	template<true, true>
-	struct copy_methods
+	template<>
+	struct copy_methods_impl<true, true>
 	{
 		template<typename TFrom, typename TTo>
 		static void
@@ -20,8 +22,8 @@ namespace detail {
 	};
 
 	//host to device
-	template<false, true>
-	struct copy_methods
+	template<>
+	struct copy_methods_impl<false, true>
 	{
 		template<typename TFrom, typename TTo>
 		static void
@@ -32,8 +34,8 @@ namespace detail {
 	};
 
 	//host to host
-	template<false, false>
-	struct copy_methods
+	template<>
+	struct copy_methods_impl<false, false>
 	{
 		template<typename TFrom, typename TTo>
 		static void
@@ -44,8 +46,8 @@ namespace detail {
 	};
 
 	//device to host
-	template<true, false>
-	struct copy_methods
+	template<>
+	struct copy_methods_impl<true, false>
 	{
 		template<typename TFrom, typename TTo>
 		static void
@@ -62,8 +64,10 @@ template<typename TFrom, typename TTo>
 void
 copy(TFrom aFrom, TTo aTo)
 {
-	copy_methods<is_device_view<TFrom>::value, is_device_view<TTo>::value>::
-		copy(aFrom, aTo);
+	cugip::detail::copy_methods_impl<
+			cugip::is_device_view<TFrom>::value, 
+			cugip::is_device_view<TTo>::value
+		>::copy(aFrom, aTo);
 }
 
 
