@@ -1,7 +1,8 @@
 #pragma once
 
 #include <cugip/detail/include.hpp>
-#include "utils.hpp"
+#include <cugip/utils.hpp>
+#include <cugip/math.hpp>
 
 namespace cugip {
 
@@ -41,9 +42,12 @@ struct device_memory_1d
 	
 };
 
+//****************************************************
 template<typename TType>
 struct device_memory_2d
 {
+	typedef dim_traits<2>::extents_t extents_t;
+
 	device_memory_2d()
 	{}
 
@@ -67,6 +71,8 @@ struct device_memory_2d
 template<typename TType>
 struct device_memory_2d_owner: public device_memory_2d<TType>
 {
+	typedef dim_traits<2>::extents_t extents_t;
+
 	device_memory_2d_owner()
 	{}
 
@@ -79,6 +85,15 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 		this->mData = reinterpret_cast<TType*>(devPtr);
 	}
 
+	device_memory_2d_owner(extents_t aExtents)
+	{
+		void *devPtr = NULL;
+		CUGIL_CHECK_RESULT(cudaMallocPitch(&devPtr, &(this->mPitch), aExtents.get<0>() * sizeof(TType), aExtents.get<1>()));
+		this->mWidth = aExtents.get<0>();
+		this->mHeight = aExtents.get<1>();
+		this->mData = reinterpret_cast<TType*>(devPtr);
+	}
+
 	~device_memory_2d_owner()
 	{
 		if (this->mData) {
@@ -86,6 +101,8 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 		}
 	}
 };
+
+//****************************************************
 
 template<typename TType>
 struct device_memory_3d
@@ -101,6 +118,14 @@ struct device_memory_3d
 	device_ptr<TType> mData;
 };
 
+template<typename TElement, size_t tDim>
+struct memory_management;
 
+template<typename TElement>
+struct memory_management<TElement, 2>
+{
+	typedef device_memory_2d<TElement> device_memory;
+	typedef device_memory_2d_owner<TElement> device_memory_owner;
+};
 
 }//namespace cugip

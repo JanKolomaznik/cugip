@@ -18,7 +18,11 @@
 	#define CUGIL_SHARED
 #endif
 
-#define CUGIL_ASSERT(...)
+#define CUGIL_ASSERT(EXPR)
+
+#define CUGIL_ASSERT_RESULT(EXPR) CUGIL_ASSERT(cudaSuccess == EXPR)
+
+#define CUGIL_CHECK_RESULT(EXPR) EXPR
 
 namespace cugip {
 

@@ -14,14 +14,21 @@ public:
 	typedef device_image_view<TElement, tDim> view_t;
 	typedef const_device_image_view<TElement, tDim> const_view_t;
 	typedef TElement element_t;
+
+	typedef typename dim_traits<tDim>::extents_t extents_t;
 public:
 	device_image() 
 	{}
 
-	device_image(size_t aWidth, size_t aHeight)
+	device_image(extents_t aExtents)
+	{}
+
+	device_image(size_t aS0, size_t aS1 = 1, size_t aS2 = 1)
+		: mData(typename dim_traits<tDim>::extents_t(aS0, aS1, aS2))
 	{}
 protected:
-	device_ptr<element_t> mData;
+	typename memory_management<TElement, tDim>::device_memory_owner mData;
+	//device_ptr<element_t> mData;
 };
 
 template <typename TImage>

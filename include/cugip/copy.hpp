@@ -17,7 +17,7 @@ namespace detail {
 		static void
 		copy(TFrom &aFrom, TTo &aTo)
 		{
-
+			D_PRINT("COPY: device to device");
 		}
 	};
 
@@ -29,7 +29,7 @@ namespace detail {
 		static void
 		copy(TFrom &aFrom, TTo &aTo)
 		{
-
+			D_PRINT("COPY: host to device");
 		}
 	};
 
@@ -41,7 +41,7 @@ namespace detail {
 		static void
 		copy(TFrom &aFrom, TTo &aTo)
 		{
-
+			D_PRINT("COPY: host to host");
 		}
 	};
 
@@ -53,7 +53,7 @@ namespace detail {
 		static void
 		copy(TFrom &aFrom, TTo &aTo)
 		{
-
+			D_PRINT("COPY: device to host");
 		}
 	};
 
