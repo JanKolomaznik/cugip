@@ -8,9 +8,11 @@
 void
 process(boost::gil::rgb8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::view_t aOut)
 {
+	std::cout << cugip::cudaMemoryInfoText() << std::endl;
 
 	cugip::device_image<cugip::element_rgb8_t> inImage(aIn.width(), aIn.height());
-
+	
+	std::cout << cugip::cudaMemoryInfoText() << std::endl;
 
 	cugip::copy(aIn, cugip::view(inImage));
 

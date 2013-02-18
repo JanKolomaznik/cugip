@@ -16,7 +16,8 @@ public:
     {
         if (tDim >= 1) mValues[0] = v0;
         if (tDim >= 2) mValues[1] = v1;
-        if (tDim >= 3) mValues[2] = v2;
+	//TODO
+        //if (tDim >= 3) mValues[2] = v2;
     }
 
     template <size_t tIdx>
@@ -47,8 +48,8 @@ struct dim_traits
 	typedef simple_vector<size_t, tDim> extents_t;
 
 	extents_t create_extents_t(size_t v0 = 0, size_t v1 = 0, size_t v2 = 0, size_t v3 = 0)
-	{
-		return extents_t(v0, v1, v2, v3);
+	{//TODO
+		return extents_t(v0, v1/*, v2, v3*/);
 	}
 };
 

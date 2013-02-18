@@ -2,6 +2,8 @@
 
 #include <cugip/detail/include.hpp>
 #include <boost/mpl/bool.hpp>
+#include <cugip/utils.hpp>
+#include <cugip/memory.hpp>
 
 namespace cugip {
 
@@ -9,8 +11,14 @@ template<typename TElement, size_t tDim = 2>
 class device_image_view
 {
 public:
+	device_image_view(const typename memory_management<TElement, tDim>::device_memory &aData) :
+		mData(aData)
+	{}
 
+	device_image_view() 
+	{ /*empty*/ }
 protected:
+	typename memory_management<TElement, tDim>::device_memory mData;
 
 };
 
@@ -18,9 +26,18 @@ template<typename TElement, size_t tDim = 2>
 class const_device_image_view
 {
 public:
+	const_device_image_view(const typename memory_management<TElement, tDim>::const_device_memory &aData) :
+		mData(aData)
+	{}
 
+	const_device_image_view(const typename memory_management<TElement, tDim>::device_memory &aData) :
+		mData(aData)
+	{}
+
+	const_device_image_view() 
+	{ /*empty*/ }
 protected:
-
+	typename memory_management<TElement, tDim>::const_device_memory mData;
 };
 
 template<typename TView>

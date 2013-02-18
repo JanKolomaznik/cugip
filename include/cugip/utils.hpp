@@ -27,6 +27,22 @@
 namespace cugip {
 
 
+inline std::string
+cudaMemoryInfoText()
+{
+	size_t free;
+	size_t total;
+	CUGIL_CHECK_RESULT(cudaMemGetInfo( &free, &total));
+
+	return boost::str( boost::format("Free GPU memory: %1% MB; Total GPU memory %2% MB; Occupied %3%%%") 
+		% (float(free) / (1024*1024)) 
+		% (float(total) / (1024*1024))
+		% (100.0f * float(total - free)/total)
+		);
+}
+
+
+
 template<typename TType, int tChannelCount>
 struct element
 {

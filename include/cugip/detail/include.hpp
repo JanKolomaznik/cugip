@@ -3,6 +3,7 @@
 #include <cuda.h>
 #include <iostream>
 #include <iomanip>
+#include <boost/format.hpp>
 
 #ifndef DOUT
 	#define DOUT	std::cout
