@@ -8,6 +8,8 @@ FIND_PACKAGE(Boost REQUIRED COMPONENTS program_options filesystem system )
 MESSAGE(  ${Boost_LIBRARIES} )
 INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIRS} "../include")
 
+SET(CUDA_NVCC_FLAGS -arch=compute_20;-code=sm_20;--use_fast_math )
+
 FIND_PACKAGE(CUDA)
 
 

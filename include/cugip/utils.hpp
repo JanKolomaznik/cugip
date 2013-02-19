@@ -52,5 +52,12 @@ struct element
 typedef element<unsigned char, 3> element_rgb8_t;
 
 
+//*****************************************************************
+//Extensions for built-in types
+CUGIL_DECL_HOST inline std::ostream &
+operator<<( std::ostream &stream, const dim3 &v )
+{
+	return stream << "[ " << v.x << ", " << v.y << ", " << v.z << " ]";
+}
 
 }//namespace cugip

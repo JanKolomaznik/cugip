@@ -26,6 +26,7 @@ public:
 	typedef device_image_view<TElement, tDim> view_t;
 	typedef const_device_image_view<TElement, tDim> const_view_t;
 	typedef TElement element_t;
+	typedef TElement value_type;
 
 	typedef typename dim_traits<tDim>::extents_t extents_t;
 

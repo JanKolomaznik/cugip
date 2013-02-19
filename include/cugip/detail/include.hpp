@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <boost/format.hpp>
 #include <cassert>
+#include <cstdio>
 
 
 #ifndef DOUT

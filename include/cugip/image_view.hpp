@@ -12,6 +12,9 @@ class device_image_view
 {
 public:
 	typedef typename dim_traits<tDim>::extents_t extents_t;
+	typedef typename dim_traits<tDim>::coord_t coord_t;
+	typedef typename memory_management<TElement, tDim>::device_memory memory_t;
+	typedef TElement value_type;
 
 	device_image_view(const typename memory_management<TElement, tDim>::device_memory &aData) :
 		mData(aData)
@@ -20,10 +23,22 @@ public:
 	device_image_view() 
 	{ /*empty*/ }
 
-	extents_t size() const
+	CUGIL_DECL_HYBRID extents_t 
+	size() const
 	{ return mData.size(); }
+
+	CUGIL_DECL_HYBRID value_type &
+	operator[](coord_t aCoords)
+	{
+		return mData[aCoords];
+	}
+
+
+	CUGIL_DECL_HYBRID const memory_t&
+	data() const
+	{ return mData; }
 protected:
-	typename memory_management<TElement, tDim>::device_memory mData;
+	memory_t mData;
 
 };
 
@@ -32,6 +47,9 @@ class const_device_image_view
 {
 public:
 	typedef typename dim_traits<tDim>::extents_t extents_t;
+	typedef typename dim_traits<tDim>::coord_t coord_t;
+	typedef typename memory_management<TElement, tDim>::const_device_memory memory_t;
+	typedef TElement value_type;
 
 	const_device_image_view(const typename memory_management<TElement, tDim>::const_device_memory &aData) :
 		mData(aData)
@@ -44,10 +62,15 @@ public:
 	const_device_image_view() 
 	{ /*empty*/ }
 
-	extents_t size() const
+	CUGIL_DECL_HYBRID extents_t 
+	size() const
 	{ return mData.size(); }
+
+	CUGIL_DECL_HYBRID const memory_t&
+	data() const
+	{ return mData; }
 protected:
-	typename memory_management<TElement, tDim>::const_device_memory mData;
+	memory_t mData;
 };
 
 template<typename TView>

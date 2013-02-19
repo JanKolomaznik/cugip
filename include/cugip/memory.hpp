@@ -17,6 +17,10 @@ struct device_ptr
 	device_ptr(const device_ptr &aArg): p(aArg.p) 
 	{ /*empty*/ }
 
+	CUGIL_DECL_HYBRID
+	device_ptr(TType *aArg): p(aArg) 
+	{ /*empty*/ }
+
 	CUGIL_DECL_HYBRID TType * 
 	operator->()
 	{ return p; }
@@ -32,6 +36,12 @@ struct device_ptr
 	CUGIL_DECL_HYBRID
 	operator bool() const
 	{ return p != 0; }
+
+	CUGIL_DECL_HYBRID device_ptr
+	byte_offset(int aOffset) const
+	{
+		return device_ptr(reinterpret_cast<TType *>((reinterpret_cast<char *>(p) + aOffset)));
+	}
 
 	TType *p;
 };
@@ -89,6 +99,8 @@ template<typename TType>
 struct device_memory_2d
 {
 	typedef dim_traits<2>::extents_t extents_t;
+	typedef dim_traits<2>::coord_t coord_t;
+	typedef TType value_type;
 
 	device_memory_2d()
 	{}
@@ -108,7 +120,15 @@ struct device_memory_2d
 	~device_memory_2d()
 	{ }
 
-	extents_t size() const
+	CUGIL_DECL_HYBRID value_type &
+	operator[](coord_t aCoords)
+	{
+		return *(mData.p);
+		//return *(reinterpret_cast<value_type *>(reinterpret_cast<char *>(mData.mData.p) + aCoords.template get<1>() * mData.mPitch) + aCoords. template get<0>());
+	}
+
+	CUGIL_DECL_HYBRID extents_t 
+	size() const
 	{ return mExtents; }
 
 	device_ptr<TType> mData;
@@ -139,7 +159,8 @@ struct const_device_memory_2d
 	~const_device_memory_2d()
 	{ }
 
-	extents_t size() const
+	CUGIL_DECL_HYBRID extents_t 
+	size() const
 	{ return mExtents; }
 
 	const_device_ptr<TType> mData;
@@ -164,6 +185,11 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 		this->mExtents.set<0>(aWidth);
 		this->mExtents.set<0>(aHeight);
 		this->mData = reinterpret_cast<TType*>(devPtr);
+
+		D_PRINT(boost::str(boost::format("GPU allocation: 2D memory - %1% items, %2% bytes pitch, %3% item size") 
+					% this->mExtents
+					% this->mPitch
+					% sizeof(TType)));
 	}
 
 	device_memory_2d_owner(extents_t aExtents)
@@ -172,6 +198,11 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 		CUGIL_CHECK_RESULT(cudaMallocPitch(&devPtr, &(this->mPitch), aExtents.get<0>() * sizeof(TType), aExtents.get<1>()));
 		this->mExtents = aExtents;
 		this->mData = reinterpret_cast<TType*>(devPtr);
+
+		D_PRINT(boost::str(boost::format("GPU allocation: 2D memory - %1% items, %2% bytes pitch, %3% item size") 
+					% this->mExtents
+					% this->mPitch
+					% sizeof(TType)));
 	}
 
 	~device_memory_2d_owner()
