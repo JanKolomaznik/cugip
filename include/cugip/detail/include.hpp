@@ -4,6 +4,8 @@
 #include <iostream>
 #include <iomanip>
 #include <boost/format.hpp>
+#include <cassert>
+
 
 #ifndef DOUT
 	#define DOUT	std::cout

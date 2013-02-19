@@ -18,7 +18,7 @@
 	#define CUGIL_SHARED
 #endif
 
-#define CUGIL_ASSERT(EXPR)
+#define CUGIL_ASSERT(EXPR) assert(EXPR)
 
 #define CUGIL_ASSERT_RESULT(EXPR) CUGIL_ASSERT(cudaSuccess == EXPR)
 

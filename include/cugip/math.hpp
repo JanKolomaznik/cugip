@@ -20,6 +20,22 @@ public:
         //if (tDim >= 3) mValues[2] = v2;
     }
 
+    inline simple_vector(const simple_vector &aArg)
+    {
+	for (size_t i = 0; i < tDim; ++i) {
+		mValues[i] = aArg.mValues[i];
+	}
+    }
+
+    inline simple_vector &
+    operator=(const simple_vector &aArg)
+    {
+	for (size_t i = 0; i < tDim; ++i) {
+		mValues[i] = aArg.mValues[i];
+	}
+	return *this;
+    }
+
     template <size_t tIdx>
     inline TCoordinateType const& get() const
     {

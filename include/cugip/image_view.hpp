@@ -11,12 +11,17 @@ template<typename TElement, size_t tDim = 2>
 class device_image_view
 {
 public:
+	typedef typename dim_traits<tDim>::extents_t extents_t;
+
 	device_image_view(const typename memory_management<TElement, tDim>::device_memory &aData) :
 		mData(aData)
 	{}
 
 	device_image_view() 
 	{ /*empty*/ }
+
+	extents_t size() const
+	{ return mData.size(); }
 protected:
 	typename memory_management<TElement, tDim>::device_memory mData;
 
@@ -26,6 +31,8 @@ template<typename TElement, size_t tDim = 2>
 class const_device_image_view
 {
 public:
+	typedef typename dim_traits<tDim>::extents_t extents_t;
+
 	const_device_image_view(const typename memory_management<TElement, tDim>::const_device_memory &aData) :
 		mData(aData)
 	{}
@@ -36,6 +43,9 @@ public:
 
 	const_device_image_view() 
 	{ /*empty*/ }
+
+	extents_t size() const
+	{ return mData.size(); }
 protected:
 	typename memory_management<TElement, tDim>::const_device_memory mData;
 };

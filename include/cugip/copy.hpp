@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cugip/detail/include.hpp>
+#include <cugip/utils.hpp>
 
 namespace cugip {
 
@@ -18,6 +19,8 @@ namespace detail {
 		copy(TFrom &aFrom, TTo &aTo)
 		{
 			D_PRINT("COPY: device to device");
+
+			CUGIL_ASSERT(false && "Not implemented");
 		}
 	};
 
@@ -30,6 +33,10 @@ namespace detail {
 		copy(TFrom &aFrom, TTo &aTo)
 		{
 			D_PRINT("COPY: host to device");
+			CUGIL_ASSERT(aFrom.width() == aTo.size().template get<0>());
+			CUGIL_ASSERT(aFrom.height() == aTo.size().template get<1>());
+
+			//cudaMemcpy2D
 		}
 	};
 
@@ -42,6 +49,8 @@ namespace detail {
 		copy(TFrom &aFrom, TTo &aTo)
 		{
 			D_PRINT("COPY: host to host");
+
+			CUGIL_ASSERT(false && "Not implemented");
 		}
 	};
 
@@ -54,6 +63,8 @@ namespace detail {
 		copy(TFrom &aFrom, TTo &aTo)
 		{
 			D_PRINT("COPY: device to host");
+			CUGIL_ASSERT(aTo.width() == aFrom.size().template get<0>());
+			CUGIL_ASSERT(aTo.height() == aFrom.size().template get<1>());
 		}
 	};
 

@@ -96,7 +96,7 @@ struct device_memory_2d
 	device_memory_2d(device_ptr<TType> aPtr, size_t aWidth, size_t aHeight, size_t aPitch)
 		:mData(aPtr), mExtents(aWidth, aHeight), mPitch(aPitch)
 	{
-		CUGIL_ASSERT(mPitch >= (mWidth*sizeof(TType)));
+		CUGIL_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
 
 	device_memory_2d(device_ptr<TType> aPtr, extents_t aExtents, size_t aPitch)
@@ -107,6 +107,9 @@ struct device_memory_2d
 
 	~device_memory_2d()
 	{ }
+
+	extents_t size() const
+	{ return mExtents; }
 
 	device_ptr<TType> mData;
 	extents_t mExtents;
@@ -124,7 +127,7 @@ struct const_device_memory_2d
 	const_device_memory_2d(const_device_ptr<TType> aPtr, size_t aWidth, size_t aHeight, size_t aPitch)
 		:mData(aPtr), mExtents(aWidth, aHeight), mPitch(aPitch)
 	{
-		CUGIL_ASSERT(mPitch >= (mWidth*sizeof(TType)));
+		CUGIL_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
 
 	const_device_memory_2d(const_device_ptr<TType> aPtr, extents_t aExtents, size_t aPitch)
@@ -135,6 +138,9 @@ struct const_device_memory_2d
 
 	~const_device_memory_2d()
 	{ }
+
+	extents_t size() const
+	{ return mExtents; }
 
 	const_device_ptr<TType> mData;
 	extents_t mExtents;
