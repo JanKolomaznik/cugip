@@ -20,7 +20,7 @@ namespace detail {
 		{
 			D_PRINT("COPY: device to device");
 
-			CUGIL_ASSERT(false && "Not implemented");
+			CUGIP_ASSERT(false && "Not implemented");
 		}
 	};
 
@@ -32,22 +32,28 @@ namespace detail {
 		static void
 		copy(TFrom &aFrom, TTo &aTo)
 		{
-			D_PRINT("COPY: host to device");
-			CUGIL_ASSERT(aFrom.width() == aTo.size().template get<0>());
-			CUGIL_ASSERT(aFrom.height() == aTo.size().template get<1>());
+
+			CUGIP_ASSERT(aFrom.width() == aTo.dimensions().template get<0>());
+			CUGIP_ASSERT(aFrom.height() == aTo.dimensions().template get<1>());
 
 
-			const char *src = reinterpret_cast<const char*>(&(aFrom.pixels()(0,0)));
-			int diff = reinterpret_cast<const char*>(&(aFrom.pixels()(0,1))) - src;
-			CUGIL_ASSERT(diff >= 0);
+			const unsigned char *src = reinterpret_cast<const unsigned char*>(&(aFrom.pixels()(0,0)));
+			int diff = reinterpret_cast<const unsigned char*>(&(aFrom.pixels()(0,1))) - src;
+			CUGIP_ASSERT(diff >= 0);
 
-			cudaMemcpy2D (aTo.data().mData.p, 
+			D_PRINT(boost::str(boost::format("COPY: host to device, %1$#x => %2$#x")
+				% ((size_t) src)
+				% aTo.data().mData.p		
+				));
+					
+			CUGIP_CHECK_RESULT(cudaMemcpy2D(aTo.data().mData.p, 
 				      aTo.data().mPitch, 
 				      src, 
 				      diff, 
 				      aFrom.width()*sizeof(typename TFrom::value_type), 
 				      aFrom.height(), 
-				      cudaMemcpyHostToDevice);
+				      cudaMemcpyHostToDevice));
+			cudaThreadSynchronize();
 		}
 	};
 
@@ -61,7 +67,7 @@ namespace detail {
 		{
 			D_PRINT("COPY: host to host");
 
-			CUGIL_ASSERT(false && "Not implemented");
+			CUGIP_ASSERT(false && "Not implemented");
 		}
 	};
 
@@ -73,22 +79,24 @@ namespace detail {
 		static void
 		copy(TFrom &aFrom, TTo &aTo)
 		{
-			D_PRINT("COPY: device to host");
-			CUGIL_ASSERT(aTo.width() == aFrom.size().template get<0>());
-			CUGIL_ASSERT(aTo.height() == aFrom.size().template get<1>());
+			CUGIP_ASSERT(aTo.width() == aFrom.dimensions().template get<0>());
+			CUGIP_ASSERT(aTo.height() == aFrom.dimensions().template get<1>());
 
-			char *dst = reinterpret_cast<char*>(&(aTo.pixels()(0,0)));
-			int diff = reinterpret_cast<char*>(&(aTo.pixels()(0,1))) - dst;
-			CUGIL_ASSERT(diff >= 0);
+			unsigned char *dst = reinterpret_cast<unsigned char*>(&(aTo.pixels()(0,0)));
+			int diff = reinterpret_cast<unsigned char*>(&(aTo.pixels()(0,1))) - dst;
+			CUGIP_ASSERT(diff >= 0);
 
-			cudaMemcpy2D (dst, 
+			D_PRINT(boost::str(boost::format("COPY: device to host, %1$#x => %2$#x")
+				% aFrom.data().mData.p
+				% ((size_t) dst)
+				));
+			CUGIP_CHECK_RESULT(cudaMemcpy2D(dst, 
 				      diff,
 				      aFrom.data().mData.p, 
 				      aFrom.data().mPitch,
 				      aTo.width()*sizeof(typename TTo::value_type), 
 				      aTo.height(), 
-				      cudaMemcpyDeviceToHost);
-
+				      cudaMemcpyDeviceToHost));
 		}
 	};
 

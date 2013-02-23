@@ -3,41 +3,42 @@
 #include <cugip/detail/include.hpp>
 #include <cugip/utils.hpp>
 #include <cugip/math.hpp>
+#include <cugip/exception.hpp>
 
 namespace cugip {
 
 template<typename TType>
 struct device_ptr
 {
-	CUGIL_DECL_HYBRID
+	CUGIP_DECL_HYBRID
 	device_ptr(): p(0) 
 	{ /*empty*/ }
 
-	CUGIL_DECL_HYBRID
+	CUGIP_DECL_HYBRID
 	device_ptr(const device_ptr &aArg): p(aArg.p) 
 	{ /*empty*/ }
 
-	CUGIL_DECL_HYBRID
+	CUGIP_DECL_HYBRID
 	device_ptr(TType *aArg): p(aArg) 
 	{ /*empty*/ }
 
-	CUGIL_DECL_HYBRID TType * 
+	CUGIP_DECL_HYBRID TType * 
 	operator->()
 	{ return p; }
 
-	CUGIL_DECL_HYBRID device_ptr &
+	CUGIP_DECL_HYBRID device_ptr &
 	operator=(const device_ptr &aArg)
 	{ p = aArg.p; return *this; }
 
-	CUGIL_DECL_HYBRID device_ptr &
+	CUGIP_DECL_HYBRID device_ptr &
 	operator=(TType *aArg)
 	{ p = aArg; return *this; }
 
-	CUGIL_DECL_HYBRID
+	CUGIP_DECL_HYBRID
 	operator bool() const
 	{ return p != 0; }
 
-	CUGIL_DECL_HYBRID device_ptr
+	CUGIP_DECL_HYBRID device_ptr
 	byte_offset(int aOffset) const
 	{
 		return device_ptr(reinterpret_cast<TType *>((reinterpret_cast<char *>(p) + aOffset)));
@@ -49,39 +50,39 @@ struct device_ptr
 template<typename TType>
 struct const_device_ptr
 {
-	CUGIL_DECL_HYBRID
+	CUGIP_DECL_HYBRID
 	const_device_ptr(): p(0) 
 	{ /*empty*/ }
 
-	CUGIL_DECL_HYBRID
+	CUGIP_DECL_HYBRID
 	const_device_ptr(const device_ptr<TType> &aArg): p(aArg.p) 
 	{ /*empty*/ }
 
-	CUGIL_DECL_HYBRID
+	CUGIP_DECL_HYBRID
 	const_device_ptr(const const_device_ptr<TType> &aArg): p(aArg.p) 
 	{ /*empty*/ }
 
-	CUGIL_DECL_HYBRID const TType * 
+	CUGIP_DECL_HYBRID const TType * 
 	operator->()
 	{ return p; }
 
-	CUGIL_DECL_HYBRID const_device_ptr &
+	CUGIP_DECL_HYBRID const_device_ptr &
 	operator=(const device_ptr<TType> &aArg)
 	{ p = aArg.p; return *this; }
 
-	CUGIL_DECL_HYBRID const_device_ptr &
+	CUGIP_DECL_HYBRID const_device_ptr &
 	operator=(const const_device_ptr &aArg)
 	{ p = aArg.p; return *this; }
 
-	CUGIL_DECL_HYBRID const_device_ptr &
+	CUGIP_DECL_HYBRID const_device_ptr &
 	operator=(TType *aArg)
 	{ p = aArg; return *this; }
 
-	CUGIL_DECL_HYBRID const_device_ptr &
+	CUGIP_DECL_HYBRID const_device_ptr &
 	operator=(const TType *aArg)
 	{ p = aArg; return *this; }
 
-	CUGIL_DECL_HYBRID
+	CUGIP_DECL_HYBRID
 	operator bool() const
 	{ return p != 0; }
 
@@ -108,27 +109,33 @@ struct device_memory_2d
 	device_memory_2d(device_ptr<TType> aPtr, size_t aWidth, size_t aHeight, size_t aPitch)
 		:mData(aPtr), mExtents(aWidth, aHeight), mPitch(aPitch)
 	{
-		CUGIL_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
+		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
 
 	device_memory_2d(device_ptr<TType> aPtr, extents_t aExtents, size_t aPitch)
 		:mData(aPtr), mExtents(aExtents), mPitch(aPitch)
 	{
-		CUGIL_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
+		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
+	}
+
+	device_memory_2d(const device_memory_2d<TType> &aMemory)
+		:mData(aMemory.mData), mExtents(aMemory.mExtents), mPitch(aMemory.mPitch)
+	{
+		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
 
 	~device_memory_2d()
 	{ }
 
-	CUGIL_DECL_HYBRID value_type &
+	inline CUGIP_DECL_HYBRID value_type &
 	operator[](coord_t aCoords)
 	{
-		return *(mData.p);
-		//return *(reinterpret_cast<value_type *>(reinterpret_cast<char *>(mData.mData.p) + aCoords.template get<1>() * mData.mPitch) + aCoords. template get<0>());
+		value_type *row = reinterpret_cast<value_type *>(reinterpret_cast<char *>(mData.p) + aCoords.template get<1>() * mPitch);
+		return row[aCoords.template get<0>()];
 	}
 
-	CUGIL_DECL_HYBRID extents_t 
-	size() const
+	inline CUGIP_DECL_HYBRID extents_t 
+	dimensions() const
 	{ return mExtents; }
 
 	device_ptr<TType> mData;
@@ -140,6 +147,8 @@ template<typename TType>
 struct const_device_memory_2d
 {
 	typedef dim_traits<2>::extents_t extents_t;
+	typedef dim_traits<2>::coord_t coord_t;
+	typedef const TType value_type;
 
 	const_device_memory_2d()
 	{}
@@ -147,20 +156,40 @@ struct const_device_memory_2d
 	const_device_memory_2d(const_device_ptr<TType> aPtr, size_t aWidth, size_t aHeight, size_t aPitch)
 		:mData(aPtr), mExtents(aWidth, aHeight), mPitch(aPitch)
 	{
-		CUGIL_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
+		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
 
 	const_device_memory_2d(const_device_ptr<TType> aPtr, extents_t aExtents, size_t aPitch)
 		:mData(aPtr), mExtents(aExtents), mPitch(aPitch)
 	{
-		CUGIL_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
+		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
+	}
+
+	const_device_memory_2d(const device_memory_2d<TType> &aMemory)
+		:mData(aMemory.mData), mExtents(aMemory.mExtents), mPitch(aMemory.mPitch)
+	{
+		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
+	}
+
+	const_device_memory_2d(const const_device_memory_2d<TType> &aMemory)
+		:mData(aMemory.mData), mExtents(aMemory.mExtents), mPitch(aMemory.mPitch)
+	{
+		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
 
 	~const_device_memory_2d()
 	{ }
 
-	CUGIL_DECL_HYBRID extents_t 
-	size() const
+	inline CUGIP_DECL_HYBRID value_type &
+	operator[](coord_t aCoords)
+	{
+		value_type *row = reinterpret_cast<value_type *>(reinterpret_cast<const char *>(mData.p) + aCoords.template get<1>() * mPitch);
+		return row[aCoords.template get<0>()];
+	}
+
+
+	CUGIP_DECL_HYBRID extents_t 
+	dimensions() const
 	{ return mExtents; }
 
 	const_device_ptr<TType> mData;
@@ -181,7 +210,7 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 	device_memory_2d_owner(size_t aWidth, size_t aHeight)
 	{
 		void *devPtr = NULL;
-		CUGIL_CHECK_RESULT(cudaMallocPitch(&devPtr, &(this->mPitch), aWidth * sizeof(TType), aHeight));
+		CUGIP_CHECK_RESULT(cudaMallocPitch(&devPtr, &(this->mPitch), aWidth * sizeof(TType), aHeight));
 		this->mExtents.set<0>(aWidth);
 		this->mExtents.set<0>(aHeight);
 		this->mData = reinterpret_cast<TType*>(devPtr);
@@ -195,7 +224,7 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 	device_memory_2d_owner(extents_t aExtents)
 	{
 		void *devPtr = NULL;
-		CUGIL_CHECK_RESULT(cudaMallocPitch(&devPtr, &(this->mPitch), aExtents.get<0>() * sizeof(TType), aExtents.get<1>()));
+		CUGIP_CHECK_RESULT(cudaMallocPitch(&devPtr, &(this->mPitch), aExtents.get<0>() * sizeof(TType), aExtents.get<1>()));
 		this->mExtents = aExtents;
 		this->mData = reinterpret_cast<TType*>(devPtr);
 
@@ -208,7 +237,7 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 	~device_memory_2d_owner()
 	{
 		if (this->mData) {
-			CUGIL_ASSERT_RESULT(cudaFree(this->mData.p));
+			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
 		}
 	}
 };
@@ -223,7 +252,7 @@ struct device_memory_3d
 
 	device_memory_3d(size_t aLineWidth, size_t aHeight, size_t aDepth)
 	{
-		//CUGIL_CHECK_RESULT();
+		//CUGIP_CHECK_RESULT();
 	}
 
 	device_ptr<TType> mData;
@@ -239,5 +268,6 @@ struct memory_management<TElement, 2>
 	typedef const_device_memory_2d<TElement> const_device_memory;
 	typedef device_memory_2d_owner<TElement> device_memory_owner;
 };
+
 
 }//namespace cugip

@@ -43,6 +43,10 @@ public:
 	device_image(size_t aS0, size_t aS1 = 1, size_t aS2 = 1)
 		: mData(typename dim_traits<tDim>::extents_t(aS0, aS1, aS2))
 	{}
+
+	CUGIP_DECL_HYBRID extents_t 
+	dimensions() const
+	{ return mData.dimensions(); }
 protected:
 	device_image & operator=(const device_image &);
 	device_image(const device_image &);
