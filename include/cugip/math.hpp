@@ -1,6 +1,7 @@
 #pragma once
 
 //#include <boost/array.hpp>
+ #include <boost/type_traits.hpp>
 
 namespace cugip {
 
@@ -9,10 +10,10 @@ template<typename TCoordinateType, size_t tDim>
 class simple_vector//: public boost::array<TCoordinateType, tDim>
 {
 public:
-    inline CUGIP_DECL_HYBRID simple_vector()
-    {}
+    /*inline CUGIP_DECL_HYBRID simple_vector()
+    {}*/
 
-    inline CUGIP_DECL_HYBRID simple_vector(TCoordinateType const& v0, TCoordinateType const& v1 = 0, TCoordinateType const& v2 = 0)
+    inline CUGIP_DECL_HYBRID simple_vector(TCoordinateType const& v0 = 0, TCoordinateType const& v1 = 0, TCoordinateType const& v2 = 0)
     {
         if (tDim >= 1) mValues[0] = v0;
         if (tDim >= 2) mValues[1] = v1;
@@ -20,15 +21,17 @@ public:
         //if (tDim >= 3) mValues[2] = v2;
     }
 
-    inline CUGIP_DECL_HYBRID simple_vector(const simple_vector &aArg)
+    template<typename TOtherCoordType>
+    CUGIP_DECL_HYBRID simple_vector(const simple_vector<TOtherCoordType, tDim> &aArg)
     {
 	for (size_t i = 0; i < tDim; ++i) {
 		mValues[i] = aArg.mValues[i];
 	}
     }
 
+    template<typename TOtherCoordType>
     inline CUGIP_DECL_HYBRID simple_vector &
-    operator=(const simple_vector &aArg)
+    operator=(const simple_vector<TOtherCoordType, tDim> &aArg)
     {
 	for (size_t i = 0; i < tDim; ++i) {
 		mValues[i] = aArg.mValues[i];
@@ -36,22 +39,24 @@ public:
 	return *this;
     }
 
-    inline CUGIP_DECL_HYBRID simple_vector
-    operator+(simple_vector aArg)
+    template<typename TOtherCoordType>
+    inline CUGIP_DECL_HYBRID simple_vector &
+    operator+=(const simple_vector<TOtherCoordType, tDim> &aArg)
     {
 	for (size_t i = 0; i < tDim; ++i) {
-		aArg.mValues[i] += mValues[i];
+		mValues[i] += aArg.mValues[i];
 	}
-	return aArg;
+	return *this;
     }
 
-    inline CUGIP_DECL_HYBRID simple_vector
-    operator-(simple_vector aArg)
+    template<typename TOtherCoordType>
+    inline CUGIP_DECL_HYBRID simple_vector &
+    operator-=(const simple_vector<TOtherCoordType, tDim> &aArg)
     {
 	for (size_t i = 0; i < tDim; ++i) {
-		aArg.mValues[i] -= mValues[i];
+		mValues[i] -= aArg.mValues[i];
 	}
-	return aArg;
+	return *this;
     }
 
     template <size_t tIdx>
@@ -70,11 +75,46 @@ public:
         mValues[tIdx] = value;
     }
 
-private:
-
     TCoordinateType mValues[tDim];
 };
 
+template<typename TCoordType1, typename TCoordType2, size_t tDim>
+inline CUGIP_DECL_HYBRID simple_vector<typename boost::common_type<TCoordType1, TCoordType2>::type, tDim>
+operator+(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TCoordType2, tDim> &aArg2)
+{
+	simple_vector<typename boost::common_type<TCoordType1, TCoordType2>::type, tDim> res(aArg1);
+	return res += aArg2;
+}
+
+template<typename TCoordType1, typename TCoordType2, size_t tDim>
+inline CUGIP_DECL_HYBRID simple_vector<typename boost::common_type<TCoordType1, TCoordType2>::type, tDim>
+operator-(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TCoordType2, tDim> &aArg2)
+{
+	simple_vector<typename boost::common_type<TCoordType1, TCoordType2>::type, tDim> res(aArg1);
+	return res -= aArg2;
+}
+
+template<typename TCoordType1, typename TCoordType2, size_t tDim>
+inline CUGIP_DECL_HYBRID simple_vector<typename boost::common_type<TCoordType1, TCoordType2>::type, tDim>
+max_coords(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TCoordType2, tDim> &aArg2)
+{
+	simple_vector<typename boost::common_type<TCoordType1, TCoordType2>::type, tDim> res;
+	for (size_t i = 0; i < tDim; ++i) {
+		res.mValues[i] = aArg1.mValues[i] > aArg2.mValues[i] ? aArg1.mValues[i] : aArg2.mValues[i];
+	}
+	return res;
+}
+
+template<typename TCoordType1, typename TCoordType2, size_t tDim>
+inline CUGIP_DECL_HYBRID simple_vector<typename boost::common_type<TCoordType1, TCoordType2>::type, tDim>
+min_coords(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TCoordType2, tDim> &aArg2)
+{
+	simple_vector<typename boost::common_type<TCoordType1, TCoordType2>::type, tDim> res;
+	for (size_t i = 0; i < tDim; ++i) {
+		res.mValues[i] = aArg1.mValues[i] < aArg2.mValues[i] ? aArg1.mValues[i] : aArg2.mValues[i];
+	}
+	return res;
+}
 
 template<typename TType>
 CUGIP_DECL_HOST inline std::ostream &
@@ -97,6 +137,9 @@ struct dim_traits
 		return extents_t(v0, v1/*, v2, v3*/);
 	}
 };
+
+typedef simple_vector<float, 2> intervalf_t;
+typedef simple_vector<double, 2> intervald_t;
 
 
 }//namespace cugip

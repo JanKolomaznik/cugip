@@ -46,7 +46,7 @@ transform(TInView aInView, TOutView aOutView, TFunctor aOperator)
 namespace detail {
 
 template <typename TInView, typename TOutView, typename TFunctor>
-__global__ void 
+CUGIP_GLOBAL void 
 kernel_transform_position(TInView aInView, TOutView aOutView, TFunctor aOperator )
 {
 	typename TOutView::coord_t coord(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y);

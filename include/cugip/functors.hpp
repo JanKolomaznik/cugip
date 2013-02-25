@@ -21,19 +21,25 @@ struct negate
 
 struct mandelbrot_ftor
 {
-	mandelbrot_ftor(dim_traits<2>::extents_t aExtents = dim_traits<2>::extents_t()): extents(aExtents)
+	mandelbrot_ftor(
+			dim_traits<2>::extents_t aExtents = dim_traits<2>::extents_t(), 
+			intervalf_t aXInterval = intervalf_t(-2.5f, 1.0f),
+			intervalf_t aYInterval = intervalf_t(-1.0f, 1.0f)
+			): extents(aExtents), xInterval(aXInterval), yInterval(aYInterval)
 	{}
 
 	CUGIP_DECL_HYBRID element_rgb8_t
 	operator()(const element_rgb8_t &aArg, dim_traits<2>::coord_t aCoordinates)const
 	{
-		float x0 = (float(aCoordinates.get<0>()) / extents.get<0>()) * 3.5f - 2.5f;
-		float y0 = (float(aCoordinates.get<1>()) / extents.get<1>()) * 2.0f - 1.0f;
+		float xSize = xInterval.get<1>() - xInterval.get<0>();
+		float ySize = yInterval.get<1>() - yInterval.get<0>();
+		float x0 = (float(aCoordinates.get<0>()) / extents.get<0>()) * xSize + xInterval.get<0>();
+		float y0 = (float(aCoordinates.get<1>()) / extents.get<1>()) * ySize + yInterval.get<0>();
 		float x = 0.0f;
 		float y = 0.0f;
 
 		size_t iteration = 0;
-		size_t max_iteration = 10000;
+		size_t max_iteration = 1000;
 
 		while ( (x*x + y*y) < 2*2  &&  (iteration < max_iteration) )
 		{
@@ -50,6 +56,8 @@ struct mandelbrot_ftor
 		return tmp;
 	}
 	dim_traits<2>::extents_t extents;
+	intervalf_t xInterval;
+	intervalf_t yInterval;
 };
 
 struct grayscale_ftor
@@ -67,5 +75,21 @@ struct grayscale_ftor
 	}
 	dim_traits<2>::extents_t extents;
 };
+template<typename TInputType, typename TOutputType>
+struct gradient_difference
+{
+
+	template<typename TAccessor>
+	CUGIP_DECL_HYBRID TOutputType
+	operator()(TAccessor aAccessor) const
+	{
+		TOutputType tmp;
+		tmp.data[0] = abs(aAccessor[typename TAccessor::diff_t(-1,0)].data[0] - aAccessor[typename TAccessor::diff_t()].data[0]) + abs(aAccessor[typename TAccessor::diff_t(0,-1)].data[0] - aAccessor[typename TAccessor::diff_t()].data[0]);
+		return tmp;
+	}
+
+};
+
+
 
 }//namespace cugip

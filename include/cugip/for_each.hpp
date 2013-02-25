@@ -8,7 +8,7 @@ namespace cugip {
 namespace detail {
 
 template <typename TView, typename TFunctor>
-__global__ void 
+CUGIP_GLOBAL void 
 kernel_for_each(TView aView, TFunctor aOperator )
 {
 	typename TView::coord_t coord(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y);
@@ -46,7 +46,7 @@ for_each(TView aView, TFunctor aOperator)
 namespace detail {
 
 template <typename TView, typename TFunctor>
-__global__ void 
+CUGIP_GLOBAL void 
 kernel_for_each_position(TView aView, TFunctor aOperator )
 {
 	typename TView::coord_t coord(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y);

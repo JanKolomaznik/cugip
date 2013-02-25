@@ -4,6 +4,7 @@
 #include <boost/mpl/bool.hpp>
 #include <cugip/utils.hpp>
 #include <cugip/memory.hpp>
+#include <cugip/image_accessor.hpp>
 
 namespace cugip {
 
@@ -13,9 +14,12 @@ class device_image_view
 public:
 	typedef typename dim_traits<tDim>::extents_t extents_t;
 	typedef typename dim_traits<tDim>::coord_t coord_t;
+	typedef typename dim_traits<tDim>::diff_t diff_t;
 	typedef typename memory_management<TElement, tDim>::device_memory memory_t;
+	typedef device_image_view<TElement, tDim> this_t;
 	typedef TElement value_type;
 	typedef const TElement const_value_type;
+	typedef value_type & accessed_type;
 
 	device_image_view(const typename memory_management<TElement, tDim>::device_memory &aData) :
 		mData(aData)
@@ -28,12 +32,18 @@ public:
 	dimensions() const
 	{ return mData.dimensions(); }
 
-	CUGIP_DECL_HYBRID value_type &
+	CUGIP_DECL_HYBRID accessed_type
 	operator[](coord_t aCoords)
 	{
 		return mData[aCoords];
 	}
 
+	template<typename TBorderHandling>
+	CUGIP_DECL_HYBRID image_accessor<this_t, TBorderHandling>
+	accessor(coord_t aCoordinates)
+	{
+		return image_accessor<this_t, TBorderHandling>(*this, aCoordinates);
+	}
 
 	CUGIP_DECL_HYBRID const memory_t&
 	data() const
@@ -49,9 +59,12 @@ class const_device_image_view
 public:
 	typedef typename dim_traits<tDim>::extents_t extents_t;
 	typedef typename dim_traits<tDim>::coord_t coord_t;
+	typedef typename dim_traits<tDim>::diff_t diff_t;
 	typedef typename memory_management<TElement, tDim>::const_device_memory memory_t;
+	typedef const_device_image_view<TElement, tDim> this_t;
 	typedef TElement value_type;
 	typedef const TElement const_value_type;
+	typedef const_value_type & accessed_type;
 
 	const_device_image_view(const typename memory_management<TElement, tDim>::const_device_memory &aData) :
 		mData(aData)
@@ -72,6 +85,13 @@ public:
 	operator[](coord_t aCoords)
 	{
 		return mData[aCoords];
+	}
+
+	template<typename TBorderHandling>
+	CUGIP_DECL_HYBRID image_accessor<this_t, TBorderHandling>
+	accessor(coord_t aCoordinates)
+	{
+		return image_accessor<this_t, TBorderHandling>(*this, aCoordinates);
 	}
 
 	CUGIP_DECL_HYBRID const memory_t&
