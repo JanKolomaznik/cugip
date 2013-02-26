@@ -34,8 +34,8 @@ namespace detail {
 				      aTo.data().mPitch,
 				      aFrom.data().mData.p, 
 				      aFrom.data().mPitch,
-				      aTo.dimensions().get template<0>()*sizeof(typename TTo::value_type), 
-				      aTo.dimensions().get template<1>(), 
+				      get<0>(aTo.dimensions())*sizeof(typename TTo::value_type), 
+				      get<1>(aTo.dimensions()), 
 				      cudaMemcpyDeviceToDevice));
 		}
 	};

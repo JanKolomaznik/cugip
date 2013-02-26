@@ -28,9 +28,9 @@ int main() {
     gradient(const_view(gray_out), view(gradient_out));
     jpeg_write_view("gradient_out.jpg",const_view(gradient_out));
 
-    /*rgb8_image_t mandelbrot_out(8000,6000);
+    rgb8_image_t mandelbrot_out(1600,1400);
     mandelbrot( view(mandelbrot_out));
     jpeg_write_view("mandelbrot_out.jpg",const_view(mandelbrot_out));
-*/
+
     return 0;
 }

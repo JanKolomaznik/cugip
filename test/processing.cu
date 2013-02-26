@@ -1,9 +1,9 @@
 
 #include <boost/gil/gil_all.hpp>
 #include <cugip/image.hpp>
+#include <cugip/transform.hpp>
 #include <cugip/copy.hpp>
 #include <cugip/for_each.hpp>
-#include <cugip/transform.hpp>
 #include <cugip/filter.hpp>
 #include <cugip/functors.hpp>
 #include <cugip/exception.hpp>
