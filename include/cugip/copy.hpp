@@ -20,7 +20,23 @@ namespace detail {
 		{
 			D_PRINT("COPY: device to device");
 
-			CUGIP_ASSERT(false && "Not implemented");
+			CUGIP_ASSERT(aTo.dimensions() == aFrom.dimensions());
+
+			unsigned char *dst = reinterpret_cast<unsigned char*>(&(aTo.pixels()(0,0)));
+			int diff = reinterpret_cast<unsigned char*>(&(aTo.pixels()(0,1))) - dst;
+			CUGIP_ASSERT(diff >= 0);
+
+			D_PRINT(boost::str(boost::format("COPY: device to device, %1$#x => %2$#x")
+				% aFrom.data().mData.p
+				% aTo.data().mData.p
+				));
+			CUGIP_CHECK_RESULT(cudaMemcpy2D(aTo.data().mData.p, 
+				      aTo.data().mPitch,
+				      aFrom.data().mData.p, 
+				      aFrom.data().mPitch,
+				      aTo.dimensions().get template<0>()*sizeof(typename TTo::value_type), 
+				      aTo.dimensions().get template<1>(), 
+				      cudaMemcpyDeviceToDevice));
 		}
 	};
 
