@@ -26,6 +26,10 @@ kernel_filter(TInView aInView, TOutView aOutView, TFunctor aOperator )
 }//namespace detail
 
 
+/** \ingroup meta_algorithm
+ * @{
+ **/
+
 template <typename TInView, typename TOutView, typename TFunctor>
 void 
 filter(TInView aInView, TOutView aOutView, TFunctor aOperator)
@@ -42,6 +46,10 @@ filter(TInView aInView, TOutView aOutView, TFunctor aOperator)
 		<<<gridSize, blockSize>>>(aInView, aOutView, aOperator);
 	CUGIP_CHECK_ERROR_STATE("kernel_for_each");
 }
+
+/** 
+ * @}
+ **/
 
 //*************************************************************************************************************
 

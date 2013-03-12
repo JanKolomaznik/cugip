@@ -101,6 +101,9 @@ protected:
 	memory_t mData;
 };
 
+/** \ingroup  traits
+ * @{
+ **/
 template<typename TView>
 struct is_device_view: public boost::mpl::false_
 {
@@ -114,5 +117,29 @@ struct is_device_view<device_image_view<TElement, tDim> > : public boost::mpl::t
 	/*typedef boost::mpl::true_ type;
 	static const bool value = type::value;*/
 };
+
+template<typename TElement, size_t tDim>
+struct is_device_view<const_device_image_view<TElement, tDim> > : public boost::mpl::true_
+{
+	/*typedef boost::mpl::true_ type;
+	static const bool value = type::value;*/
+};
+
+
+template<typename TElement, size_t tDim>
+struct dimension<device_image_view<TElement, tDim> >
+{
+	static const size_t value = tDim;
+};
+
+template<typename TElement, size_t tDim>
+struct dimension<const_device_image_view<TElement, tDim> >
+{
+	static const size_t value = tDim;
+};
+
+/** 
+ * @}
+ **/
 
 }//namespace cugip

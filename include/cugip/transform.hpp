@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cugip/detail/include.hpp>
+#include <cugip/meta_algorithm.hpp>
 #include <cugip/exception.hpp>
 
 namespace cugip {
@@ -35,6 +36,9 @@ kernel_transform2(TInView1 aInView1, TInView2 aInView2, TOutView aOutView, TFunc
 
 }//namespace detail
 
+/** \ingroup meta_algorithm
+ * @{
+ **/
 
 template <typename TInView, typename TOutView, typename TFunctor>
 void 
@@ -54,6 +58,10 @@ transform(TInView aInView, TOutView aOutView, TFunctor aOperator)
 		<<<gridSize, blockSize>>>(aInView, aOutView, aOperator);
 	CUGIP_CHECK_ERROR_STATE("kernel_transform");
 }
+
+/** 
+ * @}
+ **/
 
 template <typename TInView1, typename TInView2, typename TOutView, typename TFunctor>
 void 
@@ -95,6 +103,9 @@ kernel_transform_position(TInView aInView, TOutView aOutView, TFunctor aOperator
 
 }//namespace detail
 
+/** \ingroup meta_algorithm
+ * @{
+ **/
 
 template <typename TInView, typename TOutView, typename TFunctor>
 void 
@@ -114,6 +125,10 @@ transform_position(TInView aInView, TOutView aOutView, TFunctor aOperator)
 		<<<gridSize, blockSize>>>(aInView, aOutView, aOperator);
 	CUGIP_CHECK_ERROR_STATE("kernel_transform_position");
 }
+
+/** 
+ * @}
+ **/
 
 }//namespace cugip
 

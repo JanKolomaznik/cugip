@@ -1,8 +1,63 @@
 #pragma once
+#include <cugip/math.hpp>
 
 namespace cugip {
 
+template <typename TType, size_t tDim>
+struct convolution_mask
+{
+	typename dim_traits<tDim>::coord_t mFrom;
+	typename dim_traits<tDim>::coord_t mTo;
+	
+};
+
+/** \ingroup  traits
+ * @{
+ **/
+template <typename TType, size_t tDim>
+struct dimension<convolution_mask<TType, tDim> >
+{
+	static const size_t value = tDim;
+};
+/** 
+ * @}
+ **/
+
+
+/** \ingroup auxiliary_function
+ * @{
+ **/
+
+template<typename TConvolutionMask, size_t tDim>
+CUGIP_FORCE_INLINE int
+from(const TConvolutionMask& aMask) 
+{
+	return get<tDim>(aMask.mFrom);
+}
+
+template<typename TConvolutionMask, size_t tDim>
+CUGIP_FORCE_INLINE int
+to(const TConvolutionMask& aMask) 
+{
+	return get<tDim>(aMask.mTo);
+}
+
+/** 
+ * @}
+ **/
+
+	
 namespace detail {
+
+CUGIP_DECL_HYBRID
+
+apply_convolution(const TConvolutionMask &aMask, TAccessor &aAccessor) {
+	TOutputType tmp = 0;
+	for (int i = from<0>(aMask); i < to<0>(aMask); ++i) {
+		
+	}
+
+}
 
 template<typename TInputType, typename TOutputType, typename TConvolutionMask>
 struct convolution_operator
@@ -23,6 +78,7 @@ struct convolution_operator
 };
 
 }//namespace detail
+
 
 template <typename TInView, typename TOutView, typename TConvolutionMask>
 void 

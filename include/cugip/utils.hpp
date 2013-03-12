@@ -23,6 +23,8 @@
 
 #define CUGIP_ASSERT_RESULT(EXPR) CUGIP_ASSERT(cudaSuccess == EXPR)
 
+#define CUGIP_FORCE_INLINE inline
+
 
 
 namespace cugip {
@@ -61,5 +63,10 @@ operator<<( std::ostream &stream, const dim3 &v )
 {
 	return stream << "[ " << v.x << ", " << v.y << ", " << v.z << " ]";
 }
+
+/** \defgroup auxiliary_function
+ * 
+ **/
+
 
 }//namespace cugip

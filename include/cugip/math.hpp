@@ -2,6 +2,7 @@
 
 //#include <boost/array.hpp>
  #include <boost/type_traits.hpp>
+ #include <cugip/traits.hpp>
 
 namespace cugip {
 
@@ -143,13 +144,23 @@ get(const TType &aArg)
 }
 
 
+typedef simple_vector<float, 2> intervalf_t;
+typedef simple_vector<double, 2> intervald_t;
+
+/** \ingroup traits
+ * @{
+ **/
+
 template<size_t tDim>
 struct dim_traits
 {
+	///Signed integral vector - used as a offset vector
 	typedef simple_vector<int, tDim> diff_t;
 
+	///Unsigned integral vector - used for defining sizes
 	typedef simple_vector<size_t, tDim> extents_t;
 
+	///Signed integral coordinate vector
 	typedef simple_vector<int, tDim> coord_t;
 
 	extents_t create_extents_t(size_t v0 = 0, size_t v1 = 0, size_t v2 = 0, size_t v3 = 0)
@@ -158,8 +169,16 @@ struct dim_traits
 	}
 };
 
-typedef simple_vector<float, 2> intervalf_t;
-typedef simple_vector<double, 2> intervald_t;
+
+template<typename TCoordinateType, size_t tDim>
+struct dimension<simple_vector<TCoordinateType, tDim> >
+{
+	static const size_t value = tDim;
+};
+
+/** 
+ * @}
+ **/
 
 
 }//namespace cugip

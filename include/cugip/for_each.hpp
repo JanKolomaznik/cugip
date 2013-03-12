@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cugip/detail/include.hpp>
+#include <cugip/meta_algorithm.hpp>
 #include <cugip/exception.hpp>
 
 namespace cugip {
@@ -23,6 +24,9 @@ kernel_for_each(TView aView, TFunctor aOperator )
 
 }//namespace detail
 
+/** \ingroup meta_algorithm
+ * @{
+ **/
 
 template <typename TView, typename TFunctor>
 void 
@@ -40,6 +44,11 @@ for_each(TView aView, TFunctor aOperator)
 		<<<gridSize, blockSize>>>(aView, aOperator);
 	CUGIP_CHECK_ERROR_STATE("kernel_for_each");
 }
+
+/** 
+ * @}
+ **/
+
 
 //*************************************************************************************************************
 
@@ -59,6 +68,9 @@ kernel_for_each_position(TView aView, TFunctor aOperator )
 
 }
 
+/** \ingroup meta_algorithm
+ * @{
+ **/
 template <typename TView, typename TFunctor>
 void 
 for_each_position(TView aView, TFunctor aOperator)
@@ -75,6 +87,11 @@ for_each_position(TView aView, TFunctor aOperator)
 		<<<gridSize, blockSize>>>(aView, aOperator);
 	CUGIP_CHECK_ERROR_STATE("kernel_for_each");
 }
+
+/** 
+ * @}
+ **/
+
 
 }//namespace cugip
 
