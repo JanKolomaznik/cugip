@@ -127,16 +127,10 @@ struct is_device_view<const_device_image_view<TElement, tDim> > : public boost::
 
 
 template<typename TElement, size_t tDim>
-struct dimension<device_image_view<TElement, tDim> >
-{
-	static const size_t value = tDim;
-};
+struct dimension<device_image_view<TElement, tDim> >: dimension_helper<tDim> {};
 
 template<typename TElement, size_t tDim>
-struct dimension<const_device_image_view<TElement, tDim> >
-{
-	static const size_t value = tDim;
-};
+struct dimension<const_device_image_view<TElement, tDim> >: dimension_helper<tDim> {};
 
 /** 
  * @}

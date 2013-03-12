@@ -3,7 +3,7 @@
 
 #include <cugip/detail/include.hpp>
 #include <cugip/exception.hpp>
-#include <cugip/image_accessor.hpp>
+#include <cugip/image_locator.hpp>
 
 namespace cugip {
 
@@ -17,7 +17,7 @@ kernel_filter(TInView aInView, TOutView aOutView, TFunctor aOperator )
 	typename TOutView::extents_t extents = aOutView.dimensions();
 
 	if (coord.template get<0>() < extents.template get<0>() && coord.template get<1>() < extents.template get<1>()) {
-		aOutView[coord] = aOperator(aInView.template accessor<cugip::border_handling_repeat_t>(coord));
+		aOutView[coord] = aOperator(aInView.template locator<cugip::border_handling_repeat_t>(coord));
 	} 
 }
 

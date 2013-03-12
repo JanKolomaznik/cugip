@@ -37,7 +37,7 @@ struct border_handling_periodic_t
 
 
 template<typename TImageView, typename TBorderHandling = border_handling_none_t>
-class image_accessor
+class image_locator
 {
 public:
 	typedef typename TImageView::extents_t extents_t;
@@ -49,7 +49,7 @@ public:
 	typedef typename TImageView::accessed_type accessed_type;
 
 	CUGIP_DECL_HYBRID
-	image_accessor(TImageView &aView, coord_t aCoords): mView(aView), mCoords(aCoords)
+	image_locator(TImageView &aView, coord_t aCoords): mView(aView), mCoords(aCoords)
 	{}
 
 	CUGIP_DECL_HYBRID accessed_type

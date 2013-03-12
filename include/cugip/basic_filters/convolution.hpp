@@ -42,6 +42,27 @@ to(const TConvolutionMask& aMask)
 	return get<tDim>(aMask.mTo);
 }
 
+template <typename TType>
+CUGIP_FORCE_INLINE const TType &
+get(const convolution_mask<TType, 1>& aMask, int i) 
+{
+	//return ;
+}
+
+template <typename TType>
+CUGIP_FORCE_INLINE const TType &
+get(const convolution_mask<TType, 2>& aMask, int i, int j) 
+{
+	//return ;
+}
+
+template <typename TType>
+CUGIP_FORCE_INLINE const TType &
+get(const convolution_mask<TType, 3>& aMask, int i, int j, int k) 
+{
+	//return ;
+}
+
 /** 
  * @}
  **/
@@ -49,14 +70,43 @@ to(const TConvolutionMask& aMask)
 	
 namespace detail {
 
-CUGIP_DECL_HYBRID
-
-apply_convolution(const TConvolutionMask &aMask, TAccessor &aAccessor) {
+template<typename TOutputType>
+CUGIP_DECL_HYBRID TOutputType
+apply_convolution(const TConvolutionMask &aMask, TLocator &aLocator, dimension_1d_tag) 
+{
 	TOutputType tmp = 0;
 	for (int i = from<0>(aMask); i < to<0>(aMask); ++i) {
 		
 	}
+	return tmp;
+}
 
+template<typename TOutputType>
+CUGIP_DECL_HYBRID TOutputType
+apply_convolution(const TConvolutionMask &aMask, TLocator &aLocator, dimension_2d_tag) 
+{
+	TOutputType tmp = 0;
+	for (int j = from<1>(aMask); j < to<1>(aMask); ++j) {
+		for (int i = from<0>(aMask); i < to<0>(aMask); ++i) {
+			tmp += get(aMask, i, j) * aLocator[i,j];
+		}
+	}
+	return tmp;
+}
+
+template<typename TOutputType>
+CUGIP_DECL_HYBRID TOutputType
+apply_convolution(const TConvolutionMask &aMask, TLocator &aLocator, dimension_3d_tag) 
+{
+	TOutputType tmp = 0;
+	for (int k = from<2>(aMask); k < to<2>(aMask); ++k) {
+		for (int j = from<1>(aMask); j < to<1>(aMask); ++j) {
+			for (int i = from<0>(aMask); i < to<0>(aMask); ++i) {
+				tmp += get(aMask, i, j, k) * aLocator[i,j];
+			}
+		}
+	}
+	return tmp;
 }
 
 template<typename TInputType, typename TOutputType, typename TConvolutionMask>
@@ -65,13 +115,14 @@ struct convolution_operator
 	convolution_operator(const TConvolutionMask&aMask): mask(aMask)
 	{}
 
-	template<typename TAccessor>
+	template<typename TLocator>
 	CUGIP_DECL_HYBRID TOutputType
-	operator()(TAccessor aAccessor) const
+	operator()(TLocator aLocator) const
 	{
-		TOutputType tmp = 0;
-		//tmp.data[0] = abs(aAccessor[typename TAccessor::diff_t(-1,0)].data[0] - aAccessor[typename TAccessor::diff_t()].data[0]) + abs(aAccessor[typename TAccessor::diff_t(0,-1)].data[0] - aAccessor[typename TAccessor::diff_t()].data[0]);
-		return tmp;
+		//TOutputType tmp = 0;
+		//tmp.data[0] = abs(aLocator[typename TLocator::diff_t(-1,0)].data[0] - aLocator[typename TLocator::diff_t()].data[0]) + abs(aLocator[typename TLocator::diff_t(0,-1)].data[0] - aLocator[typename TLocator::diff_t()].data[0]);
+		//return tmp;
+		return apply_convolution(mask, aLocator, typename dimension<TConvolutionMask>::type());
 	}
 
 	TConvolutionMask mask;

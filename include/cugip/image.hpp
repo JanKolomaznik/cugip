@@ -71,6 +71,14 @@ const_view(TImage &aImage)
 	return typename TImage::const_view_t(aImage.mData);
 }
 
+/** \ingroup  traits
+ * @{
+ **/
+template<typename TElement, size_t tDim>
+struct dimension<device_image<TElement, tDim> >: dimension_helper<tDim> {};
 
+/** 
+ * @}
+ **/
 
 }//namespace cugip

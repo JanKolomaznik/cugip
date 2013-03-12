@@ -171,10 +171,7 @@ struct dim_traits
 
 
 template<typename TCoordinateType, size_t tDim>
-struct dimension<simple_vector<TCoordinateType, tDim> >
-{
-	static const size_t value = tDim;
-};
+struct dimension<simple_vector<TCoordinateType, tDim> >: dimension_helper<tDim> {};
 
 /** 
  * @}
