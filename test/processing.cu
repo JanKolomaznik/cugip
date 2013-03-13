@@ -7,6 +7,10 @@
 #include <cugip/filter.hpp>
 #include <cugip/functors.hpp>
 #include <cugip/exception.hpp>
+#include <cugip/basic_filters/convolution.hpp>
+
+
+#include <boost/timer/timer.hpp>
 
 void
 negative(boost::gil::rgb8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::view_t aOut)
@@ -44,16 +48,21 @@ grayscale(boost::gil::rgb8_image_t::const_view_t aIn, boost::gil::gray8_image_t:
 void
 mandelbrot(boost::gil::rgb8_image_t::view_t aOut)
 {
+	boost::timer::auto_cpu_timer t;
 	D_PRINT(cugip::cudaMemoryInfoText());
 	cugip::device_image<cugip::element_rgb8_t> outImage(aOut.width(), aOut.height());
 	D_PRINT(cugip::cudaMemoryInfoText());
 
+	{
+		boost::timer::auto_cpu_timer t2;
 	cugip::for_each_position(cugip::view(outImage), 
 			cugip::mandelbrot_ftor(outImage.dimensions(), 
 			cugip::intervalf_t(-0.95f, -0.85f), 
 			cugip::intervalf_t(-0.3f, -0.25f)));
-
+		cudaThreadSynchronize();
+	}
 	cugip::copy(cugip::view(outImage), aOut);
+
 
 	CUGIP_CHECK_ERROR_STATE("CHECK");
 }
@@ -70,6 +79,23 @@ gradient(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_image_t:
 
 //	cugip::filter(cugip::const_view(inImage), cugip::view(outImage), cugip::gradient_sobel<cugip::element_gray8_t, cugip::element_gray8_t>());
 	cugip::filter(cugip::const_view(inImage), cugip::view(outImage), cugip::gradient_difference<cugip::element_gray8_t, cugip::element_gray8_t>());
+
+	cugip::copy(cugip::view(outImage), aOut);
+
+	CUGIP_CHECK_ERROR_STATE("CHECK");
+}
+
+void
+laplacian(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_image_t::view_t aOut)
+{
+	D_PRINT(cugip::cudaMemoryInfoText());
+	cugip::device_image<cugip::element_gray8_t> inImage(aIn.width(), aIn.height());
+	cugip::device_image<cugip::element_gray8_t> outImage(aOut.width(), aOut.height());
+	D_PRINT(cugip::cudaMemoryInfoText());
+
+	cugip::copy(aIn, cugip::view(inImage));
+
+	cugip::convolution(cugip::const_view(inImage), cugip::view(outImage), cugip::laplacian_kernel());
 
 	cugip::copy(cugip::view(outImage), aOut);
 

@@ -12,6 +12,9 @@ mandelbrot(boost::gil::rgb8_image_t::view_t aOut);
 void
 gradient(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_image_t::view_t aOut);
 
+void
+laplacian(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_image_t::view_t aOut)
+
 int main() {
     rgb8_image_t img;
     jpeg_read_image("test.jpg",img);
@@ -28,7 +31,11 @@ int main() {
     gradient(const_view(gray_out), view(gradient_out));
     jpeg_write_view("gradient_out.jpg",const_view(gradient_out));
 
-    rgb8_image_t mandelbrot_out(1600,1400);
+    gray8_image_t laplacian_out(img.dimensions());
+    laplacian(const_view(gray_out), view(gradient_out));
+    jpeg_write_view("laplacian_out.jpg",const_view(laplacian_out));
+
+    rgb8_image_t mandelbrot_out(1600,800);
     mandelbrot( view(mandelbrot_out));
     jpeg_write_view("mandelbrot_out.jpg",const_view(mandelbrot_out));
 

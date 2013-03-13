@@ -1,24 +1,26 @@
 #pragma once
 #include <cugip/math.hpp>
+#include <cugip/traits.hpp>
 
 namespace cugip {
 
-template <typename TType, size_t tDim>
-struct convolution_mask
+template <typename TType, typename TSizeTraits>
+struct convolution_kernel
 {
-	typename dim_traits<tDim>::coord_t mFrom;
-	typename dim_traits<tDim>::coord_t mTo;
-	
+	typename dim_traits<TSizeTraits::dimension>::diff_t mOffset;
+
+	TType data[TSizeTraits::size];
 };
 
 /** \ingroup  traits
  * @{
  **/
-template <typename TType, size_t tDim>
-struct dimension<convolution_mask<TType, tDim> >
-{
-	static const size_t value = tDim;
-};
+template <typename TType, typename TSizeTraits>
+struct dimension<convolution_kernel<TType, TSizeTraits> >
+	: dimension_helper<TSizeTraits::size>
+{ };
+
+
 /** 
  * @}
  **/
@@ -39,26 +41,26 @@ template<typename TConvolutionMask, size_t tDim>
 CUGIP_FORCE_INLINE int
 to(const TConvolutionMask& aMask) 
 {
-	return get<tDim>(aMask.mTo);
+	//return get<tDim>(aMask.mTo);
 }
 
-template <typename TType>
+template <typename TType, typename TSizeTraits>
 CUGIP_FORCE_INLINE const TType &
-get(const convolution_mask<TType, 1>& aMask, int i) 
+get(const convolution_kernel<TType, TSizeTraits>& aMask, int i) 
 {
 	//return ;
 }
 
-template <typename TType>
+template <typename TType, typename TSizeTraits>
 CUGIP_FORCE_INLINE const TType &
-get(const convolution_mask<TType, 2>& aMask, int i, int j) 
+get(const convolution_kernel<TType, TSizeTraits>& aMask, int i, int j) 
 {
 	//return ;
 }
 
-template <typename TType>
+template <typename TType, typename TSizeTraits>
 CUGIP_FORCE_INLINE const TType &
-get(const convolution_mask<TType, 3>& aMask, int i, int j, int k) 
+get(const convolution_kernel<TType, TSizeTraits>& aMask, int i, int j, int k) 
 {
 	//return ;
 }
@@ -70,7 +72,7 @@ get(const convolution_mask<TType, 3>& aMask, int i, int j, int k)
 	
 namespace detail {
 
-template<typename TOutputType>
+template<typename TOutputType, typename TConvolutionMask, typename TLocator>
 CUGIP_DECL_HYBRID TOutputType
 apply_convolution(const TConvolutionMask &aMask, TLocator &aLocator, dimension_1d_tag) 
 {
@@ -81,7 +83,7 @@ apply_convolution(const TConvolutionMask &aMask, TLocator &aLocator, dimension_1
 	return tmp;
 }
 
-template<typename TOutputType>
+template<typename TOutputType, typename TConvolutionMask, typename TLocator>
 CUGIP_DECL_HYBRID TOutputType
 apply_convolution(const TConvolutionMask &aMask, TLocator &aLocator, dimension_2d_tag) 
 {
@@ -94,7 +96,7 @@ apply_convolution(const TConvolutionMask &aMask, TLocator &aLocator, dimension_2
 	return tmp;
 }
 
-template<typename TOutputType>
+template<typename TOutputType, typename TConvolutionMask, typename TLocator>
 CUGIP_DECL_HYBRID TOutputType
 apply_convolution(const TConvolutionMask &aMask, TLocator &aLocator, dimension_3d_tag) 
 {
@@ -140,6 +142,14 @@ convolution(TInView aInView, TOutView aOutView, TConvolutionMask aConvolutionMas
 			aOutView, 
 			detail::convolution_operator<typename TInView::value_type, typename TOutView::value_type, TConvolutionMask>(aConvolutionMask)
 			);
+}
+
+CUGIP_FORCE_INLINE convolution_kernel<int, size_traits_2d<3,3> >
+laplacian_kernel()
+{
+	convolution_kernel<int, size_traits_2d<3,3> > tmp;
+
+	return tmp;
 }
 
 }//namespace cugip

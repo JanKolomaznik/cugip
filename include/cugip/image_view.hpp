@@ -4,7 +4,7 @@
 #include <boost/mpl/bool.hpp>
 #include <cugip/utils.hpp>
 #include <cugip/memory.hpp>
-#include <cugip/image_accessor.hpp>
+#include <cugip/image_locator.hpp>
 
 namespace cugip {
 
@@ -39,10 +39,10 @@ public:
 	}
 
 	template<typename TBorderHandling>
-	CUGIP_DECL_HYBRID image_accessor<this_t, TBorderHandling>
-	accessor(coord_t aCoordinates)
+	CUGIP_DECL_HYBRID image_locator<this_t, TBorderHandling>
+	locator(coord_t aCoordinates)
 	{
-		return image_accessor<this_t, TBorderHandling>(*this, aCoordinates);
+		return image_locator<this_t, TBorderHandling>(*this, aCoordinates);
 	}
 
 	CUGIP_DECL_HYBRID const memory_t&
@@ -88,10 +88,10 @@ public:
 	}
 
 	template<typename TBorderHandling>
-	CUGIP_DECL_HYBRID image_accessor<this_t, TBorderHandling>
-	accessor(coord_t aCoordinates)
+	CUGIP_DECL_HYBRID image_locator<this_t, TBorderHandling>
+	locator(coord_t aCoordinates)
 	{
-		return image_accessor<this_t, TBorderHandling>(*this, aCoordinates);
+		return image_locator<this_t, TBorderHandling>(*this, aCoordinates);
 	}
 
 	CUGIP_DECL_HYBRID const memory_t&
