@@ -27,8 +27,8 @@ namespace detail {
 			CUGIP_ASSERT(diff >= 0);
 
 			D_PRINT(boost::str(boost::format("COPY: device to device, %1$#x => %2$#x")
-				% aFrom.data().mData.p
-				% aTo.data().mData.p
+				% ((size_t)aFrom.data().mData.p)
+				% ((size_t)aTo.data().mData.p)
 				));
 			CUGIP_CHECK_RESULT(cudaMemcpy2D(aTo.data().mData.p, 
 				      aTo.data().mPitch,
@@ -59,7 +59,7 @@ namespace detail {
 
 			D_PRINT(boost::str(boost::format("COPY: host to device, %1$#x => %2$#x")
 				% ((size_t) src)
-				% aTo.data().mData.p		
+				% ((size_t)aTo.data().mData.p)		
 				));
 					
 			CUGIP_CHECK_RESULT(cudaMemcpy2D(aTo.data().mData.p, 
@@ -103,7 +103,7 @@ namespace detail {
 			CUGIP_ASSERT(diff >= 0);
 
 			D_PRINT(boost::str(boost::format("COPY: device to host, %1$#x => %2$#x")
-				% aFrom.data().mData.p
+				% ((size_t)aFrom.data().mData.p)
 				% ((size_t) dst)
 				));
 			CUGIP_CHECK_RESULT(cudaMemcpy2D(dst, 

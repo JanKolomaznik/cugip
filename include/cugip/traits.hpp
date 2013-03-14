@@ -74,7 +74,17 @@ struct size_traits_3d
 	static const size_t depth = tDepth;
 };
 
+template <size_t tWidth>
+struct dimension<size_traits_1d<tWidth> >: dimension_helper<1>
+{};
 
+template <size_t tWidth, size_t tHeight>
+struct dimension<size_traits_2d<tWidth, tHeight> >: dimension_helper<2>
+{};
+
+template <size_t tWidth, size_t tHeight, size_t tDepth>
+struct dimension<size_traits_3d<tWidth, tHeight, tDepth> >: dimension_helper<3>
+{};
 /** 
  * @}
  **/

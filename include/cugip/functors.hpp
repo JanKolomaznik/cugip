@@ -69,9 +69,7 @@ struct grayscale_ftor
 		tmp += aArg.data[0];
 		tmp += aArg.data[1]*2;
 		tmp += aArg.data[2];
-		element_gray8_t res;
-		res.data[0] = tmp / 4;
-		return res;
+		return tmp / 4;
 	}
 	dim_traits<2>::extents_t extents;
 };
@@ -83,9 +81,8 @@ struct gradient_difference
 	CUGIP_DECL_HYBRID TOutputType
 	operator()(TAccessor aAccessor) const
 	{
-		TOutputType tmp;
-		tmp.data[0] = abs(aAccessor[typename TAccessor::diff_t(-1,0)].data[0] - aAccessor[typename TAccessor::diff_t()].data[0]) + abs(aAccessor[typename TAccessor::diff_t(0,-1)].data[0] - aAccessor[typename TAccessor::diff_t()].data[0]);
-		return tmp;
+		return abs(aAccessor[typename TAccessor::diff_t(-1,0)] - aAccessor[typename TAccessor::diff_t()]) 
+		     + abs(aAccessor[typename TAccessor::diff_t(0,-1)] - aAccessor[typename TAccessor::diff_t()]);
 	}
 
 };

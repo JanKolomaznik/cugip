@@ -95,7 +95,7 @@ laplacian(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_image_t
 
 	cugip::copy(aIn, cugip::view(inImage));
 
-	cugip::convolution(cugip::const_view(inImage), cugip::view(outImage), cugip::laplacian_kernel());
+	cugip::convolution(cugip::const_view(inImage), cugip::view(outImage), cugip::laplacian_kernel(), 128);
 
 	cugip::copy(cugip::view(outImage), aOut);
 

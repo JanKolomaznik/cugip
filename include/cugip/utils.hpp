@@ -53,7 +53,9 @@ struct element
 };
 
 typedef element<unsigned char, 3> element_rgb8_t;
-typedef element<unsigned char, 1> element_gray8_t;
+//typedef element<unsigned char, 1> element_gray8_t;
+typedef unsigned char element_gray8_t;
+typedef char element_gray8s_t;
 
 
 //*****************************************************************
