@@ -10,7 +10,7 @@ grayscale(boost::gil::rgb8_image_t::const_view_t aIn, boost::gil::gray8_image_t:
 void
 mandelbrot(boost::gil::rgb8_image_t::view_t aOut);
 void
-gradient(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_image_t::view_t aOut);
+gradient(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::view_t aOut);
 
 void
 laplacian(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_image_t::view_t aOut);
@@ -27,7 +27,7 @@ int main() {
     grayscale(const_view(img), view(gray_out));
     jpeg_write_view("gray_out.jpg",const_view(gray_out));
 
-    gray8_image_t gradient_out(img.dimensions());
+    rgb8_image_t gradient_out(img.dimensions());
     gradient(const_view(gray_out), view(gradient_out));
     jpeg_write_view("gradient_out.jpg",const_view(gradient_out));
 

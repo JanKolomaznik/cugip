@@ -50,7 +50,40 @@ template<typename TType, int tChannelCount>
 struct element
 {
 	TType data[tChannelCount];
+
+	CUGIP_DECL_HYBRID element &
+	operator=(const element &aArg)
+	{ 
+		for (size_t i = 0; i < tChannelCount; ++i) {
+			data[i] = aArg.data[i];
+		}
+		return *this;
+	}
+
+	CUGIP_DECL_HYBRID element &
+	operator=(const TType &aArg)
+	{ 
+		for (size_t i = 0; i < tChannelCount; ++i) {
+			data[i] = aArg;
+		}
+		return *this;
+	}
 };
+
+template<size_t tIdx, typename TType, int tChannelCount>
+CUGIP_DECL_HYBRID const TType &
+get(const element<TType, tChannelCount> &aArg)
+{
+	return aArg.data[tIdx];
+}
+
+template<size_t tIdx, typename TType, int tChannelCount>
+CUGIP_DECL_HYBRID TType &
+get(element<TType, tChannelCount> &aArg)
+{
+	return aArg.data[tIdx];
+}
+
 
 typedef element<unsigned char, 3> element_rgb8_t;
 //typedef element<unsigned char, 1> element_gray8_t;

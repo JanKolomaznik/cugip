@@ -8,6 +8,7 @@
 #include <cugip/functors.hpp>
 #include <cugip/exception.hpp>
 #include <cugip/basic_filters/convolution.hpp>
+#include <cugip/basic_filters/gradient.hpp>
 
 
 #include <boost/timer/timer.hpp>
@@ -68,17 +69,18 @@ mandelbrot(boost::gil::rgb8_image_t::view_t aOut)
 }
 
 void
-gradient(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_image_t::view_t aOut)
+gradient(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::view_t aOut)
 {
 	D_PRINT(cugip::cudaMemoryInfoText());
 	cugip::device_image<cugip::element_gray8_t> inImage(aIn.width(), aIn.height());
-	cugip::device_image<cugip::element_gray8_t> outImage(aOut.width(), aOut.height());
+	cugip::device_image<cugip::element_rgb8_t> outImage(aOut.width(), aOut.height());
 	D_PRINT(cugip::cudaMemoryInfoText());
 
 	cugip::copy(aIn, cugip::view(inImage));
 
 //	cugip::filter(cugip::const_view(inImage), cugip::view(outImage), cugip::gradient_sobel<cugip::element_gray8_t, cugip::element_gray8_t>());
-	cugip::filter(cugip::const_view(inImage), cugip::view(outImage), cugip::gradient_difference<cugip::element_gray8_t, cugip::element_gray8_t>());
+//	cugip::filter(cugip::const_view(inImage), cugip::view(outImage), cugip::gradient_difference<cugip::element_gray8_t, cugip::element_gray8_t>());
+	cugip::filter(cugip::const_view(inImage), cugip::view(outImage), cugip::gradient_symmentric_difference<cugip::element_gray8_t, cugip::element_rgb8_t>());
 
 	cugip::copy(cugip::view(outImage), aOut);
 

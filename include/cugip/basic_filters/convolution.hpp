@@ -1,6 +1,7 @@
 #pragma once
 #include <cugip/math.hpp>
 #include <cugip/traits.hpp>
+#include <cugip/filter.hpp>
 
 namespace cugip {
 

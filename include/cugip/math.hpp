@@ -12,6 +12,7 @@ class simple_vector//: public boost::array<TCoordinateType, tDim>
 {
 public:
 	typedef TCoordinateType coord_t;
+	static const size_t dim = tDim;
     /*inline CUGIP_DECL_HYBRID simple_vector()
     {}*/
 
@@ -64,6 +65,14 @@ public:
 	template <size_t tIdx>
 	inline CUGIP_DECL_HYBRID TCoordinateType const& 
 	get() const
+	{
+		//BOOST_STATIC_ASSERT(tIdx < DimensionCount);
+		return mValues[tIdx];
+	}
+
+	template <size_t tIdx>
+	inline CUGIP_DECL_HYBRID TCoordinateType & 
+	get()
 	{
 		//BOOST_STATIC_ASSERT(tIdx < DimensionCount);
 		return mValues[tIdx];
@@ -136,13 +145,28 @@ operator<<( std::ostream &stream, const simple_vector<TType,2> &v )
 	return stream << "[ " << v. template get<0>() << ", " << v. template get<1>() << " ]";
 }
 
-template<typename TType, size_t tIdx>
-CUGIP_DECL_HYBRID const typename TType::coord_t &
-get(const TType &aArg)
+/** \ingroup auxiliary_function
+ * @{
+ **/
+template<size_t tIdx, typename TCoordinateType, int tDim>
+CUGIP_DECL_HYBRID const TCoordinateType &
+get(const simple_vector<TCoordinateType, tDim> &aArg)
 {
 	return aArg.get<tIdx>();
 }
 
+
+template<size_t tIdx, typename TCoordinateType, int tDim>
+CUGIP_DECL_HYBRID TCoordinateType &
+get(simple_vector<TCoordinateType, tDim> &aArg)
+{
+	return aArg.get<tIdx>();
+}
+
+
+/** 
+ * @}
+ **/
 
 typedef simple_vector<float, 2> intervalf_t;
 typedef simple_vector<double, 2> intervald_t;
