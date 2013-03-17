@@ -3,6 +3,7 @@
 //#include <boost/array.hpp>
  #include <boost/type_traits.hpp>
  #include <cugip/traits.hpp>
+ #include <cugip/utils.hpp>
 
 namespace cugip {
 
@@ -148,7 +149,7 @@ operator<<( std::ostream &stream, const simple_vector<TType,2> &v )
 /** \ingroup auxiliary_function
  * @{
  **/
-template<size_t tIdx, typename TCoordinateType, int tDim>
+/*template<size_t tIdx, typename TCoordinateType, int tDim>
 CUGIP_DECL_HYBRID const TCoordinateType &
 get(const simple_vector<TCoordinateType, tDim> &aArg)
 {
@@ -161,7 +162,7 @@ CUGIP_DECL_HYBRID TCoordinateType &
 get(simple_vector<TCoordinateType, tDim> &aArg)
 {
 	return aArg.get<tIdx>();
-}
+}*/
 
 
 /** 
@@ -174,6 +175,25 @@ typedef simple_vector<double, 2> intervald_t;
 /** \ingroup traits
  * @{
  **/
+
+template<size_t tIdx, typename TType, size_t tChannelCount>
+struct get_policy<tIdx, simple_vector<TType, tChannelCount> >
+{
+	typedef const TType const_value_t;
+	typedef TType value_t;
+
+	static CUGIP_DECL_HYBRID const_value_t &
+	get(const simple_vector<TType, tChannelCount> &aArg)
+	{
+		return aArg.template get<tIdx>();
+	}
+
+	static CUGIP_DECL_HYBRID value_t &
+	get(simple_vector<TType, tChannelCount> &aArg)
+	{
+		return aArg.template get<tIdx>();
+	}
+};
 
 template<size_t tDim>
 struct dim_traits

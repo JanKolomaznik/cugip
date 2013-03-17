@@ -6,6 +6,8 @@
 #include <boost/format.hpp>
 #include <cassert>
 #include <cstdio>
+#include <boost/call_traits.hpp>
+#include <boost/type_traits.hpp>
 
 
 #ifndef DOUT

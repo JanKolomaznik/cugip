@@ -66,7 +66,7 @@ public:
 	dim_offset(int aOffset)
 	{
 		coord_t coords = mCoords;
-		get<tDimIdx, typename coord_t::coord_t, coord_t::dim>((coord_t&)coords) += aOffset;
+		get<tDimIdx/*, typename coord_t::coord_t, coord_t::dim*/>(coords) += aOffset;
 		coords = min_coords(mView.dimensions()-coord_t(1,1), max_coords(coord_t(), coords));
 		return mView[coords];
 	}

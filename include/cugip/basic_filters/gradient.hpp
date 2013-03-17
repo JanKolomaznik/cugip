@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cugip/utils.hpp>
 #include <cugip/math.hpp>
 #include <cugip/traits.hpp>
 #include <cugip/filter.hpp>
