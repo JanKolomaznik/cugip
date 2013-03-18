@@ -19,8 +19,37 @@ struct compute_structural_tensor_ftor
 	{
 		TStructuralTensor tensor;
 		get<0>(tensor) =  get<0>(aGradient) * get<0>(aGradient);
-		get<1>(tensor) =  get<1>(aGradient) * get<1>(aGradient);
-		get<2>(tensor) =  get<0>(aGradient) * get<1>(aGradient);
+		get<1>(tensor) =  get<0>(aGradient) * get<1>(aGradient);
+		get<2>(tensor) =  get<1>(aGradient) * get<1>(aGradient);
+		return tensor;
+	}
+};
+
+template<typename TStructuralTensor>
+struct compute_diffusion_tensor_ftor
+{
+	CUGIP_DECL_HYBRID TStructuralTensor
+	operator()(const TStructuralTensor &aTensor)
+	{
+		TStructuralTensor tensor;
+		float a = get<0>(aTensor);
+		float b = get<1>(aTensor);
+		float d = get<2>(aTensor);
+		float rtD = sqrt((a-d)*(a-d) + 4*b*b);
+		float l1 = 0.5f * ((a+d) + rtD);
+		float l2 = 0.5f * ((a+d) - rtD);
+
+		vect2f_t v1(b, (l1-a));
+		vect2f_t v2(b, (l2-a));
+		
+		v1 = normalize(v1);
+		v2 = normalize(v2);
+
+		//if (abs(l2) / abs(l1) < 0.3) { l1 = 1.0f; l2 = 0.05; } else { l1 = l2 = 1.0f; }
+	
+		get<0>(tensor) = l1*v1[0]*v1[0] + l2*v2[0]*v2[0];
+		get<1>(tensor) = l1*v1[0]*v1[1] + l2*v2[0]*v2[1];
+		get<2>(tensor) = l1*v1[1]*v1[1] + l2*v2[1]*v2[1];
 		return tensor;
 	}
 };
@@ -29,6 +58,7 @@ template<typename TGradientView, typename TTensorView>
 void compute_structural_tensor(TGradientView aGradient, TTensorView aStructuralTensor)
 {
 	transform(aGradient, aStructuralTensor, cugip::compute_structural_tensor_ftor<typename TGradientView::value_type, typename TTensorView::value_type>());
+	for_each(aStructuralTensor, cugip::compute_diffusion_tensor_ftor<typename TTensorView::value_type>());
 }
 
 template<typename TInView, typename TGradientView, typename TOutView, typename TTensorView>

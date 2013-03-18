@@ -79,6 +79,18 @@ public:
 		return mValues[tIdx];
 	}
 
+	inline CUGIP_DECL_HYBRID const TCoordinateType & 
+	operator[](size_t aIdx)const
+	{
+		return mValues[aIdx];
+	}
+
+	inline CUGIP_DECL_HYBRID TCoordinateType & 
+	operator[](size_t aIdx)
+	{
+		return mValues[aIdx];
+	}
+
 	template <size_t tIdx>
 	inline CUGIP_DECL_HYBRID void  
 	set(TCoordinateType const& value)
@@ -96,6 +108,17 @@ operator+(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TCo
 {
 	simple_vector<typename boost::common_type<TCoordType1, TCoordType2>::type, tDim> res(aArg1);
 	return res += aArg2;
+}
+
+template<typename TCoordType1, typename TCoordType2, size_t tDim>
+inline CUGIP_DECL_HYBRID simple_vector<typename boost::common_type<TCoordType1, TCoordType2>::type, tDim>
+operator*(const TCoordType1 &aFactor, const simple_vector<TCoordType2, tDim> &aArg)
+{
+	simple_vector<typename boost::common_type<TCoordType1, TCoordType2>::type, tDim> res;
+	for (size_t i = 0; i < tDim; ++i) {
+		res.mValues[i] = aFactor * aArg.mValues[i];
+	}
+	return res;
 }
 
 template<typename TCoordType1, typename TCoordType2, size_t tDim>
@@ -146,6 +169,26 @@ operator<<( std::ostream &stream, const simple_vector<TType,2> &v )
 	return stream << "[ " << v. template get<0>() << ", " << v. template get<1>() << " ]";
 }
 
+template<typename TCoordType, size_t tDim>
+inline CUGIP_DECL_HYBRID TCoordType
+dot_product(const simple_vector<TCoordType, tDim> &aVector1, const simple_vector<TCoordType, tDim> &aVector2)
+{
+	//TODO - optimize
+	TCoordType ret = 0;
+	for (size_t i = 0; i < tDim; ++i) {
+		ret += aVector1[i] * aVector2[i];
+	}
+	return ret;
+}
+
+template <typename TType>
+inline CUGIP_DECL_HYBRID TType
+normalize(const TType &aVector)
+{
+	return (1.0f/sqrt(dot_product(aVector, aVector))) * aVector;
+}
+
+
 /** \ingroup auxiliary_function
  * @{
  **/
@@ -171,6 +214,9 @@ get(simple_vector<TCoordinateType, tDim> &aArg)
 
 typedef simple_vector<float, 2> intervalf_t;
 typedef simple_vector<double, 2> intervald_t;
+
+typedef simple_vector<float, 2> vect2f_t;
+typedef simple_vector<float, 3> vect3f_t;
 
 /** \ingroup traits
  * @{
@@ -221,5 +267,6 @@ struct dimension<simple_vector<TCoordinateType, tDim> >: dimension_helper<tDim> 
  * @}
  **/
 
+#define EPSILON 0.000001f;
 
 }//namespace cugip
