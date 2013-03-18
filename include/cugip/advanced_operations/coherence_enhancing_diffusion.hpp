@@ -8,7 +8,7 @@ namespace cugip {
 template<typename TInView, typename TGradientView>
 void compute_gradient(TInView aInput, TGradientView aGradient)
 {
-	filter(aInput, aGradient, cugip::gradient_symmentric_difference<typename TInView::value_type, typename TGradientView::value_type>());
+	filter(aInput, aGradient, cugip::gradient_symmetric_difference<typename TInView::value_type, typename TGradientView::value_type>());
 }
 
 template<typename TGradientVector, typename TStructuralTensor>
@@ -58,8 +58,21 @@ template<typename TGradientView, typename TTensorView>
 void compute_structural_tensor(TGradientView aGradient, TTensorView aStructuralTensor)
 {
 	transform(aGradient, aStructuralTensor, cugip::compute_structural_tensor_ftor<typename TGradientView::value_type, typename TTensorView::value_type>());
-	for_each(aStructuralTensor, cugip::compute_diffusion_tensor_ftor<typename TTensorView::value_type>());
 }
+
+template<typename TInputTensorView, typename TOutputTensorView>
+void blur_structural_tensor(TInputTensorView aStructuralTensor, TOutputTensorView aBluredStructuralTensor)
+{
+	convolution(aStructuralTensor, aBluredStructuralTensor, gaussian_kernel<float, size_traits_2d<7,7> >());
+}
+
+	
+template<typename TTensorView>
+void compute_diffusion_tensor(TTensorView aDiffusionTensor)
+{
+	for_each(aDiffusionTensor, cugip::compute_diffusion_tensor_ftor<typename TTensorView::value_type>());
+}
+
 
 template<typename TInView, typename TGradientView, typename TOutView, typename TTensorView>
 void
@@ -68,7 +81,6 @@ coherence_enhancing_diffusion_step(
                 TOutView    aOuput, 
                 TGradientView aGradient, 
                 TTensorView aStructuralTensor, 
-                TTensorView aBluredStructuralTensor, 
                 TTensorView aDiffusionTensor,
                 float       aStepSize
                 )
@@ -79,11 +91,11 @@ coherence_enhancing_diffusion_step(
 
 	compute_structural_tensor(aGradient, aStructuralTensor);
 
-	/*blur_structural_tensor(aStructuralTensor, aBluredStructuralTensor);
+	blur_structural_tensor(aStructuralTensor, aDiffusionTensor);
 
-	compute_diffusion_tensor(aBluredStructuralTensor, aDiffusionTensor);
+	compute_diffusion_tensor(aDiffusionTensor);
 
-	apply_diffusion_step(aInput, aOuput, aGradient, aDiffusionTensor, aStepSize);*/	
+	/*apply_diffusion_step(aInput, aOuput, aGradient, aDiffusionTensor, aStepSize);*/	
 }
 
 } //cugip

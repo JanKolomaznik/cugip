@@ -11,6 +11,23 @@ struct convolution_kernel
 	TType data[TSizeTraits::size];
 };
 
+template <typename TType, typename TSizeTraits>
+CUGIP_DECL_HOST inline std::ostream &
+operator<<( std::ostream &stream, const convolution_kernel<TType, TSizeTraits> &kernel )
+{
+	//TODO - for all dimension
+	for (size_t i = 0; i < TSizeTraits::height; ++i) {
+		stream << "|\t";
+		
+		for (size_t j = 0; j < TSizeTraits::width; ++j) {
+			stream << kernel.data[i*TSizeTraits::width + j] << "\t";
+		}
+		stream << "|\n";
+	}
+	return stream;
+}
+
+
 /** \ingroup  traits
  * @{
  **/
@@ -161,6 +178,34 @@ CUGIP_FORCE_INLINE convolution_kernel<int, size_traits_2d<3,3> >
 laplacian_kernel()
 {
 	convolution_kernel<int, size_traits_2d<3,3> > tmp = {0, 1, 0, 1, -4, 1, 0, 1, 0};
+
+	return tmp;
+}
+
+template<typename TType, typename TSizeTraits>
+CUGIP_FORCE_INLINE convolution_kernel<TType, TSizeTraits >
+gaussian_kernel()
+{
+	convolution_kernel<TType, TSizeTraits > tmp;
+
+	float sigma1sqr = sqr(TSizeTraits::width / 4.0f);
+	float sigma2sqr = sqr(TSizeTraits::height / 4.0f);
+
+	int centerX = TSizeTraits::width / 2;
+	int centerY = TSizeTraits::height / 2;
+
+	TType sum = 0.0f;
+	for (size_t i = 0; i < TSizeTraits::height; ++i) {
+		for (size_t j = 0; j < TSizeTraits::width; ++j) {
+			TType value = exp(-(sqr(i-centerX)/(2*sigma1sqr) + sqr(j-centerY)/(2*sigma2sqr)));
+			sum += value;
+			tmp.data[i*TSizeTraits::width + j] = value;
+		}
+	}
+	TType factor = 1.0f / sum;
+	for (size_t i = 0; i < TSizeTraits::size; ++i) {
+		tmp.data[i] *= factor;
+	}
 
 	return tmp;
 }

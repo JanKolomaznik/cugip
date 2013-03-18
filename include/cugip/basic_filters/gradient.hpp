@@ -32,7 +32,7 @@ struct compute_symmetric_difference<TOutputType, TLocator, 0>
 
 
 template<typename TInputType, typename TOutputType>
-struct gradient_symmentric_difference
+struct gradient_symmetric_difference
 {
 	template<typename TLocator>
 	CUGIP_DECL_HYBRID TOutputType

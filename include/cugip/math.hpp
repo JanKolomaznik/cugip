@@ -222,25 +222,33 @@ typedef simple_vector<float, 3> vect3f_t;
  * @{
  **/
 
+//-----------------------------------------------------------------------------
 template<size_t tIdx, typename TType, size_t tChannelCount>
-struct get_policy<tIdx, simple_vector<TType, tChannelCount> >
+struct get_policy<tIdx, const simple_vector<TType, tChannelCount> >
 {
-	typedef const TType const_value_t;
-	typedef TType value_t;
+	typedef const TType & return_type;
+	typedef const simple_vector<TType, tChannelCount> & value_t;
 
-	static CUGIP_DECL_HYBRID const_value_t &
-	get(const simple_vector<TType, tChannelCount> &aArg)
-	{
-		return aArg.template get<tIdx>();
-	}
-
-	static CUGIP_DECL_HYBRID value_t &
-	get(simple_vector<TType, tChannelCount> &aArg)
+	static CUGIP_DECL_HYBRID return_type
+	get(value_t aArg)
 	{
 		return aArg.template get<tIdx>();
 	}
 };
 
+template<size_t tIdx, typename TType, size_t tChannelCount>
+struct get_policy<tIdx, simple_vector<TType, tChannelCount> >
+{
+	typedef TType & return_type;
+	typedef simple_vector<TType, tChannelCount> & value_t;
+
+	static CUGIP_DECL_HYBRID return_type
+	get(value_t aArg)
+	{
+		return aArg.template get<tIdx>();
+	}
+};
+//-----------------------------------------------------------------------------
 template<size_t tDim>
 struct dim_traits
 {
@@ -258,6 +266,7 @@ struct dim_traits
 		return extents_t(v0, v1/*, v2, v3*/);
 	}
 };
+//-----------------------------------------------------------------------------
 
 
 template<typename TCoordinateType, size_t tDim>
@@ -268,5 +277,11 @@ struct dimension<simple_vector<TCoordinateType, tDim> >: dimension_helper<tDim> 
  **/
 
 #define EPSILON 0.000001f;
+
+template<typename TType>
+inline TType 
+sqr(TType aValue) {
+	return aValue * aValue;
+}
 
 }//namespace cugip

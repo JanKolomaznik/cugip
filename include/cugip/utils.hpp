@@ -74,62 +74,43 @@ struct element
 };
 
 template<size_t tIdx, typename TType>
-struct get_policy
+struct get_policy;
+
+
+template<size_t tIdx, typename TType, size_t tChannelCount>
+struct get_policy<tIdx, const element<TType, tChannelCount> >
 {
-	typedef const typename TType::channel_t const_value_t;
-	typedef typename TType::channel_t value_t;
+	typedef const TType & return_type;
+	typedef const element<TType, tChannelCount> & value_t;
 
-	static CUGIP_DECL_HYBRID value_t &
-	get(typename boost::call_traits<TType>::reference aArg)
-	{
-		return aArg.data[tIdx];
-	}
-
-	static CUGIP_DECL_HYBRID const_value_t &
-	const_get(typename boost::call_traits<TType>::const_reference aArg)
+	static CUGIP_DECL_HYBRID return_type &
+	get(const element<TType, tChannelCount> &aArg)
 	{
 		return aArg.data[tIdx];
 	}
 };
 
-/*template<size_t tIdx, typename TType, size_t tChannelCount>
+template<size_t tIdx, typename TType, size_t tChannelCount>
 struct get_policy<tIdx, element<TType, tChannelCount> >
 {
-	typedef const TType const_value_t;
-	typedef TType value_t;
+	typedef TType & return_type;
+	typedef element<TType, tChannelCount> & value_t;
 
-	static CUGIP_DECL_HYBRID const_value_t &
-	get(const element<TType, tChannelCount> &aArg)
-	{
-		return aArg.data[tIdx];
-	}
-
-	static CUGIP_DECL_HYBRID value_t &
+	static CUGIP_DECL_HYBRID return_type &
 	get(element<TType, tChannelCount> &aArg)
 	{
 		return aArg.data[tIdx];
 	}
-};*/
 
-/*template<size_t tIdx, typename TType>
-CUGIP_DECL_HYBRID typename TType::channel_t &
-getl(TType &aArg)
-{
-	return  get_policy<tIdx, TType>::get(aArg);//aArg.data[tIdx];
-}*/
+};
 
 template<size_t tIdx, typename TType>
-CUGIP_DECL_HYBRID typename get_policy<tIdx, TType>::const_value_t &
-get(const TType &aArg)
-{
-	return get_policy<tIdx, typename boost::remove_reference<TType>::type>::const_get(aArg);
-}
-
-template<size_t tIdx, typename TType>
-CUGIP_DECL_HYBRID typename get_policy<tIdx, TType>::value_t &
+CUGIP_DECL_HYBRID typename get_policy<tIdx, typename boost::remove_reference<TType>::type >::return_type
 get(TType &aArg)
 {
-	return get_policy<tIdx, typename boost::remove_reference<TType>::type>::get(aArg);
+	return get_policy<tIdx, 
+	                  typename boost::remove_reference<TType>::type
+	                  >::get(aArg);
 }
 
 typedef element<unsigned char, 3> element_rgb8_t;

@@ -14,10 +14,11 @@
 
 #include <boost/timer/timer.hpp>
 
+
 void
 negative(boost::gil::rgb8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::view_t aOut)
 {
-	D_PRINT(cugip::cudaMemoryInfoText());
+/*	D_PRINT(cugip::cudaMemoryInfoText());
 	cugip::device_image<cugip::element_rgb8_t> inImage(aIn.width(), aIn.height());
 	D_PRINT(cugip::cudaMemoryInfoText());
 
@@ -27,13 +28,18 @@ negative(boost::gil::rgb8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::v
 
 	cugip::copy(cugip::view(inImage), aOut);
 
-	CUGIP_CHECK_ERROR_STATE("CHECK");
+	CUGIP_CHECK_ERROR_STATE("CHECK");*/
+
+	//TODO - remove
+	const cugip::element<int, 3> pom1 = {0};
+	int i = cugip::get<1, const cugip::element<int, 3> >(pom1);// = 3;
+
 }
 
 void
 grayscale(boost::gil::rgb8_image_t::const_view_t aIn, boost::gil::gray8_image_t::view_t aOut)
 {
-	D_PRINT(cugip::cudaMemoryInfoText());
+/*	D_PRINT(cugip::cudaMemoryInfoText());
 	cugip::device_image<cugip::element_rgb8_t> inImage(aIn.width(), aIn.height());
 	cugip::device_image<cugip::element_gray8_t> outImage(aOut.width(), aOut.height());
 	D_PRINT(cugip::cudaMemoryInfoText());
@@ -44,13 +50,13 @@ grayscale(boost::gil::rgb8_image_t::const_view_t aIn, boost::gil::gray8_image_t:
 
 	cugip::copy(cugip::view(outImage), aOut);
 
-	CUGIP_CHECK_ERROR_STATE("CHECK");
+	CUGIP_CHECK_ERROR_STATE("CHECK");*/
 }
 
 void
 mandelbrot(boost::gil::rgb8_image_t::view_t aOut)
 {
-	boost::timer::auto_cpu_timer t;
+/*	boost::timer::auto_cpu_timer t;
 	D_PRINT(cugip::cudaMemoryInfoText());
 	cugip::device_image<cugip::element_rgb8_t> outImage(aOut.width(), aOut.height());
 	D_PRINT(cugip::cudaMemoryInfoText());
@@ -66,13 +72,13 @@ mandelbrot(boost::gil::rgb8_image_t::view_t aOut)
 	cugip::copy(cugip::view(outImage), aOut);
 
 
-	CUGIP_CHECK_ERROR_STATE("CHECK");
+	CUGIP_CHECK_ERROR_STATE("CHECK");*/
 }
 
 void
 gradient(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::view_t aOut)
 {
-	D_PRINT(cugip::cudaMemoryInfoText());
+/*	D_PRINT(cugip::cudaMemoryInfoText());
 	cugip::device_image<cugip::element_gray8_t> inImage(aIn.width(), aIn.height());
 	cugip::device_image<cugip::element_rgb8_t> outImage(aOut.width(), aOut.height());
 	D_PRINT(cugip::cudaMemoryInfoText());
@@ -81,37 +87,42 @@ gradient(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::
 
 //	cugip::filter(cugip::const_view(inImage), cugip::view(outImage), cugip::gradient_sobel<cugip::element_gray8_t, cugip::element_gray8_t>());
 //	cugip::filter(cugip::const_view(inImage), cugip::view(outImage), cugip::gradient_difference<cugip::element_gray8_t, cugip::element_gray8_t>());
-	cugip::filter(cugip::const_view(inImage), cugip::view(outImage), cugip::gradient_symmentric_difference<cugip::element_gray8_t, cugip::element_rgb8_t>());
+	cugip::filter(cugip::const_view(inImage), cugip::view(outImage), cugip::gradient_symmetric_difference<cugip::element_gray8_t, cugip::element_rgb8_t>());
 
 	cugip::copy(cugip::view(outImage), aOut);
 
-	CUGIP_CHECK_ERROR_STATE("CHECK");
+	CUGIP_CHECK_ERROR_STATE("CHECK");*/
 }
 
 void
 diffusion(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::view_t aOut)
 {
-	D_PRINT(cugip::cudaMemoryInfoText());
+/*	D_PRINT(cugip::cudaMemoryInfoText());
 	cugip::device_image<cugip::element_gray8_t> inImage(aIn.width(), aIn.height());
-	cugip::device_image<cugip::element_channel2_8s_t> gradient(aIn.width(), aIn.height());
-	cugip::device_image<cugip::element_rgb8_t> tensor(aOut.width(), aOut.height());
+	cugip::device_image<cugip::simple_vector<float, 2> > gradient(aIn.width(), aIn.height());
+	cugip::device_image<cugip::simple_vector<float, 3> > structuralTensor(aOut.width(), aOut.height());
+	cugip::device_image<cugip::simple_vector<float, 3> > diffusionTensor(aOut.width(), aOut.height());
 	D_PRINT(cugip::cudaMemoryInfoText());
 
 	cugip::copy(aIn, cugip::view(inImage));
 
 	cugip::compute_gradient(cugip::const_view(inImage), cugip::view(gradient));
 
-	cugip::compute_structural_tensor(cugip::const_view(gradient), cugip::view(tensor));
+	cugip::compute_structural_tensor(cugip::const_view(gradient), cugip::view(structuralTensor));
 
-	cugip::copy(cugip::view(tensor), aOut);
+	cugip::blur_structural_tensor(cugip::const_view(structuralTensor), cugip::view(diffusionTensor));
 
-	CUGIP_CHECK_ERROR_STATE("CHECK");
+	cugip::compute_diffusion_tensor(cugip::view(diffusionTensor));
+
+	//cugip::copy(cugip::view(tensor), aOut);
+
+	CUGIP_CHECK_ERROR_STATE("CHECK");*/
 }
 
 void
 laplacian(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_image_t::view_t aOut)
 {
-	D_PRINT(cugip::cudaMemoryInfoText());
+/*	D_PRINT(cugip::cudaMemoryInfoText());
 	cugip::device_image<cugip::element_gray8_t> inImage(aIn.width(), aIn.height());
 	cugip::device_image<cugip::element_gray8_t> outImage(aOut.width(), aOut.height());
 	D_PRINT(cugip::cudaMemoryInfoText());
@@ -122,5 +133,5 @@ laplacian(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_image_t
 
 	cugip::copy(cugip::view(outImage), aOut);
 
-	CUGIP_CHECK_ERROR_STATE("CHECK");
+	CUGIP_CHECK_ERROR_STATE("CHECK");*/
 }
