@@ -10,7 +10,9 @@
 #include <cugip/exception.hpp>
 #include <cugip/basic_filters/convolution.hpp>
 #include <cugip/basic_filters/gradient.hpp>
+#include <cugip/algebra/arithmetics.hpp>
 #include <cugip/advanced_operations/coherence_enhancing_diffusion.hpp>
+#include <boost/gil/extension/io/jpeg_dynamic_io.hpp>
 
 
 #include <boost/timer/timer.hpp>
@@ -59,7 +61,7 @@ mandelbrot(boost::gil::rgb8_image_t::view_t aOut)
 
 	{
 		boost::timer::auto_cpu_timer t2;
-	cugip::for_each_position(cugip::view(outImage), 
+		cugip::for_each_position(cugip::view(outImage), 
 			cugip::mandelbrot_ftor(outImage.dimensions(), 
 			cugip::intervalf_t(-0.95f, -0.85f), 
 			cugip::intervalf_t(-0.3f, -0.25f)));
@@ -81,8 +83,6 @@ gradient(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::
 
 	cugip::copy(aIn, cugip::view(inImage));
 
-//	cugip::filter(cugip::const_view(inImage), cugip::view(outImage), cugip::gradient_sobel<cugip::element_gray8_t, cugip::element_gray8_t>());
-//	cugip::filter(cugip::const_view(inImage), cugip::view(outImage), cugip::gradient_difference<cugip::element_gray8_t, cugip::element_gray8_t>());
 	cugip::filter(cugip::const_view(inImage), cugip::view(outImage), cugip::gradient_symmetric_difference<cugip::element_gray8_t, cugip::element_rgb8_t>());
 
 	cugip::copy(cugip::view(outImage), aOut);
@@ -91,10 +91,31 @@ gradient(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::
 }
 
 void
-diffusion(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::view_t aOut)
+gradient_mag(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_image_t::view_t aOut)
 {
 	D_PRINT(cugip::cudaMemoryInfoText());
 	cugip::device_image<cugip::element_gray8_t> inImage(aIn.width(), aIn.height());
+	cugip::device_image<cugip::element_gray8_t> outImage(aOut.width(), aOut.height());
+	D_PRINT(cugip::cudaMemoryInfoText());
+
+	cugip::copy(aIn, cugip::view(inImage));
+
+	cugip::filter(cugip::const_view(inImage), cugip::view(outImage), cugip::gradient_magnitude_symmetric_difference<cugip::element_gray8_t, cugip::element_gray8_t>());
+
+	cugip::multiply(cugip::view(outImage), 15);
+
+	cugip::copy(cugip::view(outImage), aOut);
+
+	CUGIP_CHECK_ERROR_STATE("CHECK");
+}
+
+void
+diffusion(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_image_t::view_t aOut)
+{
+	D_PRINT(cugip::cudaMemoryInfoText());
+	cugip::device_image<cugip::element_gray8_t> inImage(aIn.width(), aIn.height());
+	cugip::device_image<float> tmpImage(aIn.width(), aIn.height());
+	cugip::device_image<float> diffStep(aIn.width(), aIn.height());
 	cugip::device_image<cugip::simple_vector<float, 2> > gradient(aIn.width(), aIn.height());
 	cugip::device_image<cugip::simple_vector<float, 3> > structuralTensor(aOut.width(), aOut.height());
 	cugip::device_image<cugip::simple_vector<float, 3> > diffusionTensor(aOut.width(), aOut.height());
@@ -102,17 +123,27 @@ diffusion(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_t:
 
 	cugip::copy(aIn, cugip::view(inImage));
 
-	cugip::compute_gradient(cugip::const_view(inImage), cugip::view(gradient));
+	cugip::transform(cugip::const_view(inImage), cugip::view(tmpImage), cugip::convert_float_and_byte());
 
-	cugip::compute_structural_tensor(cugip::const_view(gradient), cugip::view(structuralTensor));
+	for (size_t i = 0; i < 10; ++i) {
+		coherence_enhancing_diffusion_step(
+			cugip::const_view(tmpImage), 
+			cugip::view(diffStep), 
+			cugip::view(gradient), 
+			cugip::view(structuralTensor), 
+			cugip::view(diffusionTensor)
+			);
 
-	cugip::blur_structural_tensor(cugip::const_view(structuralTensor), cugip::view(diffusionTensor));
+		cugip::add(cugip::view(tmpImage), 0.01f, cugip::const_view(diffStep));
+	
+		cugip::transform(cugip::const_view(tmpImage), cugip::view(inImage), cugip::convert_float_and_byte());
+		
+		cugip::copy(cugip::view(inImage), aOut);
+		CUGIP_CHECK_ERROR_STATE("CHECK");
 
-	cugip::compute_diffusion_tensor(cugip::view(diffusionTensor));
-
-	//cugip::copy(cugip::view(tensor), aOut);
-
-	CUGIP_CHECK_ERROR_STATE("CHECK");
+		std::string path = boost::str(boost::format("diffusion_%1%.jpg") % i);
+		boost::gil::jpeg_write_view(path.c_str(), aOut);
+	}
 }
 
 void

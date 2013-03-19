@@ -31,6 +31,7 @@ struct compute_diffusion_tensor_ftor
 	CUGIP_DECL_HYBRID TStructuralTensor
 	operator()(const TStructuralTensor &aTensor)
 	{
+		//TODO - 3d version
 		TStructuralTensor tensor;
 		float a = get<0>(aTensor);
 		float b = get<1>(aTensor);
@@ -73,6 +74,32 @@ void compute_diffusion_tensor(TTensorView aDiffusionTensor)
 	for_each(aDiffusionTensor, cugip::compute_diffusion_tensor_ftor<typename TTensorView::value_type>());
 }
 
+template<typename TStructuralTensor, typename TGradient>
+struct apply_diffusion_tensor_ftor
+{
+	CUGIP_DECL_HYBRID void
+	operator()(const TStructuralTensor &aTensor, TGradient &aGradient)
+	{
+		//TODO - generic dimension
+		TGradient tmp(0);
+		get<0>(tmp) = get<0>(aTensor) * get<0>(aGradient) + get<1>(aTensor) * get<1>(aGradient);
+		get<1>(tmp) = get<1>(aTensor) * get<0>(aGradient) + get<2>(aTensor) * get<1>(aGradient);
+		
+		aGradient = tmp;
+	}
+};
+
+template<typename TTensorView, typename TGradientView>
+void apply_diffusion_tensor(TTensorView aDiffusionTensor, TGradientView aGradient)
+{
+	for_each(aDiffusionTensor, aGradient, cugip::apply_diffusion_tensor_ftor<typename TTensorView::value_type, typename TGradientView::value_type>());
+}
+
+template<typename TGradientView, typename TOutputView>
+void compute_diffusion_step(TGradientView aGradient, TOutputView aOuput)
+{
+	filter(aGradient, aOuput, cugip::divergence<typename TGradientView::value_type, typename TOutputView::value_type>());
+}
 
 template<typename TInView, typename TGradientView, typename TOutView, typename TTensorView>
 void
@@ -81,8 +108,7 @@ coherence_enhancing_diffusion_step(
                 TOutView    aOuput, 
                 TGradientView aGradient, 
                 TTensorView aStructuralTensor, 
-                TTensorView aDiffusionTensor,
-                float       aStepSize
+                TTensorView aDiffusionTensor
                 )
 {
 	//TODO - check requirements
@@ -95,7 +121,9 @@ coherence_enhancing_diffusion_step(
 
 	compute_diffusion_tensor(aDiffusionTensor);
 
-	/*apply_diffusion_step(aInput, aOuput, aGradient, aDiffusionTensor, aStepSize);*/	
+	apply_diffusion_tensor(aDiffusionTensor, aGradient);
+
+	compute_diffusion_step(aGradient, aOuput);
 }
 
 } //cugip

@@ -4,6 +4,7 @@
  #include <boost/type_traits.hpp>
  #include <cugip/traits.hpp>
  #include <cugip/utils.hpp>
+ #include <cmath>
 
 namespace cugip {
 
@@ -182,10 +183,17 @@ dot_product(const simple_vector<TCoordType, tDim> &aVector1, const simple_vector
 }
 
 template <typename TType>
+inline CUGIP_DECL_HYBRID typename TType::coord_t
+magnitude(const TType &aVector)
+{
+	return sqrtf(dot_product(aVector, aVector));
+}
+
+template <typename TType>
 inline CUGIP_DECL_HYBRID TType
 normalize(const TType &aVector)
 {
-	return (1.0f/sqrt(dot_product(aVector, aVector))) * aVector;
+	return (1.0f/magnitude(aVector)) * aVector;
 }
 
 

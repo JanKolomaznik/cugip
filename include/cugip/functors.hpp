@@ -87,6 +87,19 @@ struct gradient_difference
 
 };
 
+struct convert_float_and_byte
+{
+	CUGIP_DECL_HYBRID unsigned char
+	operator()(const float &aArg)const
+	{
+		return static_cast<unsigned char>(max(0.0f, min(255.0f, aArg)));
+	}
 
+	CUGIP_DECL_HYBRID float
+	operator()(const unsigned char &aArg)const
+	{
+		return aArg;
+	}
+};
 
 }//namespace cugip
