@@ -284,10 +284,10 @@ struct dimension<simple_vector<TCoordinateType, tDim> >: dimension_helper<tDim> 
  * @}
  **/
 
-#define EPSILON 0.000001f;
+#define EPSILON 0.000001f
 
 template<typename TType>
-inline TType 
+inline CUGIP_DECL_HYBRID TType 
 sqr(TType aValue) {
 	return aValue * aValue;
 }

@@ -45,7 +45,7 @@ int main() {
     jpeg_write_view("laplacian_out.jpg",const_view(laplacian_out));
 
     gray8_image_t diffusion_out(img.dimensions());
-    diffusion(const_view(gradient_mag_out), view(diffusion_out));
+    diffusion(const_view(/*gray_out*/gradient_mag_out), view(diffusion_out));
     jpeg_write_view("diffusion_out.jpg",const_view(diffusion_out));
 
     rgb8_image_t mandelbrot_out(1600,800);

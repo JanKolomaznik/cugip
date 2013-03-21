@@ -125,7 +125,7 @@ diffusion(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_image_t
 
 	cugip::transform(cugip::const_view(inImage), cugip::view(tmpImage), cugip::convert_float_and_byte());
 
-	for (size_t i = 0; i < 10; ++i) {
+	for (size_t i = 0; i < 80; ++i) {
 		coherence_enhancing_diffusion_step(
 			cugip::const_view(tmpImage), 
 			cugip::view(diffStep), 
@@ -134,15 +134,17 @@ diffusion(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_image_t
 			cugip::view(diffusionTensor)
 			);
 
-		cugip::add(cugip::view(tmpImage), 0.01f, cugip::const_view(diffStep));
+		cugip::add(cugip::view(tmpImage), 0.1f, cugip::const_view(diffStep));
 	
 		cugip::transform(cugip::const_view(tmpImage), cugip::view(inImage), cugip::convert_float_and_byte());
 		
-		cugip::copy(cugip::view(inImage), aOut);
-		CUGIP_CHECK_ERROR_STATE("CHECK");
-
-		std::string path = boost::str(boost::format("diffusion_%1%.jpg") % i);
-		boost::gil::jpeg_write_view(path.c_str(), aOut);
+		if (i%5 == 4) 
+		{
+			cugip::copy(cugip::view(inImage), aOut);
+			CUGIP_CHECK_ERROR_STATE("CHECK");
+			std::string path = boost::str(boost::format("diffusion_%|03|.jpg") % i);
+			boost::gil::jpeg_write_view(path.c_str(), aOut);
+		}
 	}
 }
 

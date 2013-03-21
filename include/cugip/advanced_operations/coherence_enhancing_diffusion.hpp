@@ -25,7 +25,7 @@ struct compute_structural_tensor_ftor
 	}
 };
 
-template<typename TStructuralTensor>
+/*template<typename TStructuralTensor>
 struct compute_diffusion_tensor_ftor
 {
 	CUGIP_DECL_HYBRID TStructuralTensor
@@ -36,7 +36,7 @@ struct compute_diffusion_tensor_ftor
 		float a = get<0>(aTensor);
 		float b = get<1>(aTensor);
 		float d = get<2>(aTensor);
-		float rtD = sqrt((a-d)*(a-d) + 4*b*b);
+		float rtD = sqrtf(sqr(a-d) + 4*sqr(b));
 		float l1 = 0.5f * ((a+d) + rtD);
 		float l2 = 0.5f * ((a+d) - rtD);
 
@@ -46,11 +46,54 @@ struct compute_diffusion_tensor_ftor
 		v1 = normalize(v1);
 		v2 = normalize(v2);
 
+		float coh = sqr(l1-l2);
+		float alpha = 0.01;
+		float C = 1;
+		l1 = alpha;
+		if (coh < EPSILON) {
+			l2 = alpha;
+		} else {
+			l2 = alpha + (1-alpha)*expf(-C/coh);
+		}
 		//if (abs(l2) / abs(l1) < 0.3) { l1 = 1.0f; l2 = 0.05; } else { l1 = l2 = 1.0f; }
 	
 		get<0>(tensor) = l1*v1[0]*v1[0] + l2*v2[0]*v2[0];
 		get<1>(tensor) = l1*v1[0]*v1[1] + l2*v2[0]*v2[1];
 		get<2>(tensor) = l1*v1[1]*v1[1] + l2*v2[1]*v2[1];
+		return tensor;
+	}
+};*/
+
+template<typename TStructuralTensor>
+struct compute_diffusion_tensor_ftor
+{
+	CUGIP_DECL_HYBRID TStructuralTensor
+	operator()(const TStructuralTensor &aTensor)
+	{
+		//TODO - 3d version
+		TStructuralTensor tensor;
+		float s11 = get<0>(aTensor);
+		float s12 = get<1>(aTensor);
+		float s22 = get<2>(aTensor);
+
+		float s1_m_s2 = s11 - s22;
+
+		float gamma = 0.02f;
+		float C = 1.0f;
+		float alfa = sqrtf(sqr(s1_m_s2) + 4*sqr(s12))+0.00001f;
+
+		float c1 = gamma;
+      		float c2 = gamma + (1-gamma)*expf(-C/(alfa));
+
+		float c1_p_c2 = c1 + c2;
+      		float c2_m_c1 = c2 - c1;
+      
+		float dd = (c2_m_c1 * s1_m_s2 )/(alfa);
+      
+      		get<0>(tensor) = 0.5f * ( c1_p_c2 + dd );
+      		get<1>(tensor) = -(c2_m_c1)*s12/(alfa);
+      		get<2>(tensor) = 0.5f * (c1_p_c2 - dd);
+
 		return tensor;
 	}
 };
@@ -64,7 +107,7 @@ void compute_structural_tensor(TGradientView aGradient, TTensorView aStructuralT
 template<typename TInputTensorView, typename TOutputTensorView>
 void blur_structural_tensor(TInputTensorView aStructuralTensor, TOutputTensorView aBluredStructuralTensor)
 {
-	convolution(aStructuralTensor, aBluredStructuralTensor, gaussian_kernel<float, size_traits_2d<7,7> >());
+	convolution(aStructuralTensor, aBluredStructuralTensor, gaussian_kernel<float, size_traits_2d<9,9> >());
 }
 
 	
