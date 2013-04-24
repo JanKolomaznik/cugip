@@ -22,7 +22,7 @@ struct device_ptr
 	device_ptr(TType *aArg): p(aArg) 
 	{ /*empty*/ }
 
-	CUGIP_DECL_HYBRID TType * 
+	CUGIP_DECL_DEVICE TType * 
 	operator->()
 	{ return p; }
 
@@ -48,6 +48,44 @@ struct device_ptr
 };
 
 template<typename TType>
+struct access_helper
+{
+	access_helper(device_ptr<TType> &aPtr): ptr(aPtr) {}
+
+	device_ptr<TType> &ptr;
+	mutable TType tmp;
+
+	operator TType()const
+	{
+		CUGIP_CHECK_RESULT(cudaMemcpy(&tmp, ptr.p, sizeof(TType), cudaMemcpyDeviceToHost));
+		return tmp;
+	}
+	const access_helper&
+	operator=(const TType &aArg)const
+	{ 
+		tmp = aArg; 
+		CUGIP_CHECK_RESULT(cudaMemcpy(ptr.p, &aArg, sizeof(TType), cudaMemcpyHostToDevice));
+		return *this;
+	}
+};
+
+template<typename TType>
+access_helper<TType>
+operator*(device_ptr<TType> &aPtr)
+{
+	CUGIP_ASSERT(aPtr);
+	return access_helper<TType>(aPtr);
+}
+
+template<typename TType>
+CUGIP_DECL_DEVICE TType &
+operator*(device_ptr<TType> &aPtr)
+{
+	CUGIP_ASSERT(aPtr);
+	return *aPtr.get();
+}
+//------------------------------------------------------------------------
+template<typename TType>
 struct const_device_ptr
 {
 	CUGIP_DECL_HYBRID
@@ -62,7 +100,7 @@ struct const_device_ptr
 	const_device_ptr(const const_device_ptr<TType> &aArg): p(aArg.p) 
 	{ /*empty*/ }
 
-	CUGIP_DECL_HYBRID const TType * 
+	CUGIP_DECL_DEVICE const TType * 
 	operator->()
 	{ return p; }
 

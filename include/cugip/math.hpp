@@ -196,6 +196,16 @@ normalize(const TType &aVector)
 	return (1.0f/magnitude(aVector)) * aVector;
 }
 
+template<typename TCoordType, size_t tDim>
+inline CUGIP_DECL_HYBRID TCoordType
+multiply(const simple_vector<TCoordType, tDim> &aVector)
+{
+	TCoordType ret = 1;
+	for (size_t i = 0; i < tDim; ++i) {
+		ret *= aVector[i];
+	}
+	return ret;
+}
 
 /** \ingroup auxiliary_function
  * @{

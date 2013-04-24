@@ -35,6 +35,40 @@ negative(boost::gil::rgb8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::v
 }
 
 void
+thresholding(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_image_t::view_t aOut)
+{
+	D_PRINT(cugip::cudaMemoryInfoText());
+	cugip::device_image<cugip::element_gray8_t> inImage(aIn.width(), aIn.height());
+	cugip::device_image<cugip::element_gray8_t> outImage(aIn.width(), aIn.height());
+	D_PRINT(cugip::cudaMemoryInfoText());
+
+	cugip::copy(aIn, cugip::view(inImage));
+
+	cugip::transform(cugip::view(inImage), cugip::view(outImage), cugip::thresholding_ftor<cugip::element_gray8_t, cugip::element_gray8_t>(128, 0, 255));
+
+	cugip::copy(cugip::view(outImage), aOut);
+
+	CUGIP_CHECK_ERROR_STATE("CHECK");
+}
+
+void
+colored_ccl(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::view_t aOut)
+{
+	D_PRINT(cugip::cudaMemoryInfoText());
+	cugip::device_image<cugip::element_gray8_t> inImage(aIn.width(), aIn.height());
+	cugip::device_image<cugip::element_rgb8_t> outImage(aIn.width(), aIn.height());
+	D_PRINT(cugip::cudaMemoryInfoText());
+
+	cugip::copy(aIn, cugip::view(inImage));
+
+	//cugip::transform(cugip::view(inImage), cugip::view(outImage), cugip::thresholding_ftor<cugip::element_gray8_t, cugip::element_gray8_t>(128, 0, 255));
+
+	cugip::copy(cugip::view(outImage), aOut);
+
+	CUGIP_CHECK_ERROR_STATE("CHECK");
+}
+
+void
 grayscale(boost::gil::rgb8_image_t::const_view_t aIn, boost::gil::gray8_image_t::view_t aOut)
 {
 	D_PRINT(cugip::cudaMemoryInfoText());

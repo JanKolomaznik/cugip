@@ -73,6 +73,24 @@ struct grayscale_ftor
 	}
 	dim_traits<2>::extents_t extents;
 };
+
+template<typename TInValue, typename TOutValue>
+struct thresholding_ftor
+{
+	thresholding_ftor(TInValue aThreshold, TOutValue aUnderValue, TOutValue aUpperValue)
+		: mThreshold(aThreshold), mUnderValue(aUnderValue), mUpperValue(aUpperValue)
+	{ /*empty*/ }
+
+	CUGIP_DECL_HYBRID TOutValue
+	operator()(const TInValue &aArg)const
+	{
+		return (aArg < mThreshold) ? mUnderValue : mUpperValue;
+	}
+	TInValue mThreshold;
+	TOutValue mUnderValue;
+	TOutValue mUpperValue;
+};
+
 template<typename TInputType, typename TOutputType>
 struct gradient_difference
 {

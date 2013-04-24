@@ -61,12 +61,18 @@ public:
 		return mView[coords];
 	}
 
+	CUGIP_DECL_HYBRID accessed_type
+	get()
+	{
+		return mView[mCoords];
+	}
+
 	template <size_t tDimIdx>
 	CUGIP_DECL_HYBRID accessed_type
 	dim_offset(int aOffset)
 	{
 		coord_t coords = mCoords;
-		get<tDimIdx/*, typename coord_t::coord_t, coord_t::dim*/>(coords) += aOffset;
+		cugip::get<tDimIdx/*, typename coord_t::coord_t, coord_t::dim*/>(coords) += aOffset;
 		coords = min_coords(mView.dimensions()-coord_t(1,1), max_coords(coord_t(), coords));
 		return mView[coords];
 	}
