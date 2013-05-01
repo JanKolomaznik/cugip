@@ -302,4 +302,15 @@ sqr(TType aValue) {
 	return aValue * aValue;
 }
 
+template<typename T1, typename T2, size_t tDim>
+CUGIP_DECL_HYBRID bool
+less(const simple_vector<T1, tDim> &aArg1, simple_vector<T2, tDim> &aArg2)
+{
+	bool res = true;
+	for (size_t i = 0; i < tDim; ++i) {
+		res = res && aArg1[i] < aArg2[i];
+	}
+	return res;
+}
+
 }//namespace cugip

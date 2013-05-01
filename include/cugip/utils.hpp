@@ -135,6 +135,8 @@ typedef element<unsigned char, 3> element_rgb8_t;
 //typedef element<unsigned char, 1> element_gray8_t;
 typedef unsigned char element_gray8_t;
 typedef char element_gray8s_t;
+typedef uint32_t element_gray32_t;
+typedef int32_t element_gray32s_t;
 typedef element<signed char, 2> element_channel2_8s_t;
 
 

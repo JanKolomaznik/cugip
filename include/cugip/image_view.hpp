@@ -21,11 +21,11 @@ public:
 	typedef const TElement const_value_type;
 	typedef value_type & accessed_type;
 
-	device_image_view(const typename memory_management<TElement, tDim>::device_memory &aData) :
+	CUGIP_DECL_HYBRID device_image_view(const typename memory_management<TElement, tDim>::device_memory &aData) :
 		mData(aData)
 	{}
 
-	device_image_view() 
+	CUGIP_DECL_HYBRID device_image_view() 
 	{ /*empty*/ }
 
 	CUGIP_DECL_HYBRID extents_t 
@@ -66,14 +66,17 @@ public:
 	typedef const TElement const_value_type;
 	typedef const_value_type & accessed_type;
 
+	CUGIP_DECL_HYBRID 
 	const_device_image_view(const typename memory_management<TElement, tDim>::const_device_memory &aData) :
 		mData(aData)
 	{}
 
+	CUGIP_DECL_HYBRID 
 	const_device_image_view(const typename memory_management<TElement, tDim>::device_memory &aData) :
 		mData(aData)
 	{}
 
+	CUGIP_DECL_HYBRID 
 	const_device_image_view() 
 	{ /*empty*/ }
 
@@ -132,8 +135,44 @@ struct dimension<device_image_view<TElement, tDim> >: dimension_helper<tDim> {};
 template<typename TElement, size_t tDim>
 struct dimension<const_device_image_view<TElement, tDim> >: dimension_helper<tDim> {};
 
+
 /** 
  * @}
  **/
+
+/**
+ * Create image view from raw array.
+ **/
+template<typename TElement>
+CUGIP_DECL_HYBRID device_image_view<TElement, 2>
+view(device_ptr<TElement> aData, typename dim_traits<2>::extents_t aExtents, size_t aPitch)
+{
+	CUGIP_ASSERT(aData);
+	return device_image_view<TElement, 2>(typename memory_management<TElement, 2>::device_memory(aData, aExtents, aPitch));
+}
+
+/**
+ * Create image view from raw array.
+ **/
+template<typename TElement>
+CUGIP_DECL_HYBRID device_image_view<TElement, 2>
+view(device_ptr<TElement> aData, typename dim_traits<2>::extents_t aExtents)
+{
+	CUGIP_ASSERT(aData);
+	return device_image_view<TElement, 2>(
+			typename memory_management<TElement, 2>::device_memory(aData, aExtents, get<0>(aExtents)*sizeof(TElement)));
+}
+
+/**
+ * Create const image view from raw array.
+ **/
+template<typename TElement, size_t tDim>
+CUGIP_DECL_HYBRID const_device_image_view<TElement, tDim>
+const_view(const_device_ptr<TElement> aData, typename dim_traits<tDim>::extents_t aExtents, size_t aPitch)
+{
+	CUGIP_ASSERT(aData);
+	return const_device_image_view<TElement, tDim>(typename memory_management<TElement, tDim>::const_device_memory(aData, aExtents, aPitch));
+}
+
 
 }//namespace cugip

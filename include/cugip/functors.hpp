@@ -105,6 +105,22 @@ struct gradient_difference
 
 };
 
+template<typename TInputType>
+struct random_color_map
+{
+
+	CUGIP_DECL_HYBRID element_rgb8_t
+	operator()(const TInputType &aArg) const
+	{
+		element_rgb8_t tmp;
+		tmp.data[0] = aArg % 256;
+		tmp.data[1] = (aArg * 7) % 256;
+		tmp.data[2] = (aArg * 13) % 256;
+		return tmp;
+	}
+
+};
+
 struct convert_float_and_byte
 {
 	CUGIP_DECL_HYBRID unsigned char

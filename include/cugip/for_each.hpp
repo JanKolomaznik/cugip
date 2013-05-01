@@ -32,6 +32,7 @@ template <typename TView, typename TFunctor>
 void 
 for_each(TView aView, TFunctor aOperator)
 {
+	//TODO generic method for thread distribution over the data
 	dim3 blockSize(256, 1, 1);
 	dim3 gridSize((aView.dimensions().template get<0>() / blockSize.x + 1), aView.dimensions().template get<1>() / blockSize.y + 1, 1);
 
