@@ -10,6 +10,7 @@
 #include <cugip/exception.hpp>
 #include <cugip/basic_filters/convolution.hpp>
 #include <cugip/basic_filters/gradient.hpp>
+#include <cugip/basic_filters/connected_component_labeling.hpp>
 #include <cugip/algebra/arithmetics.hpp>
 #include <cugip/advanced_operations/coherence_enhancing_diffusion.hpp>
 #include <boost/gil/extension/io/jpeg_dynamic_io.hpp>
@@ -56,12 +57,15 @@ colored_ccl(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_
 {
 	D_PRINT(cugip::cudaMemoryInfoText());
 	cugip::device_image<cugip::element_gray8_t> inImage(aIn.width(), aIn.height());
+	cugip::device_image<cugip::element_gray32_t> labelImage(aIn.width(), aIn.height());
 	cugip::device_image<cugip::element_rgb8_t> outImage(aIn.width(), aIn.height());
+	cugip::device_memory_1d_owner<uint32_t> lut(multiply(inImage.dimensions())+1);
 	D_PRINT(cugip::cudaMemoryInfoText());
 
 	cugip::copy(aIn, cugip::view(inImage));
 
-	//cugip::transform(cugip::view(inImage), cugip::view(outImage), cugip::thresholding_ftor<cugip::element_gray8_t, cugip::element_gray8_t>(128, 0, 255));
+	cugip::connected_component_labeling(cugip::const_view(inImage), cugip::view(labelImage), cugip::view(lut));
+	cugip::transform(cugip::const_view(labelImage), cugip::view(outImage), cugip::random_color_map<cugip::element_gray32_t>());
 
 	cugip::copy(cugip::view(outImage), aOut);
 
