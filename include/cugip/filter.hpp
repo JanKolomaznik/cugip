@@ -19,7 +19,7 @@ kernel_filter(TInView aInView, TOutView aOutView, TFunctor aOperator )
 
 
 	if (cugip::less(coord, extents)) {
-		aOutView[coord] = aOperator(aInView.template locator<cugip::border_handling_repeat_t>(coord));
+		aOutView[coord] = aOperator(aInView.template locator<cugip::border_handling_repeat_t>(coord));//TODO - add different border policies
 	} 
 }
 

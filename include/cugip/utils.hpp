@@ -19,7 +19,7 @@
 	#define CUGIP_SHARED
 #endif
 
-#define CUGIP_ASSERT(EXPR) assert(EXPR)
+#define CUGIP_ASSERT(EXPR) //assert(EXPR)
 
 #define CUGIP_ASSERT_RESULT(EXPR) CUGIP_ASSERT(cudaSuccess == EXPR)
 

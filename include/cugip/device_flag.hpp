@@ -18,6 +18,11 @@ struct device_flag_view
 		*mFlag = true;
 	}
 
+	operator bool()
+	{
+		return *mFlag;
+	}
+
 	device_ptr<flag_t> mFlag;
 };
 
@@ -39,6 +44,12 @@ struct device_flag: public device_flag_view
 	}
 
 };
+
+device_flag_view
+view(device_flag_view &aFlag)
+{
+	return static_cast<device_flag_view &>(aFlag);
+}
 
 
 

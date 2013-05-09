@@ -5,6 +5,7 @@
 #include <cugip/filter.hpp>
 #include <cugip/image_view.hpp>
 #include <cugip/access_utils.hpp>
+#include <cugip/neighborhood_accessor.hpp>
 
 namespace cugip {
 
@@ -124,16 +125,17 @@ block_ccl_kernel(TImageView aImageView)
 	typedef typename TImageView::value_type value_type;
 	typedef typename TImageView::coord_t coord_t;
 	typedef typename TImageView::extents_t extents_t;
+	typedef device_image_view<value_type, dimension<TImageView>::value> tmp_image_t;
 	//TODO 3D version
-	coord_t coord = coord_t(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y);
+	coord_t coord = coord_t(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y, blockIdx.z * blockDim.z + threadIdx.z);
 	extents_t extents = aImageView.dimensions();
 
 	CUGIP_ASSERT(tSharedMemoryBufferSize >= (blockDim.x * blockDim.y * blockDim.z));
 
-	coord_t threadCoord(threadIdx.x, threadIdx.y/*, threadIdx.z*/);
-	extents_t blockExtents(blockDim.x, blockDim.y/*blockDim.z*/);
+	coord_t threadCoord(threadIdx.x, threadIdx.y, threadIdx.z);
+	extents_t blockExtents(blockDim.x, blockDim.y, blockDim.z);
 	CUGIP_SHARED value_type blockData[tSharedMemoryBufferSize];
-	device_image_view<value_type> blockView = cugip::view(device_ptr<value_type>(blockData), blockExtents);
+	tmp_image_t blockView = cugip::view(device_ptr<value_type>(blockData), blockExtents);
 
 	if (cugip::less(coord, extents)) {
 		blockView[threadCoord] = aImageView[coord];
@@ -146,7 +148,21 @@ block_ccl_kernel(TImageView aImageView)
 	int changed;
 	do {
 		//TODO more generic neighborhood processing
+		typedef typename get_neighborhood_accessor<tmp_image_t, neighborhood_4_tag>::type neighborhood;
+		neighborhood acc = neighborhood(blockView.template locator<border_handling_repeat_t>(threadCoord));
 		changed = 0;
+		for (size_t i = 0; i < neighborhood::size; ++i) {
+			if (current != 0) {
+				value_type newValue = acc[i];
+				if ((newValue < current) && (newValue != 0)) {
+					blockView[threadCoord] = current =  newValue;
+					++changed;
+				}
+			}
+			__syncthreads();
+		}
+
+/*
 		if (current != 0) {
 			coord_t coord2 = threadCoord;
 			coord2[0] = max(coord2[0]-1, 0);
@@ -185,7 +201,7 @@ block_ccl_kernel(TImageView aImageView)
 				blockView[threadCoord] = current =  newValue;
 				++changed;
 			}
-		}
+		}*/
 	} while (__syncthreads_or(changed));
 
 	// store results
@@ -291,6 +307,7 @@ connected_component_labeling(TImageView aImageView, TLabelView aLabelView, TLUT 
 
 	detail::block_ccl(aLabelView);
 
+	//TODO better init
 	cudaMemset(&aLut[0], 0, aLut.dimensions() * sizeof(typename TLUT::value_type));
 	detail::init_lut(aLabelView, aLut);
 
