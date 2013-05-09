@@ -1,0 +1,4 @@
+var structcugip_1_1size__traits_3_011_00_01convolution__kernel_3_01_t_type_00_01_t_size_traits_01_4_01_4 =
+[
+    [ "value", "structcugip_1_1size__traits_3_011_00_01convolution__kernel_3_01_t_type_00_01_t_size_traits_01_4_01_4.html#afd2abfdab8d411b4ddf3f9145b4a9df5", null ]
+];
