@@ -27,6 +27,9 @@ diffusion(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_image_t
 void
 laplacian(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_image_t::view_t aOut);
 
+void
+scan(boost::gil::rgb8_image_t::view_t aOut);
+
 int main() {
     rgb8_image_t img;
     jpeg_read_image("test.jpg",img);
@@ -67,6 +70,10 @@ int main() {
     rgb8_image_t mandelbrot_out(1600,800);
     mandelbrot( view(mandelbrot_out));
     jpeg_write_view("mandelbrot_out.jpg",const_view(mandelbrot_out));*/
+
+    rgb8_image_t scan_visualization_out(1000, 1000);
+    scan(view(scan_visualization_out));
+    jpeg_write_view("scan_visualization_out.jpg",const_view(scan_visualization_out));
 
     return 0;
 }

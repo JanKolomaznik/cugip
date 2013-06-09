@@ -130,6 +130,21 @@ get(const element<TType, tChannelCount> &aArg)
 	                  //>::get(aArg);
 }
 
+template<size_t tIdx>
+CUGIP_DECL_HYBRID unsigned int &
+get(dim3 &aArg)
+{
+	switch (tIdx) {
+	case 0: 
+		return aArg.x;
+	case 1: 
+		return aArg.y;
+	case 2: 
+		return aArg.z;
+	}
+	CUGIP_ASSERT(false);
+	return aArg.x;
+}
 
 typedef element<unsigned char, 3> element_rgb8_t;
 //typedef element<unsigned char, 1> element_gray8_t;

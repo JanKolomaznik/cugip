@@ -8,6 +8,16 @@
 
 namespace cugip {
 
+namespace detail {
+struct access_memory {
+	template<typename TView>
+	static typename TView::memory_t &
+	get(TView &aView)
+	{ return aView.mData; }
+};
+
+} //namespace detail
+
 template<typename TElement, size_t tDim = 2>
 class device_image_view
 {
@@ -20,6 +30,9 @@ public:
 	typedef TElement value_type;
 	typedef const TElement const_value_type;
 	typedef value_type & accessed_type;
+	typedef device_ptr<TElement> pointer_t;
+
+	friend struct cugip::detail::access_memory;
 
 	CUGIP_DECL_HYBRID device_image_view(const typename memory_management<TElement, tDim>::device_memory &aData) :
 		mData(aData)
@@ -65,6 +78,9 @@ public:
 	typedef TElement value_type;
 	typedef const TElement const_value_type;
 	typedef const_value_type & accessed_type;
+	typedef const_device_ptr<TElement> pointer_t;
+
+	friend struct cugip::detail::access_memory;
 
 	CUGIP_DECL_HYBRID 
 	const_device_image_view(const typename memory_management<TElement, tDim>::const_device_memory &aData) :
@@ -103,6 +119,8 @@ public:
 protected:
 	memory_t mData;
 };
+
+
 
 /** \ingroup  traits
  * @{
@@ -174,5 +192,16 @@ const_view(const_device_ptr<TElement> aData, typename dim_traits<tDim>::extents_
 	return const_device_image_view<TElement, tDim>(typename memory_management<TElement, tDim>::const_device_memory(aData, aExtents, aPitch));
 }
 
+/**
+ * Create image view from raw array.
+ **/
+template<typename TImageView>
+CUGIP_DECL_HYBRID TImageView
+sub_image_view(TImageView aImage, typename TImageView::coord_t aCorner, typename TImageView::extents_t aExtents)
+{
+	CUGIP_ASSERT(!cugip::less(aImage.dimensions(), aCorner + aExtents));
+	typename TImageView::pointer_t ptr = &aImage[aCorner];
+	return TImageView(typename TImageView::memory_t(ptr, aExtents, detail::access_memory::get(aImage).mPitch));
+}
 
 }//namespace cugip

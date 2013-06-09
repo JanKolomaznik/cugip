@@ -4,6 +4,8 @@
 #include <cugip/image.hpp>
 #include <cugip/transform.hpp>
 #include <cugip/copy.hpp>
+#include <cugip/fill.hpp>
+#include <cugip/scan.hpp>
 #include <cugip/for_each.hpp>
 #include <cugip/filter.hpp>
 #include <cugip/functors.hpp>
@@ -199,6 +201,28 @@ laplacian(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_image_t
 	cugip::convolution(cugip::const_view(inImage), cugip::view(outImage), cugip::laplacian_kernel(), 128);
 
 	cugip::copy(cugip::view(outImage), aOut);
+
+	CUGIP_CHECK_ERROR_STATE("CHECK");
+}
+
+void
+scan(boost::gil::rgb8_image_t::view_t aOut)
+{
+	D_PRINT(cugip::cudaMemoryInfoText());
+	cugip::device_image<size_t> inImage(aOut.width(), aOut.height());
+	cugip::device_image<size_t> tmpImage(aOut.width(), aOut.height());
+	cugip::device_image<size_t> outImage(aOut.width(), aOut.height());
+	cugip::device_image<cugip::element_rgb8_t> mappedImage(aOut.width(), aOut.height());
+	D_PRINT(cugip::cudaMemoryInfoText());
+
+	cugip::fill(cugip::view(inImage), 1);
+	cugip::fill(cugip::view(tmpImage), 0);
+
+	cugip::scan(cugip::const_view(inImage), cugip::view(outImage), cugip::view(tmpImage), cugip::sum_ftor());
+	cugip::transform(cugip::const_view(outImage), cugip::view(mappedImage), cugip::random_color_map<size_t>());
+	//cugip::transform(cugip::const_view(tmpImage), cugip::view(mappedImage), cugip::random_color_map<size_t>());
+
+	cugip::copy(cugip::view(mappedImage), aOut);
 
 	CUGIP_CHECK_ERROR_STATE("CHECK");
 }

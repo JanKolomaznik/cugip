@@ -161,47 +161,6 @@ block_ccl_kernel(TImageView aImageView)
 			}
 			__syncthreads();
 		}
-
-/*
-		if (current != 0) {
-			coord_t coord2 = threadCoord;
-			coord2[0] = max(coord2[0]-1, 0);
-			value_type newValue = blockView[coord2];
-			if ((newValue < current) && (newValue != 0)) {
-				blockView[threadCoord] = current =  newValue;
-				++changed;
-			}
-		}
-		__syncthreads();
-		if (current != 0) {
-			coord_t coord2 = threadCoord;
-			coord2[1] = max(coord2[1]-1, 0);
-			value_type newValue = blockView[coord2];
-			if ((newValue < current) && (newValue != 0)) {
-				blockView[threadCoord] = current =  newValue;
-				++changed;
-			}
-		}
-		__syncthreads();
-		if (current != 0) {
-			coord_t coord2 = threadCoord;
-			coord2[0] = min(coord2[0]+1, (int)blockExtents[0]-1);
-			value_type newValue = blockView[coord2];
-			if ((newValue < current) && (newValue != 0)) {
-				blockView[threadCoord] = current =  newValue;
-				++changed;
-			}
-		}
-		__syncthreads();
-		if (current != 0) {
-			coord_t coord2 = threadCoord;
-			coord2[1] = min(coord2[1]+1, (int)blockExtents[1]-1);
-			value_type newValue = blockView[coord2];
-			if ((newValue < current) && (newValue != 0)) {
-				blockView[threadCoord] = current =  newValue;
-				++changed;
-			}
-		}*/
 	} while (__syncthreads_or(changed));
 
 	// store results
@@ -268,14 +227,6 @@ merge_ccl_blocks_kernel(TImageView aImageView, TLUT aLut)
 
 	if (val1 && val2) {
 		addEquivalence(aLut, min(val1, val2), max(val1, val2));
-
-		/*value_type old = atomicMin(&aLut[val1], m);
-		if (old < m) {
-			atomicMin(&aLut[val1], m);
-		}
-
-
-		atomicMin(&aLut[val2], m);*/
 	}
 
 }

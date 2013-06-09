@@ -136,4 +136,15 @@ struct convert_float_and_byte
 	}
 };
 
+struct sum_ftor
+{
+	template<typename TValue>
+	CUGIP_DECL_HYBRID TValue
+	operator()(const TValue &aArg1, const TValue &aArg2)const
+	{
+		return aArg1 + aArg2;
+	}
+};
+
+
 }//namespace cugip
