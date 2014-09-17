@@ -11,18 +11,18 @@ template<typename TType>
 struct device_ptr
 {
 	CUGIP_DECL_HYBRID
-	device_ptr(): p(0) 
+	device_ptr(): p(0)
 	{ /*empty*/ }
 
 	CUGIP_DECL_HYBRID
-	device_ptr(const device_ptr &aArg): p(aArg.p) 
+	device_ptr(const device_ptr &aArg): p(aArg.p)
 	{ /*empty*/ }
 
 	CUGIP_DECL_HYBRID
-	device_ptr(TType *aArg): p(aArg) 
+	device_ptr(TType *aArg): p(aArg)
 	{ /*empty*/ }
 
-	CUGIP_DECL_DEVICE TType * 
+	CUGIP_DECL_DEVICE TType *
 	operator->()
 	{ return p; }
 
@@ -44,15 +44,21 @@ struct device_ptr
 		return device_ptr(reinterpret_cast<TType *>((reinterpret_cast<char *>(p) + aOffset)));
 	}
 
+	CUGIP_DECL_HYBRID TType *
+	get() const
+	{
+		return p;
+	}
+
 	TType *p;
 };
 
 template<typename TType>
 struct access_helper
 {
-	access_helper(device_ptr<TType> &aPtr): ptr(aPtr) {}
+	access_helper(const device_ptr<TType> &aPtr): ptr(aPtr) {}
 
-	device_ptr<TType> &ptr;
+	const device_ptr<TType> &ptr;
 	mutable TType tmp;
 
 	operator TType()const
@@ -62,45 +68,47 @@ struct access_helper
 	}
 	const access_helper&
 	operator=(const TType &aArg)const
-	{ 
-		tmp = aArg; 
+	{
+		tmp = aArg;
 		CUGIP_CHECK_RESULT(cudaMemcpy(ptr.p, &aArg, sizeof(TType), cudaMemcpyHostToDevice));
 		return *this;
 	}
 };
-
-template<typename TType>
-access_helper<TType>
-operator*(device_ptr<TType> &aPtr)
-{
-	CUGIP_ASSERT(aPtr);
-	return access_helper<TType>(aPtr);
-}
-
+#ifdef __CUDACC__
 template<typename TType>
 CUGIP_DECL_DEVICE TType &
-operator*(device_ptr<TType> &aPtr)
+operator*(const device_ptr<TType> &aPtr)
 {
 	CUGIP_ASSERT(aPtr);
 	return *aPtr.get();
 }
+#else
+template<typename TType>
+access_helper<TType>
+operator*(const device_ptr<TType> &aPtr)
+{
+	CUGIP_ASSERT(aPtr);
+	return access_helper<TType>(aPtr);
+}
+#endif // __CUDACC__
+
 //------------------------------------------------------------------------
 template<typename TType>
 struct const_device_ptr
 {
 	CUGIP_DECL_HYBRID
-	const_device_ptr(): p(0) 
+	const_device_ptr(): p(0)
 	{ /*empty*/ }
 
 	CUGIP_DECL_HYBRID
-	const_device_ptr(const device_ptr<TType> &aArg): p(aArg.p) 
+	const_device_ptr(const device_ptr<TType> &aArg): p(aArg.p)
 	{ /*empty*/ }
 
 	CUGIP_DECL_HYBRID
-	const_device_ptr(const const_device_ptr<TType> &aArg): p(aArg.p) 
+	const_device_ptr(const const_device_ptr<TType> &aArg): p(aArg.p)
 	{ /*empty*/ }
 
-	CUGIP_DECL_DEVICE const TType * 
+	CUGIP_DECL_DEVICE const TType *
 	operator->()
 	{ return p; }
 
@@ -124,13 +132,19 @@ struct const_device_ptr
 	operator bool() const
 	{ return p != 0; }
 
+	CUGIP_DECL_HYBRID const TType *
+	get() const
+	{
+		return p;
+	}
+
 	const TType *p;
 };
 
 template<typename TType>
 struct device_memory_1d
 {
-	
+
 };
 
 //****************************************************
@@ -172,7 +186,7 @@ struct device_memory_2d
 		return row[aCoords.template get<0>()];
 	}
 
-	inline CUGIP_DECL_HYBRID extents_t 
+	inline CUGIP_DECL_HYBRID extents_t
 	dimensions() const
 	{ return mExtents; }
 
@@ -226,7 +240,7 @@ struct const_device_memory_2d
 	}
 
 
-	CUGIP_DECL_HYBRID extents_t 
+	CUGIP_DECL_HYBRID extents_t
 	dimensions() const
 	{ return mExtents; }
 
@@ -253,7 +267,7 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 		this->mExtents.set<0>(aHeight);
 		this->mData = reinterpret_cast<TType*>(devPtr);
 
-		D_PRINT(boost::str(boost::format("GPU allocation: 2D memory - %1% items, %2% bytes pitch, %3% item size") 
+		D_PRINT(boost::str(boost::format("GPU allocation: 2D memory - %1% items, %2% bytes pitch, %3% item size")
 					% this->mExtents
 					% this->mPitch
 					% sizeof(TType)));
@@ -266,7 +280,7 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 		this->mExtents = aExtents;
 		this->mData = reinterpret_cast<TType*>(devPtr);
 
-		D_PRINT(boost::str(boost::format("GPU allocation: 2D memory - %1% items, %2% bytes pitch, %3% item size") 
+		D_PRINT(boost::str(boost::format("GPU allocation: 2D memory - %1% items, %2% bytes pitch, %3% item size")
 					% this->mExtents
 					% this->mPitch
 					% sizeof(TType)));

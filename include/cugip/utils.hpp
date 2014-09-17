@@ -12,12 +12,12 @@
 	#define CUGIP_SHARED __shared__
 #else
 	#define CUGIP_DECL_HOST
-	#define CUGIP_DECL_DEVICE 
+	#define CUGIP_DECL_DEVICE
 	#define CUGIP_DECL_HYBRID
 	#define CUGIP_GLOBAL
 	#define CUGIP_CONSTANT
 	#define CUGIP_SHARED
-#endif
+#endif //__CUDACC__
 
 #define CUGIP_ASSERT(EXPR) assert(EXPR)
 
@@ -37,8 +37,8 @@ cudaMemoryInfoText()
 	size_t total;
 	CUGIP_CHECK_RESULT(cudaMemGetInfo( &free, &total));
 
-	return boost::str( boost::format("Free GPU memory: %1% MB; Total GPU memory %2% MB; Occupied %3%%%") 
-		% (float(free) / (1024*1024)) 
+	return boost::str( boost::format("Free GPU memory: %1% MB; Total GPU memory %2% MB; Occupied %3%%%")
+		% (float(free) / (1024*1024))
 		% (float(total) / (1024*1024))
 		% (100.0f * float(total - free)/total)
 		);
@@ -56,7 +56,7 @@ struct element
 
 	CUGIP_DECL_HYBRID element &
 	operator=(const element &aArg)
-	{ 
+	{
 		for (size_t i = 0; i < tChannelCount; ++i) {
 			data[i] = aArg.data[i];
 		}
@@ -65,7 +65,7 @@ struct element
 
 	CUGIP_DECL_HYBRID element &
 	operator=(const TType &aArg)
-	{ 
+	{
 		for (size_t i = 0; i < tChannelCount; ++i) {
 			data[i] = aArg;
 		}
@@ -108,7 +108,7 @@ template<size_t tIdx, typename TType>
 CUGIP_DECL_HYBRID typename get_policy<tIdx, typename boost::remove_reference<TType>::type >::return_type
 get(TType &aArg)
 {
-	return get_policy<tIdx, 
+	return get_policy<tIdx,
 	                  typename boost::remove_reference<TType>::type
 	                  >::get(aArg);
 }
@@ -125,7 +125,7 @@ CUGIP_DECL_HYBRID const TType &
 get(const element<TType, tChannelCount> &aArg)
 {
 	//std::cout << typeid(aArg).name() << std::endl;
-	return aArg.data[tIdx]; //get_policy<tIdx, 
+	return aArg.data[tIdx]; //get_policy<tIdx,
 	                  //const element<TType, tChannelCount>
 	                  //>::get(aArg);
 }
@@ -152,11 +152,11 @@ swap(TType &aArg1, TType &aArg2)
 {
 	TType tmp = aArg1;
 	aArg1 = aArg2;
-	aArg2 = tmp;	
+	aArg2 = tmp;
 }
 
 /** \defgroup auxiliary_function
- * 
+ *
  **/
 
 

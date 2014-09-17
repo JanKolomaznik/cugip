@@ -8,7 +8,7 @@ namespace cugip {
 template<typename TType>
 struct negate
 {
-	CUGIP_DECL_HYBRID TType 
+	CUGIP_DECL_HYBRID TType
 	operator()(const TType &aArg)const
 	{
 		TType tmp;
@@ -22,7 +22,7 @@ struct negate
 struct mandelbrot_ftor
 {
 	mandelbrot_ftor(
-			dim_traits<2>::extents_t aExtents = dim_traits<2>::extents_t(), 
+			dim_traits<2>::extents_t aExtents = dim_traits<2>::extents_t(),
 			intervalf_t aXInterval = intervalf_t(-2.5f, 1.0f),
 			intervalf_t aYInterval = intervalf_t(-1.0f, 1.0f)
 			): extents(aExtents), xInterval(aXInterval), yInterval(aYInterval)
@@ -99,7 +99,7 @@ struct gradient_difference
 	CUGIP_DECL_HYBRID TOutputType
 	operator()(TAccessor aAccessor) const
 	{
-		return abs(aAccessor[typename TAccessor::diff_t(-1,0)] - aAccessor[typename TAccessor::diff_t()]) 
+		return abs(aAccessor[typename TAccessor::diff_t(-1,0)] - aAccessor[typename TAccessor::diff_t()])
 		     + abs(aAccessor[typename TAccessor::diff_t(0,-1)] - aAccessor[typename TAccessor::diff_t()]);
 	}
 
@@ -119,5 +119,21 @@ struct convert_float_and_byte
 		return aArg;
 	}
 };
+
+
+struct assign_color_ftor
+{
+	template<typename TInput>
+	CUGIP_DECL_HYBRID element_rgb8_t
+	operator()(const TInput &aArg)const
+	{
+		element_rgb8_t tmp;
+		tmp.data[0] = (aArg * 123) % 256;
+		tmp.data[1] = (aArg * 7) % 256;
+		tmp.data[2] = (aArg * 13) % 256;
+		return tmp;
+	}
+};
+
 
 }//namespace cugip

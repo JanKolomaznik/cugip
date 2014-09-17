@@ -3,6 +3,7 @@
 #include <cugip/traits.hpp>
 #include <cugip/transform.hpp>
 #include <cugip/filter.hpp>
+#include <cugip/device_flag.hpp>
 
 namespace cugip {
 
@@ -10,15 +11,15 @@ namespace detail {
 
 //-----------------------------------------------------------------------------
 template <typename TImageView, typename TLUTBufferView>
-CUGIP_GLOBAL void 
+CUGIP_GLOBAL void
 init_lut_kernel(TImageView aImageView, TLUTBufferView aLUT)
-{ 
+{
 	int blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
 	int idx = blockId * blockDim.x + threadIdx.x;
 
 	if (idx < multiply(aImageView.dimensions())) {
 		//TODO - check 0
-		lut[idx] = linear_access(aImageView, idx);// = outBuffer.mData[idx] != 0 ? idx+1 : 0;
+		aLUT[idx] = linear_access(aImageView, idx);// = outBuffer.mData[idx] != 0 ? idx+1 : 0;
 	}
 }
 
@@ -28,7 +29,7 @@ init_lut(TImageView aImageView, TLUTBufferView aLUT)
 {
 	dim3 blockSize1D( 512 );
 	dim3 gridSize1D( (multiply(aImageView.dimensions()) + 64*blockSize1D.x - 1) / (64*blockSize1D.x) , 64 );
-	
+
 	init_lut_kernel<<< gridSize1D, blockSize1D >>>(aImageView, aLUT);
 }
 //-----------------------------------------------------------------------------
@@ -36,12 +37,12 @@ init_lut(TImageView aImageView, TLUTBufferView aLUT)
 template<typename TInputType, typename TLUT>
 struct scan_neighborhood_ftor
 {
-	scan_neighborhood_ftor(TLUT aLUT, device_flag_view aLutUpdatedFlag) 
+	scan_neighborhood_ftor(TLUT aLUT, device_flag_view aLutUpdatedFlag)
 		: mLUT(aLUT), mLutUpdatedFlag(aLutUpdatedFlag)
 	{}
 
 	template<typename TLocator>
-	CUGIP_DECL_HYBRID TOutputType
+	CUGIP_DECL_HYBRID TInputType
 	minValidLabel(TLocator aLocator, TInputType aCurrent, const dimension_2d_tag &)
 	{
 		TInputType minimum = aCurrent;
@@ -90,14 +91,14 @@ update_lut_kernel(TImageView aImageView, TLUTBufferView aLUT)
 	if (idx < multiply(aImageView.dimensions())) {
 		label = linear_access(aImageView, idx);
 
-		if (label == idx+1) {		
+		if (label == idx+1) {
 			ref = label-1;
-			label = lut[idx];
+			label = aLUT[idx];
 			while (ref != label-1) {
 				ref = label-1;
-				label = lut[ref];
+				label = aLUT[ref];
 			}
-			lut[idx] = label;
+			aLUT[idx] = label;
 		}
 	}
 }
@@ -109,7 +110,7 @@ update_lut(TImageView aImageView, TLUTBufferView aLUT)
 {
 	dim3 blockSize1D( 512 );
 	dim3 gridSize1D( (multiply(aImageView.dimensions()) + 64*blockSize1D.x - 1) / (64*blockSize1D.x) , 64 );
-	
+
 	update_lut_kernel<<< gridSize1D, blockSize1D >>>(aImageView, aLUT);
 }
 
@@ -135,7 +136,7 @@ update_labels(TImageView aImageView, TLUTBufferView aLUT)
 {
 	dim3 blockSize1D( 512 );
 	dim3 gridSize1D( (multiply(aImageView.dimensions()) + 64*blockSize1D.x - 1) / (64*blockSize1D.x) , 64 );
-	
+
 	update_labels_kernel<<< gridSize1D, blockSize1D >>>(aImageView, aLUT);
 }
 //-----------------------------------------------------------------------------
@@ -144,28 +145,21 @@ update_labels(TImageView aImageView, TLUTBufferView aLUT)
 
 
 template <typename TImageView, typename TLUTBufferView>
-void 
+void
 connected_component_labeling(TImageView aImageView, TLUTBufferView aLUT)
 {
-	//int lutUpdated = 0;
-
 	device_flag lutUpdatedFlag;
-
 	lutUpdatedFlag.reset();
-        //cudaMemcpyToSymbol( "lutUpdated", &(lutUpdated = 0), sizeof(int), 0, cudaMemcpyHostToDevice );
 
 	detail::init_lut(aImageView, aLUT);
 	detail::scan_image(aImageView, aLUT);
 
-	//cudaMemcpyFromSymbol( &lutUpdated, "lutUpdated", sizeof(int), 0, cudaMemcpyDeviceToHost );
-	while (/*lutUpdated != 0*/lutUpdatedFlag) {
-                //cudaMemcpyToSymbol( "lutUpdated", &(lutUpdated = 0), sizeof(int), 0, cudaMemcpyHostToDevice );
+	while (lutUpdatedFlag) {
+		lutUpdatedFlag.reset();
 
 		detail::update_lut(aImageView, aLUT);
 		detail::update_labels(aImageView, aLUT);
 		detail::scan_image(aImageView, aLUT, lutUpdatedFlag.view());
-		
-		//cudaMemcpyFromSymbol( &lutUpdated, "lutUpdated", sizeof(int), 0, cudaMemcpyDeviceToHost );
 	}
 }
 

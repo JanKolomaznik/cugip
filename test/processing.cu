@@ -1,4 +1,11 @@
 
+#if defined(__CUDACC__)
+#ifndef BOOST_NOINLINE
+#	define BOOST_NOINLINE __attribute__ ((noinline))
+#endif //BOOST_NOINLINE
+#endif //__CUDACC__
+
+
 #include <boost/gil/gil_all.hpp>
 #include <cugip/utils.hpp>
 #include <cugip/image.hpp>
@@ -10,6 +17,7 @@
 #include <cugip/exception.hpp>
 #include <cugip/basic_filters/convolution.hpp>
 #include <cugip/basic_filters/gradient.hpp>
+#include <cugip/basic_filters/connected_component_labeling.hpp>
 #include <cugip/algebra/arithmetics.hpp>
 #include <cugip/advanced_operations/coherence_enhancing_diffusion.hpp>
 #include <boost/gil/extension/io/jpeg_dynamic_io.hpp>
@@ -44,7 +52,7 @@ thresholding(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_imag
 
 	cugip::copy(aIn, cugip::view(inImage));
 
-	cugip::transform(cugip::view(inImage), cugip::view(outImage), cugip::thresholding_ftor<cugip::element_gray8_t, cugip::element_gray8_t>(128, 0, 255));
+	cugip::transform(cugip::view(inImage), cugip::view(outImage), cugip::thresholding_ftor<cugip::element_gray8_t, cugip::element_gray8_t>(30, 255, 0));
 
 	cugip::copy(cugip::view(outImage), aOut);
 
@@ -56,15 +64,17 @@ colored_ccl(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_
 {
 	D_PRINT(cugip::cudaMemoryInfoText());
 	cugip::device_image<cugip::element_gray8_t> inImage(aIn.width(), aIn.height());
-	cugip::device_image<cugip::element_rgb8_t> outImage(aIn.width(), aIn.height());
+	cugip::device_image<int> ids(aIn.width(), aIn.height());
+	cugip::device_image<cugip::element_rgb8_t> outImage(aOut.width(), aOut.height());
 	D_PRINT(cugip::cudaMemoryInfoText());
 
 	cugip::copy(aIn, cugip::view(inImage));
 
-	//cugip::transform(cugip::view(inImage), cugip::view(outImage), cugip::thresholding_ftor<cugip::element_gray8_t, cugip::element_gray8_t>(128, 0, 255));
+	connected_component_labeling(cugip::const_view(inImage), cugip::view(ids));
+	cugip::transform(cugip::const_view(ids), cugip::view(outImage), cugip::assign_color_ftor());
 
 	cugip::copy(cugip::view(outImage), aOut);
-
+	D_PRINT(cugip::cudaMemoryInfoText());
 	CUGIP_CHECK_ERROR_STATE("CHECK");
 }
 
@@ -134,7 +144,10 @@ gradient_mag(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_imag
 
 	cugip::copy(aIn, cugip::view(inImage));
 
-	cugip::filter(cugip::const_view(inImage), cugip::view(outImage), cugip::gradient_magnitude_symmetric_difference<cugip::element_gray8_t, cugip::element_gray8_t>());
+	cugip::filter(
+		cugip::const_view(inImage), 
+		cugip::view(outImage), 
+		cugip::gradient_magnitude_symmetric_difference<cugip::element_gray8_t, cugip::element_gray8_t>());
 
 	cugip::multiply(cugip::view(outImage), 15);
 
@@ -198,3 +211,20 @@ laplacian(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_image_t
 
 	CUGIP_CHECK_ERROR_STATE("CHECK");
 }
+
+
+void
+test(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::view_t aOut)
+{
+	D_PRINT(cugip::cudaMemoryInfoText());
+	cugip::device_image<cugip::element_gray8_t> inImage(aIn.width(), aIn.height());
+	cugip::device_image<int> ids(aIn.width(), aIn.height());
+	cugip::device_image<cugip::element_rgb8_t> outImage(aOut.width(), aOut.height());
+
+	connected_component_labeling(cugip::const_view(inImage), cugip::view(ids));
+	cugip::transform(cugip::const_view(ids), cugip::view(outImage), cugip::assign_color_ftor());
+
+	D_PRINT(cugip::cudaMemoryInfoText());
+
+}
+
