@@ -25,10 +25,10 @@ public:
 		mData(aData)
 	{}
 
-	device_image_view() 
+	device_image_view()
 	{ /*empty*/ }
 
-	CUGIP_DECL_HYBRID extents_t 
+	CUGIP_DECL_HYBRID extents_t
 	dimensions() const
 	{ return mData.dimensions(); }
 
@@ -74,10 +74,10 @@ public:
 		mData(aData)
 	{}
 
-	const_device_image_view() 
+	const_device_image_view()
 	{ /*empty*/ }
 
-	CUGIP_DECL_HYBRID extents_t 
+	CUGIP_DECL_HYBRID extents_t
 	dimensions() const
 	{ return mData.dimensions(); }
 
@@ -132,7 +132,7 @@ struct dimension<device_image_view<TElement, tDim> >: dimension_helper<tDim> {};
 template<typename TElement, size_t tDim>
 struct dimension<const_device_image_view<TElement, tDim> >: dimension_helper<tDim> {};
 
-/** 
+/**
  * @}
  **/
 

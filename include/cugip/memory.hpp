@@ -10,6 +10,7 @@ namespace cugip {
 template<typename TType>
 struct device_base_ptr
 {
+	CUGIP_DECL_HYBRID
 	device_base_ptr(TType *aPtr): p(aPtr)
 	{ /*empty*/ }
 
@@ -96,6 +97,7 @@ struct access_helper
 		return *this;
 	}
 };
+
 #ifdef __CUDACC__
 template<typename TType>
 CUGIP_DECL_DEVICE TType &
@@ -166,7 +168,46 @@ struct const_device_ptr : device_base_ptr<const TType>
 template<typename TType>
 struct device_memory_1d
 {
+	typedef dim_traits<1>::extents_t extents_t;
+	typedef dim_traits<1>::coord_t coord_t;
+	typedef TType value_type;
 
+	device_memory_1d()
+	{}
+
+	device_memory_1d(device_ptr<TType> aPtr, size_t aSize)
+		:mData(aPtr), mExtents(aSize)
+	{}
+
+	device_memory_1d(device_ptr<TType> aPtr, extents_t aExtents, size_t aPitch)
+		:mData(aPtr), mExtents(aExtents)
+	{}
+
+	device_memory_1d(const device_memory_1d<TType> &aMemory)
+		:mData(aMemory.mData), mExtents(aMemory.mExtents)
+	{}
+
+	~device_memory_1d()
+	{ }
+
+	inline CUGIP_DECL_HYBRID value_type &
+	operator[](coord_t aCoords)
+	{
+		return mData[aCoords.template get<0>()];
+	}
+
+	inline CUGIP_DECL_HYBRID value_type &
+	operator[](size_t aIdx)
+	{
+		return mData[aIdx];
+	}
+
+	inline CUGIP_DECL_HYBRID extents_t
+	dimensions() const
+	{ return mExtents; }
+
+	device_ptr<TType> mData;
+	extents_t mExtents;
 };
 
 //****************************************************
@@ -271,6 +312,45 @@ struct const_device_memory_2d
 	size_t mPitch;
 };
 
+template<typename TType>
+struct device_memory_1d_owner: public device_memory_1d<TType>
+{
+	typedef dim_traits<1>::extents_t extents_t;
+
+	device_memory_1d_owner()
+	{}
+
+	device_memory_1d_owner(size_t aSize)
+	{
+		void *devPtr = NULL;
+		CUGIP_CHECK_RESULT(cudaMalloc(&devPtr, aSize * sizeof(TType)));
+		this->mExtents.set<0>(aSize);
+		this->mData = reinterpret_cast<TType*>(devPtr);
+
+		D_PRINT(boost::str(boost::format("GPU allocation: 1D memory - %1% items, %2% item size")
+					% this->mExtents
+					% sizeof(TType)));
+	}
+
+	device_memory_1d_owner(extents_t aExtents)
+	{
+		void *devPtr = NULL;
+		CUGIP_CHECK_RESULT(cudaMalloc(&devPtr, aExtents.get<0>() * sizeof(TType)));
+		this->mExtents = aExtents;
+		this->mData = reinterpret_cast<TType*>(devPtr);
+
+		D_PRINT(boost::str(boost::format("GPU allocation: 1D memory - %1% items, %2% item size")
+					% this->mExtents
+					% sizeof(TType)));
+	}
+
+	~device_memory_1d_owner()
+	{
+		if (this->mData) {
+			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
+		}
+	}
+};
 
 
 template<typename TType>

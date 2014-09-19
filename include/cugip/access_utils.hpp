@@ -11,7 +11,7 @@ namespace detail {
 } //namespace detail
 
 template<typename TImageView>
-typename TImageView::accessed_type
+CUGIP_DECL_HYBRID typename TImageView::accessed_type
 linear_access(TImageView &aView, size_t aIdx)
 {
 	typename TImageView::coord_t coords;
@@ -21,6 +21,22 @@ linear_access(TImageView &aView, size_t aIdx)
 	}
 
 	return aView[coords];
+}
+
+template<typename TExtents, typename TCoordinates>
+CUGIP_DECL_HYBRID size_t
+get_linear_access_index(
+		TExtents aExtents,
+		TCoordinates aCoordinates)
+{
+	int dim = dimension<TExtents>::value;
+	size_t idx = 0;
+	size_t stride = 1;
+	for(size_t i = 0; i < dim; ++i) {
+	       	idx += aCoordinates[i] * stride;
+		stride *= aExtents[i];
+	}
+	return idx;
 }
 
 } //namespace cugip

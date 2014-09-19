@@ -83,7 +83,7 @@ scan_image(TImageView aImageView, TLUTBufferView aLUT, device_flag_view aLutUpda
 }
 //-----------------------------------------------------------------------------
 template <typename TImageView, typename TLUTBufferView>
-void
+CUGIP_GLOBAL void
 update_lut_kernel(TImageView aImageView, TLUTBufferView aLUT)
 {
 	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
@@ -162,6 +162,36 @@ connected_component_labeling(TImageView aImageView, TLUTBufferView aLUT)
 		detail::update_labels(aImageView, aLUT);
 		detail::scan_image(aImageView, aLUT, lutUpdatedFlag.view());
 	}
+}
+
+template<typename TOutputValue, int TDimension>
+struct assign_masked_id_functor
+{
+	assign_masked_id_functor(typename dim_traits<TDimension>::extents_t aExtents)
+		: extents(aExtents)
+	{}
+
+	template<typename TInputValue>
+	CUGIP_DECL_HYBRID TOutputValue
+	operator()(const TInputValue &aArg, typename dim_traits<TDimension>::coord_t aCoordinates)const
+	{
+		if (aArg == 0) {
+			return 0;
+		}
+		return 1 + get_linear_access_index(extents, aCoordinates);
+	}
+	typename dim_traits<TDimension>::extents_t extents;
+};
+
+
+template <typename TInImageView, typename TOutImageView>
+void
+assign_masked_ids(TInImageView aInput, TOutImageView aOutput)
+{
+	cugip::transform_position(
+			aInput,
+			aOutput,
+			cugip::assign_masked_id_functor<typename TOutImageView::value_type, dimension<TOutImageView>::value>(aInput.dimensions()));
 }
 
 }//namespace cugip
