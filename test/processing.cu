@@ -70,7 +70,8 @@ colored_ccl(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_
 
 	cugip::copy(aIn, cugip::view(inImage));
 
-	connected_component_labeling(cugip::const_view(inImage), cugip::view(ids));
+	cugip::assign_masked_ids(cugip::const_view(inImage), cugip::view(ids));
+	cugip::connected_component_labeling(cugip::view(ids));
 	cugip::transform(cugip::const_view(ids), cugip::view(outImage), cugip::assign_color_ftor());
 
 	cugip::copy(cugip::view(outImage), aOut);

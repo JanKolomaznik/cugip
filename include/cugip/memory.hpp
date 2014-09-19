@@ -8,41 +8,16 @@
 namespace cugip {
 
 template<typename TType>
-struct device_ptr
+struct device_base_ptr
 {
-	CUGIP_DECL_HYBRID
-	device_ptr(): p(0)
+	device_base_ptr(TType *aPtr): p(aPtr)
 	{ /*empty*/ }
 
-	CUGIP_DECL_HYBRID
-	device_ptr(const device_ptr &aArg): p(aArg.p)
-	{ /*empty*/ }
-
-	CUGIP_DECL_HYBRID
-	device_ptr(TType *aArg): p(aArg)
-	{ /*empty*/ }
-
-	CUGIP_DECL_DEVICE TType *
-	operator->()
-	{ return p; }
-
-	CUGIP_DECL_HYBRID device_ptr &
-	operator=(const device_ptr &aArg)
-	{ p = aArg.p; return *this; }
-
-	CUGIP_DECL_HYBRID device_ptr &
-	operator=(TType *aArg)
-	{ p = aArg; return *this; }
 
 	CUGIP_DECL_HYBRID
 	operator bool() const
 	{ return p != 0; }
 
-	CUGIP_DECL_HYBRID device_ptr
-	byte_offset(int aOffset) const
-	{
-		return device_ptr(reinterpret_cast<TType *>((reinterpret_cast<char *>(p) + aOffset)));
-	}
 
 	CUGIP_DECL_HYBRID TType *
 	get() const
@@ -51,6 +26,53 @@ struct device_ptr
 	}
 
 	TType *p;
+};
+
+
+template<typename TType>
+struct device_ptr : device_base_ptr<TType>
+{
+	CUGIP_DECL_HYBRID
+	device_ptr(): device_base_ptr<TType>(0)
+	{ /*empty*/ }
+
+	CUGIP_DECL_HYBRID
+	device_ptr(const device_ptr &aArg): device_base_ptr<TType>(aArg.p)
+	{ /*empty*/ }
+
+	CUGIP_DECL_HYBRID
+	device_ptr(TType *aArg): device_base_ptr<TType>(aArg)
+	{ /*empty*/ }
+
+	CUGIP_DECL_DEVICE TType *
+	operator->()
+	{ return this->p; }
+
+	CUGIP_DECL_HYBRID device_ptr &
+	operator=(const device_ptr &aArg)
+	{ this->p = aArg.p; return *this; }
+
+	CUGIP_DECL_HYBRID device_ptr &
+	operator=(TType *aArg)
+	{ this->p = aArg; return *this; }
+
+	/*CUGIP_DECL_HYBRID
+	operator bool() const
+	{ return p != 0; }*/
+
+	CUGIP_DECL_HYBRID device_ptr
+	byte_offset(int aOffset) const
+	{
+		return device_ptr(reinterpret_cast<TType *>((reinterpret_cast<char *>(this->p) + aOffset)));
+	}
+
+/*	CUGIP_DECL_HYBRID TType *
+	get() const
+	{
+		return p;
+	}
+
+	TType *p;*/
 };
 
 template<typename TType>
@@ -94,41 +116,41 @@ operator*(const device_ptr<TType> &aPtr)
 
 //------------------------------------------------------------------------
 template<typename TType>
-struct const_device_ptr
+struct const_device_ptr : device_base_ptr<const TType>
 {
 	CUGIP_DECL_HYBRID
-	const_device_ptr(): p(0)
+	const_device_ptr(): device_base_ptr<const TType>(0)
 	{ /*empty*/ }
 
 	CUGIP_DECL_HYBRID
-	const_device_ptr(const device_ptr<TType> &aArg): p(aArg.p)
+	const_device_ptr(const device_ptr<TType> &aArg): device_base_ptr<const TType>(aArg.p)
 	{ /*empty*/ }
 
 	CUGIP_DECL_HYBRID
-	const_device_ptr(const const_device_ptr<TType> &aArg): p(aArg.p)
+	const_device_ptr(const const_device_ptr<TType> &aArg): device_base_ptr<const TType>(aArg.p)
 	{ /*empty*/ }
 
 	CUGIP_DECL_DEVICE const TType *
 	operator->()
-	{ return p; }
+	{ return this->p; }
 
 	CUGIP_DECL_HYBRID const_device_ptr &
 	operator=(const device_ptr<TType> &aArg)
-	{ p = aArg.p; return *this; }
+	{ this->p = aArg.p; return *this; }
 
 	CUGIP_DECL_HYBRID const_device_ptr &
 	operator=(const const_device_ptr &aArg)
-	{ p = aArg.p; return *this; }
+	{ this->p = aArg.p; return *this; }
 
 	CUGIP_DECL_HYBRID const_device_ptr &
 	operator=(TType *aArg)
-	{ p = aArg; return *this; }
+	{ this->p = aArg; return *this; }
 
 	CUGIP_DECL_HYBRID const_device_ptr &
 	operator=(const TType *aArg)
-	{ p = aArg; return *this; }
+	{ this->p = aArg; return *this; }
 
-	CUGIP_DECL_HYBRID
+	/*CUGIP_DECL_HYBRID
 	operator bool() const
 	{ return p != 0; }
 
@@ -138,7 +160,7 @@ struct const_device_ptr
 		return p;
 	}
 
-	const TType *p;
+	const TType *p;*/
 };
 
 template<typename TType>

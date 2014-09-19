@@ -4,6 +4,8 @@
 #include <cugip/transform.hpp>
 #include <cugip/filter.hpp>
 #include <cugip/device_flag.hpp>
+#include <cugip/access_utils.hpp>
+
 
 namespace cugip {
 
@@ -57,9 +59,9 @@ struct scan_neighborhood_ftor
 
 	template<typename TLocator>
 	CUGIP_DECL_HYBRID void
-	operator()(TLocator aLocator) const
+	operator()(TLocator aLocator)
 	{
-		TInputType current = aLocator();
+		TInputType current = aLocator.get();
 		if (0 < current) {
 			TInputType minLabel = minValidLabel(aLocator, current, typename dimension<TLocator>::type());;
 			mLUT[current-1] = minLabel < mLUT[current-1] ? minLabel : mLUT[current-1];
@@ -77,7 +79,7 @@ template <typename TImageView, typename TLUTBufferView>
 void
 scan_image(TImageView aImageView, TLUTBufferView aLUT, device_flag_view aLutUpdatedFlag)
 {
-	filter(aImageView, scan_neighborhood_ftor(aLUT, aLutUpdatedFlag));
+	for_each_locator(aImageView, scan_neighborhood_ftor<typename TImageView::value_type, TLUTBufferView>(aLUT, aLutUpdatedFlag));
 }
 //-----------------------------------------------------------------------------
 template <typename TImageView, typename TLUTBufferView>
@@ -86,13 +88,12 @@ update_lut_kernel(TImageView aImageView, TLUTBufferView aLUT)
 {
 	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
 	int idx = blockId * blockDim.x + threadIdx.x;
-	uint32 label, ref;
 
 	if (idx < multiply(aImageView.dimensions())) {
-		label = linear_access(aImageView, idx);
+		int label = linear_access(aImageView, idx);
 
 		if (label == idx+1) {
-			ref = label-1;
+			int ref = label-1;
 			label = aLUT[idx];
 			while (ref != label-1) {
 				ref = label-1;
@@ -152,7 +153,7 @@ connected_component_labeling(TImageView aImageView, TLUTBufferView aLUT)
 	lutUpdatedFlag.reset();
 
 	detail::init_lut(aImageView, aLUT);
-	detail::scan_image(aImageView, aLUT);
+	detail::scan_image(aImageView, aLUT, lutUpdatedFlag.view());
 
 	while (lutUpdatedFlag) {
 		lutUpdatedFlag.reset();
