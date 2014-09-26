@@ -6,23 +6,44 @@ namespace cugip {
 
 struct device_flag_view
 {
-	typedef bool flag_t;
+	/*typedef bool flag_t;
 	CUGIP_DECL_HYBRID void
 	reset()
 	{
-		*mFlag = false;
+		mFlag.assign(true);
+		// *mFlag = false;
+	}*/
+
+	typedef bool flag_t;
+	CUGIP_DECL_HOST void
+	reset_host()
+	{
+		mFlag.assign_host(true);
+		//*mFlag = false;
 	}
 
-	CUGIP_DECL_HYBRID void
-	set()
+	CUGIP_DECL_HOST void
+	set_host()
 	{
-		*mFlag = true;
+		//*mFlag = true;
 	}
+
+	CUGIP_DECL_HOST bool
+	check_host()
+	{
+
+	}
+
 
 	CUGIP_DECL_HYBRID
 	operator bool() const
 	{
-		return *mFlag;
+		bool value;// = *mFlag;
+
+#ifndef __CUDACC__
+		D_PRINT(boost::str(boost::format("Checking device flag ... %1%") % value));
+#endif
+		return value;
 	}
 
 
@@ -37,7 +58,7 @@ struct device_flag: public device_flag_view
 		void *devPtr = NULL;
 		CUGIP_CHECK_RESULT(cudaMalloc(&devPtr, sizeof(flag_t)));
 		mFlag = reinterpret_cast<flag_t *>(devPtr);
-		reset();
+		reset_host();
 	}
 
 	~device_flag()

@@ -1,8 +1,8 @@
 #pragma once
 
 #include <cugip/detail/include.hpp>
-#include <cugip/utils.hpp>
 #include <cugip/math.hpp>
+#include <cugip/utils.hpp>
 #include <cugip/exception.hpp>
 
 namespace cugip {
@@ -67,6 +67,20 @@ struct device_ptr : device_base_ptr<TType>
 		return device_ptr(reinterpret_cast<TType *>((reinterpret_cast<char *>(this->p) + aOffset)));
 	}
 
+	CUGIP_DECL_DEVICE void
+	assign_device(const TType &aValue)
+	{
+		*(this->p) = aValue;
+	}
+
+	CUGIP_DECL_HOST void
+	assign_host(const TType &aValue)
+	{
+		TType tmp = aValue;
+		CUGIP_CHECK_RESULT(cudaMemcpy(this->p, &tmp, sizeof(TType), cudaMemcpyHostToDevice));
+	}
+
+
 /*	CUGIP_DECL_HYBRID TType *
 	get() const
 	{
@@ -79,26 +93,47 @@ struct device_ptr : device_base_ptr<TType>
 template<typename TType>
 struct access_helper
 {
+	CUGIP_DECL_HYBRID
 	access_helper(const device_ptr<TType> &aPtr): ptr(aPtr) {}
 
 	const device_ptr<TType> &ptr;
-	mutable TType tmp;
 
+	CUGIP_DECL_HYBRID
 	operator TType()const
 	{
+#ifdef __CUDACC__
+		return *(ptr.p);
+#else
+		TType tmp;
 		CUGIP_CHECK_RESULT(cudaMemcpy(&tmp, ptr.p, sizeof(TType), cudaMemcpyDeviceToHost));
 		return tmp;
+#endif
 	}
+
+	CUGIP_DECL_HYBRID
 	const access_helper&
 	operator=(const TType &aArg)const
 	{
-		tmp = aArg;
+#ifdef __CUDACC__
+		*(ptr.p) = aArg;
+#else
+		TType tmp = aArg;
 		CUGIP_CHECK_RESULT(cudaMemcpy(ptr.p, &aArg, sizeof(TType), cudaMemcpyHostToDevice));
+#endif
 		return *this;
 	}
 };
 
-#ifdef __CUDACC__
+template<typename TType>
+CUGIP_DECL_HYBRID access_helper<TType>
+operator*(const device_ptr<TType> &aPtr)
+{
+	CUGIP_ASSERT(aPtr);
+	return access_helper<TType>(aPtr);
+}
+
+
+/*#ifdef __CUDACC__
 template<typename TType>
 CUGIP_DECL_DEVICE TType &
 operator*(const device_ptr<TType> &aPtr)
@@ -115,7 +150,7 @@ operator*(const device_ptr<TType> &aPtr)
 	return access_helper<TType>(aPtr);
 }
 #endif // __CUDACC__
-
+*/
 //------------------------------------------------------------------------
 template<typename TType>
 struct const_device_ptr : device_base_ptr<const TType>
@@ -193,13 +228,13 @@ struct device_memory_1d
 	inline CUGIP_DECL_HYBRID value_type &
 	operator[](coord_t aCoords)
 	{
-		return mData[aCoords.template get<0>()];
+		return mData.p[aCoords[0]];
 	}
 
 	inline CUGIP_DECL_HYBRID value_type &
 	operator[](size_t aIdx)
 	{
-		return mData[aIdx];
+		return mData.p[aIdx];
 	}
 
 	inline CUGIP_DECL_HYBRID extents_t
@@ -324,7 +359,7 @@ struct device_memory_1d_owner: public device_memory_1d<TType>
 	{
 		void *devPtr = NULL;
 		CUGIP_CHECK_RESULT(cudaMalloc(&devPtr, aSize * sizeof(TType)));
-		this->mExtents.set<0>(aSize);
+		this->mExtents.template set<0>(aSize);
 		this->mData = reinterpret_cast<TType*>(devPtr);
 
 		D_PRINT(boost::str(boost::format("GPU allocation: 1D memory - %1% items, %2% item size")
@@ -422,6 +457,13 @@ struct memory_management<TElement, 2>
 	typedef const_device_memory_2d<TElement> const_device_memory;
 	typedef device_memory_2d_owner<TElement> device_memory_owner;
 };
+
+template <typename TType>
+device_memory_1d<TType>
+view(const device_memory_1d_owner<TType> &aBuffer)
+{
+	return static_cast<const device_memory_1d<TType> &>(aBuffer);
+}
 
 
 }//namespace cugip

@@ -150,18 +150,21 @@ void
 connected_component_labeling(TImageView aImageView, TLUTBufferView aLUT)
 {
 	device_flag lutUpdatedFlag;
-	lutUpdatedFlag.reset();
+	//lutUpdatedFlag.reset();
 
+	D_PRINT("CCL initialization ...");
 	detail::init_lut(aImageView, aLUT);
-	detail::scan_image(aImageView, aLUT, lutUpdatedFlag.view());
-
+	//detail::scan_image(aImageView, aLUT, lutUpdatedFlag.view());
+/*
 	while (lutUpdatedFlag) {
+		D_PRINT("    Running CCL iteration ...");
 		lutUpdatedFlag.reset();
 
 		detail::update_lut(aImageView, aLUT);
 		detail::update_labels(aImageView, aLUT);
 		detail::scan_image(aImageView, aLUT, lutUpdatedFlag.view());
-	}
+	}*/
+	D_PRINT("CCL done!");
 }
 
 template<typename TOutputValue, int TDimension>

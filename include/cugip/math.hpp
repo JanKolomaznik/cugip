@@ -65,7 +65,7 @@ public:
 	}
 
 	template <size_t tIdx>
-	inline CUGIP_DECL_HYBRID TCoordinateType const& 
+	inline CUGIP_DECL_HYBRID TCoordinateType const&
 	get() const
 	{
 		//BOOST_STATIC_ASSERT(tIdx < DimensionCount);
@@ -73,27 +73,27 @@ public:
 	}
 
 	template <size_t tIdx>
-	inline CUGIP_DECL_HYBRID TCoordinateType & 
+	inline CUGIP_DECL_HYBRID TCoordinateType &
 	get()
 	{
 		//BOOST_STATIC_ASSERT(tIdx < DimensionCount);
 		return mValues[tIdx];
 	}
 
-	inline CUGIP_DECL_HYBRID const TCoordinateType & 
+	inline CUGIP_DECL_HYBRID const TCoordinateType &
 	operator[](size_t aIdx)const
 	{
 		return mValues[aIdx];
 	}
 
-	inline CUGIP_DECL_HYBRID TCoordinateType & 
+	inline CUGIP_DECL_HYBRID TCoordinateType &
 	operator[](size_t aIdx)
 	{
 		return mValues[aIdx];
 	}
 
 	template <size_t tIdx>
-	inline CUGIP_DECL_HYBRID void  
+	inline CUGIP_DECL_HYBRID void
 	set(TCoordinateType const& value)
 	{
 		//BOOST_STATIC_ASSERT(tIdx < tDim);
@@ -163,11 +163,15 @@ min_coords(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TC
 	return res;
 }
 
-template<typename TType>
+template<typename TType, size_t tDim>
 CUGIP_DECL_HOST inline std::ostream &
-operator<<( std::ostream &stream, const simple_vector<TType,2> &v )
+operator<<( std::ostream &stream, const simple_vector<TType, tDim> &v )
 {
-	return stream << "[ " << v. template get<0>() << ", " << v. template get<1>() << " ]";
+	stream << "[ ";
+	for (int i = 0; i < tDim - 1; ++i) {
+		stream << v[i] << ", ";
+	}
+	return stream << v[tDim - 1] << " ]";
 }
 
 template<typename TCoordType, size_t tDim>
@@ -226,7 +230,7 @@ get(simple_vector<TCoordinateType, tDim> &aArg)
 }*/
 
 
-/** 
+/**
  * @}
  **/
 
@@ -290,14 +294,14 @@ struct dim_traits
 template<typename TCoordinateType, size_t tDim>
 struct dimension<simple_vector<TCoordinateType, tDim> >: dimension_helper<tDim> {};
 
-/** 
+/**
  * @}
  **/
 
 #define EPSILON 0.000001f
 
 template<typename TType>
-inline CUGIP_DECL_HYBRID TType 
+inline CUGIP_DECL_HYBRID TType
 sqr(TType aValue) {
 	return aValue * aValue;
 }

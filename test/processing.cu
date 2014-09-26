@@ -52,7 +52,7 @@ thresholding(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_imag
 
 	cugip::copy(aIn, cugip::view(inImage));
 
-	cugip::transform(cugip::view(inImage), cugip::view(outImage), cugip::thresholding_ftor<cugip::element_gray8_t, cugip::element_gray8_t>(30, 255, 0));
+	cugip::transform(cugip::view(inImage), cugip::view(outImage), cugip::thresholding_ftor<cugip::element_gray8_t, cugip::element_gray8_t>(80, 255, 0));
 
 	cugip::copy(cugip::view(outImage), aOut);
 
@@ -62,16 +62,18 @@ thresholding(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_imag
 void
 colored_ccl(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::view_t aOut)
 {
+	D_PRINT("Colored CCL");
 	D_PRINT(cugip::cudaMemoryInfoText());
 	cugip::device_image<cugip::element_gray8_t> inImage(aIn.width(), aIn.height());
 	cugip::device_image<int> ids(aIn.width(), aIn.height());
 	cugip::device_image<cugip::element_rgb8_t> outImage(aOut.width(), aOut.height());
+	cugip::device_memory_1d_owner<int> lut(aIn.width() * aIn.height());
 	D_PRINT(cugip::cudaMemoryInfoText());
 
 	cugip::copy(aIn, cugip::view(inImage));
 
 	cugip::assign_masked_ids(cugip::const_view(inImage), cugip::view(ids));
-	//cugip::connected_component_labeling(cugip::view(ids));
+	cugip::connected_component_labeling(cugip::view(ids), cugip::view(lut));
 	cugip::transform(cugip::const_view(ids), cugip::view(outImage), cugip::assign_color_ftor());
 
 	cugip::copy(cugip::view(outImage), aOut);
