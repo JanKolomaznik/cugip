@@ -80,6 +80,14 @@ struct device_ptr : device_base_ptr<TType>
 		CUGIP_CHECK_RESULT(cudaMemcpy(this->p, &tmp, sizeof(TType), cudaMemcpyHostToDevice));
 	}
 
+	CUGIP_DECL_HOST TType
+	retrieve_host() const
+	{
+		TType tmp;
+		CUGIP_CHECK_RESULT(cudaMemcpy(&tmp, this->p, sizeof(TType), cudaMemcpyDeviceToHost));
+		return tmp;
+	}
+
 
 /*	CUGIP_DECL_HYBRID TType *
 	get() const

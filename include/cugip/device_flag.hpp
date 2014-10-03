@@ -18,24 +18,32 @@ struct device_flag_view
 	CUGIP_DECL_HOST void
 	reset_host()
 	{
-		mFlag.assign_host(true);
+		mFlag.assign_host(false);
 		//*mFlag = false;
 	}
 
 	CUGIP_DECL_HOST void
 	set_host()
 	{
+		mFlag.assign_host(true);
+		//*mFlag = true;
+	}
+
+	CUGIP_DECL_DEVICE void
+	set_device()
+	{
+		mFlag.assign_device(true);
 		//*mFlag = true;
 	}
 
 	CUGIP_DECL_HOST bool
 	check_host()
 	{
-
+		return mFlag.retrieve_host();
 	}
 
 
-	CUGIP_DECL_HYBRID
+	/*CUGIP_DECL_HYBRID
 	operator bool() const
 	{
 		bool value;// = *mFlag;
@@ -44,7 +52,7 @@ struct device_flag_view
 		D_PRINT(boost::str(boost::format("Checking device flag ... %1%") % value));
 #endif
 		return value;
-	}
+	}*/
 
 
 	device_ptr<flag_t> mFlag;

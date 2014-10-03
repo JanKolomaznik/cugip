@@ -58,15 +58,17 @@ struct scan_neighborhood_ftor
 	}
 
 	template<typename TLocator>
-	CUGIP_DECL_HYBRID void
+	CUGIP_DECL_DEVICE void // TODO hybrid
 	operator()(TLocator aLocator)
 	{
 		TInputType current = aLocator.get();
 		if (0 < current) {
 			TInputType minLabel = minValidLabel(aLocator, current, typename dimension<TLocator>::type());;
-			mLUT[current-1] = minLabel < mLUT[current-1] ? minLabel : mLUT[current-1];
-
-			mLutUpdatedFlag.set();
+			if (minLabel < mLUT[current-1]) {
+				//printf("%d - %d - %d; ", current, mLUT[current-1], minLabel);
+				mLUT[current-1] = minLabel;
+				mLutUpdatedFlag.set_device();
+			}
 		}
 	}
 
@@ -150,20 +152,24 @@ void
 connected_component_labeling(TImageView aImageView, TLUTBufferView aLUT)
 {
 	device_flag lutUpdatedFlag;
-	//lutUpdatedFlag.reset();
+	lutUpdatedFlag.reset_host();
 
 	D_PRINT("CCL initialization ...");
 	detail::init_lut(aImageView, aLUT);
-	//detail::scan_image(aImageView, aLUT, lutUpdatedFlag.view());
-/*
-	while (lutUpdatedFlag) {
-		D_PRINT("    Running CCL iteration ...");
-		lutUpdatedFlag.reset();
+	detail::scan_image(aImageView, aLUT, lutUpdatedFlag.view());
+/*detail::update_lut(aImageView, aLUT);
+		detail::update_labels(aImageView, aLUT);*/
+
+	int i = 0;
+	while (lutUpdatedFlag.check_host()) {
+	//for (int i = 0; i < 1000; ++i) {
+		D_PRINT("    Running CCL iteration ..." << ++i);
+		lutUpdatedFlag.reset_host();
 
 		detail::update_lut(aImageView, aLUT);
 		detail::update_labels(aImageView, aLUT);
 		detail::scan_image(aImageView, aLUT, lutUpdatedFlag.view());
-	}*/
+	}
 	D_PRINT("CCL done!");
 }
 
