@@ -194,14 +194,14 @@ watershed_evolution_kernel(
 		TDistanceView aDistanceView2,
 		device_flag_view aUpdateFlag)
 {
-	typedef TImageView::value_type Value;
-	typedef TIdImageView::value_type Label;
-	typedef TIdImageView::locator LabelLocator;
-	typedef TDistanceView::locator Locator;
+	typedef typename TImageView::value_type Value;
+	typedef typename TIdImageView::value_type Label;
+	typedef typename TIdImageView::locator LabelLocator;
+	typedef typename TDistanceView::locator Locator;
 	typedef typename TDistanceView::value_type Distance;
 
-	typename TView::coord_t coord(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y);
-	typename TView::extents_t extents = aView.dimensions();
+	typename TImageView::coord_t coord(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y);
+	typename TImageView::extents_t extents = aImageView.dimensions();
 
 	if (coord < extents) {
 		Value value = aImageView[coord];
@@ -215,7 +215,7 @@ watershed_evolution_kernel(
 		bool found = false;
 		for (int j = -1; j <= 1; ++j) {
 			for (int i = -1; i <= 1; ++i) {
-				Distance distance = aLocator[typename Locator::diff_t(i, j)];
+				Distance distance = distanceLocator[typename Locator::diff_t(i, j)];
 				if (distance < currentMinimum) {
 					currentMinimum = distance;
 					offset = typename Locator::diff_t(i, j);
@@ -247,7 +247,7 @@ watershed_evolution(
 	dim3 blockSize(256, 1, 1);
 	dim3 gridSize((aImageView.dimensions().template get<0>() / blockSize.x + 1), aImageView.dimensions().template get<1>() / blockSize.y + 1, 1);
 
-	watershed_evolution_kernel<<< gridSize1D, blockSize1D >>>(
+	watershed_evolution_kernel<<<gridSize, blockSize>>>(
 				aImageView,
 				aIdImageView,
 				aTmpIdImageView,
@@ -271,7 +271,7 @@ watershed_transformation2(
 	updatedFlag.reset_host();
 
 
-	init_watershed_buffers(labeledRegions, tmp);
+	init_watershed_buffers(aIdImageView, aDistanceView1);
 	while (updatedFlag.check_host()) {
 		watershed_evolution(
 				aImageView,

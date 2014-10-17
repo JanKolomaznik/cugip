@@ -77,6 +77,18 @@ public:
 		return mView[coords];
 	}
 
+	CUGIP_DECL_HYBRID coord_t
+	coords() const
+	{
+		return mCoords;
+	}
+
+	CUGIP_DECL_HYBRID extents_t
+	dimensions() const
+	{
+		return mView.dimensions();
+	}
+
 protected:
 	TImageView &mView;
 	coord_t mCoords;
@@ -89,7 +101,7 @@ protected:
 template<typename TImageView, typename TBorderHandling>
 struct dimension<image_locator<TImageView, TBorderHandling> >: dimension<TImageView> {};
 
-/** 
+/**
  * @}
  **/
 

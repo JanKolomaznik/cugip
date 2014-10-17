@@ -10,18 +10,16 @@ namespace cugip {
 namespace detail {
 
 template <typename TInView, typename TOutView, typename TFunctor>
-CUGIP_GLOBAL void 
+CUGIP_GLOBAL void
 kernel_filter(TInView aInView, TOutView aOutView, TFunctor aOperator )
 {
 	typename TOutView::coord_t coord(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y);
 	typename TOutView::extents_t extents = aOutView.dimensions();
 
-	if (coord.template get<0>() < extents.template get<0>() && coord.template get<1>() < extents.template get<1>()) {
+	if (coord < extents) {
 		aOutView[coord] = aOperator(aInView.template locator<cugip::border_handling_repeat_t>(coord));
-	} 
+	}
 }
-
-
 
 }//namespace detail
 
@@ -31,7 +29,7 @@ kernel_filter(TInView aInView, TOutView aOutView, TFunctor aOperator )
  **/
 
 template <typename TInView, typename TOutView, typename TFunctor>
-void 
+void
 filter(TInView aInView, TOutView aOutView, TFunctor aOperator)
 {
 	dim3 blockSize(256, 1, 1);
@@ -47,7 +45,7 @@ filter(TInView aInView, TOutView aOutView, TFunctor aOperator)
 	CUGIP_CHECK_ERROR_STATE("kernel_for_each");
 }
 
-/** 
+/**
  * @}
  **/
 

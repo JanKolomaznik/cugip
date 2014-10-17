@@ -18,6 +18,7 @@
 #include <cugip/basic_filters/convolution.hpp>
 #include <cugip/basic_filters/gradient.hpp>
 #include <cugip/basic_filters/connected_component_labeling.hpp>
+#include <cugip/basic_filters/watershed_transformation.hpp>
 #include <cugip/algebra/arithmetics.hpp>
 #include <cugip/advanced_operations/coherence_enhancing_diffusion.hpp>
 #include <boost/gil/extension/io/jpeg_dynamic_io.hpp>
@@ -81,6 +82,30 @@ colored_ccl(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_
 	CUGIP_CHECK_ERROR_STATE("CHECK");
 }
 
+
+void
+colored_watersheds(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::view_t aOut)
+{
+/*	D_PRINT("Colored WSheds");
+	D_PRINT(cugip::cudaMemoryInfoText());
+	cugip::device_image<cugip::element_gray8_t> inImage(aIn.width(), aIn.height());
+	cugip::device_image<int> ids(aIn.width(), aIn.height());
+	cugip::device_image<cugip::element_rgb8_t> outImage(aOut.width(), aOut.height());
+	D_PRINT(cugip::cudaMemoryInfoText());
+
+	cugip::copy(aIn, cugip::view(inImage));
+
+	cugip::assign_masked_ids(cugip::const_view(inImage), cugip::view(ids));
+	cugip::watershed_transformation(cugip::const_view(inImage), cugip::view(ids));
+	cugip::transform(cugip::const_view(ids), cugip::view(outImage), cugip::assign_color_ftor());
+
+	cugip::copy(cugip::view(outImage), aOut);
+	D_PRINT(cugip::cudaMemoryInfoText());
+	CUGIP_CHECK_ERROR_STATE("CHECK");*/
+}
+
+
+
 void
 grayscale(boost::gil::rgb8_image_t::const_view_t aIn, boost::gil::gray8_image_t::view_t aOut)
 {
@@ -119,6 +144,48 @@ mandelbrot(boost::gil::rgb8_image_t::view_t aOut)
 
 	CUGIP_CHECK_ERROR_STATE("CHECK");
 }
+
+
+void
+generate_spiral(boost::gil::gray8_image_t::view_t aOut)
+{
+	boost::timer::auto_cpu_timer t;
+	D_PRINT(cugip::cudaMemoryInfoText());
+	cugip::device_image<cugip::element_gray8_t> outImage(aOut.width(), aOut.height());
+	D_PRINT(cugip::cudaMemoryInfoText());
+
+	{
+		boost::timer::auto_cpu_timer t2;
+		cugip::for_each_position(cugip::view(outImage), cugip::generate_spiral_ftor(outImage.dimensions()));
+		cudaThreadSynchronize();
+	}
+	cugip::copy(cugip::view(outImage), aOut);
+
+	CUGIP_CHECK_ERROR_STATE("CHECK");
+}
+
+
+
+void
+generate_basins(boost::gil::gray8_image_t::view_t aOut)
+{
+	boost::timer::auto_cpu_timer t;
+	D_PRINT(cugip::cudaMemoryInfoText());
+	cugip::device_image<cugip::element_gray8_t> outImage(aOut.width(), aOut.height());
+	D_PRINT(cugip::cudaMemoryInfoText());
+
+	{
+		boost::timer::auto_cpu_timer t2;
+		cugip::for_each_position(cugip::view(outImage), cugip::generate_basins_ftor());
+		cudaThreadSynchronize();
+	}
+	cugip::copy(cugip::view(outImage), aOut);
+
+	CUGIP_CHECK_ERROR_STATE("CHECK");
+}
+
+
+
 
 void
 gradient(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::view_t aOut)

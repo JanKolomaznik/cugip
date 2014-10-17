@@ -37,9 +37,9 @@ init_lut(TImageView aImageView, TLUTBufferView aLUT)
 //-----------------------------------------------------------------------------
 
 template<typename TInputType, typename TLUT>
-struct scan_neighborhood_ftor
+struct scan_neighborhood_for_connections_ftor
 {
-	scan_neighborhood_ftor(TLUT aLUT, device_flag_view aLutUpdatedFlag)
+	scan_neighborhood_for_connections_ftor(TLUT aLUT, device_flag_view aLutUpdatedFlag)
 		: mLUT(aLUT), mLutUpdatedFlag(aLutUpdatedFlag)
 	{}
 
@@ -48,8 +48,8 @@ struct scan_neighborhood_ftor
 	minValidLabel(TLocator aLocator, TInputType aCurrent, const dimension_2d_tag &)
 	{
 		TInputType minimum = aCurrent;
-		for (int j = -1; j < 1; ++j) {
-			for (int i = -1; i < 1; ++i) {
+		for (int j = -1; j <= 1; ++j) {
+			for (int i = -1; i <= 1; ++i) {
 				TInputType value = aLocator[typename TLocator::diff_t(i, j)];
 				minimum = (value < minimum && value > 0) ? value : minimum;
 			}
@@ -79,9 +79,9 @@ struct scan_neighborhood_ftor
 
 template <typename TImageView, typename TLUTBufferView>
 void
-scan_image(TImageView aImageView, TLUTBufferView aLUT, device_flag_view aLutUpdatedFlag)
+scan_image_for_connections(TImageView aImageView, TLUTBufferView aLUT, device_flag_view aLutUpdatedFlag)
 {
-	for_each_locator(aImageView, scan_neighborhood_ftor<typename TImageView::value_type, TLUTBufferView>(aLUT, aLutUpdatedFlag));
+	for_each_locator(aImageView, scan_neighborhood_for_connections_ftor<typename TImageView::value_type, TLUTBufferView>(aLUT, aLutUpdatedFlag));
 }
 //-----------------------------------------------------------------------------
 template <typename TImageView, typename TLUTBufferView>
@@ -156,7 +156,7 @@ connected_component_labeling(TImageView aImageView, TLUTBufferView aLUT)
 
 	D_PRINT("CCL initialization ...");
 	detail::init_lut(aImageView, aLUT);
-	detail::scan_image(aImageView, aLUT, lutUpdatedFlag.view());
+	detail::scan_image_for_connections(aImageView, aLUT, lutUpdatedFlag.view());
 /*detail::update_lut(aImageView, aLUT);
 		detail::update_labels(aImageView, aLUT);*/
 
@@ -168,7 +168,7 @@ connected_component_labeling(TImageView aImageView, TLUTBufferView aLUT)
 
 		detail::update_lut(aImageView, aLUT);
 		detail::update_labels(aImageView, aLUT);
-		detail::scan_image(aImageView, aLUT, lutUpdatedFlag.view());
+		detail::scan_image_for_connections(aImageView, aLUT, lutUpdatedFlag.view());
 	}
 	D_PRINT("CCL done!");
 }

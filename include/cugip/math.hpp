@@ -142,6 +142,38 @@ operator==(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TC
 }
 
 template<typename TCoordType1, typename TCoordType2, size_t tDim>
+inline CUGIP_DECL_HYBRID bool
+less( const simple_vector<TCoordType1, tDim> &aA, const simple_vector<TCoordType2, tDim> &aB)
+{
+	for (size_t i = 0; i < tDim; ++i) {
+		if (aA.mValues[i] >= aB.mValues[i]) {
+			return false;
+		}
+	}
+	return true;
+}
+
+
+template<typename TCoordType1, typename TCoordType2, size_t tDim>
+inline CUGIP_DECL_HYBRID bool
+operator<( const simple_vector<TCoordType1, tDim> &aA, const simple_vector<TCoordType2, tDim> &aB)
+{
+	return less(aA, aB);
+}
+
+template<typename TCoordType1, typename TCoordType2, size_t tDim>
+inline CUGIP_DECL_HYBRID bool
+operator<=( const simple_vector<TCoordType1, tDim> &aA, const simple_vector<TCoordType2, tDim> &aB)
+{
+	for (size_t i = 0; i < tDim; ++i) {
+		if (aA.mValues[i] > aB.mValues[i]) {
+			return false;
+		}
+	}
+	return true;
+}
+
+template<typename TCoordType1, typename TCoordType2, size_t tDim>
 inline CUGIP_DECL_HYBRID simple_vector<typename boost::common_type<TCoordType1, TCoordType2>::type, tDim>
 max_coords(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TCoordType2, tDim> &aArg2)
 {
@@ -304,6 +336,27 @@ template<typename TType>
 inline CUGIP_DECL_HYBRID TType
 sqr(TType aValue) {
 	return aValue * aValue;
+}
+
+template<typename TType>
+inline CUGIP_DECL_HYBRID TType
+abs(TType aValue) {
+	if (aValue < 0) {
+		return -1 * aValue;
+	}
+	return aValue;
+}
+
+template<typename TType>
+inline CUGIP_DECL_HYBRID TType
+max(TType aValue1, TType aValue2) {
+	return aValue1 < aValue2 ? aValue2 : aValue1;
+}
+
+template<typename TType>
+inline CUGIP_DECL_HYBRID TType
+min(TType aValue1, TType aValue2) {
+	return aValue1 < aValue2 ? aValue1 : aValue2;
 }
 
 }//namespace cugip

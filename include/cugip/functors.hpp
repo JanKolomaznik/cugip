@@ -135,5 +135,51 @@ struct assign_color_ftor
 	}
 };
 
+struct generate_basins_ftor
+{
+	CUGIP_DECL_HYBRID element_gray8_t
+	operator()(const element_gray8_t &aArg, dim_traits<2>::coord_t aCoordinates)const
+	{
+		return max(abs((aCoordinates[0] % 500) - 250), abs((aCoordinates[1] % 500) - 250));
+	}
+};
+
+struct generate_spiral_ftor
+{
+	generate_spiral_ftor(dim_traits<2>::extents_t aExtents)
+		: extents(aExtents)
+	{}
+
+	CUGIP_DECL_HYBRID element_gray8_t
+	operator()(const element_gray8_t &aArg, dim_traits<2>::coord_t aCoordinates)const
+	{
+		bool hit1 = false;
+		// TODO cleanup
+		int remainder = (extents[0] + 1) % 1;
+		if (aCoordinates[0] < extents[0] >> 1) {
+			if (aCoordinates[0] % 2 == 1) {
+				hit1 = aCoordinates[1] > aCoordinates[0] && aCoordinates[1] <= (extents[0] - aCoordinates[0]);
+			}
+		} else {
+			if (aCoordinates[0] % 2 == 1) {
+				hit1 = aCoordinates[1] >= (extents[0] - aCoordinates[0] - 1) && aCoordinates[1] <= (aCoordinates[0]);
+			}
+		}
+		bool hit2 = false;
+		if (aCoordinates[1] < (extents[1] >> 1)) {
+			if (aCoordinates[1] % 2 == 0) {
+				hit2 = aCoordinates[0] >= (aCoordinates[1] - 1) && aCoordinates[0] < (extents[1] - aCoordinates[1]);
+			}
+		}  else {
+			if (aCoordinates[1] % 2 == 1) {
+				hit2 = aCoordinates[0] > (extents[1] - aCoordinates[1]) && aCoordinates[0] < (aCoordinates[1]);
+			}
+		}
+		return (hit1 || hit2) ? 255 : 0;
+	}
+	dim_traits<2>::extents_t extents;
+};
+
+
 
 }//namespace cugip
