@@ -245,6 +245,18 @@ struct device_memory_1d
 		return mData.p[aIdx];
 	}
 
+	inline CUGIP_DECL_HYBRID const value_type &
+	operator[](coord_t aCoords) const
+	{
+		return mData.p[aCoords[0]];
+	}
+
+	inline CUGIP_DECL_HYBRID const value_type &
+	operator[](size_t aIdx) const
+	{
+		return mData.p[aIdx];
+	}
+
 	inline CUGIP_DECL_HYBRID extents_t
 	dimensions() const
 	{ return mExtents; }

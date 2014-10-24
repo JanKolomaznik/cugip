@@ -16,7 +16,14 @@ void
 colored_ccl(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::view_t aOut);
 
 void
-colored_watersheds(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::view_t aOut);
+colored_minima(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::view_t aOut);
+
+void
+colored_watersheds1(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::view_t aOut);
+
+void
+colored_watersheds2(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::rgb8_image_t::view_t aOut);
+
 
 void
 mandelbrot(boost::gil::rgb8_image_t::view_t aOut);
@@ -53,6 +60,37 @@ int main() {
 		//jpeg_write_view("colored_ccl_out.jpg",const_view(colored_ccl_out));
 		png_write_view("colored_ccl_out.png",const_view(colored_ccl_out));
 	}
+
+
+	{
+		gray8_image_t img;
+		png_read_image("min.png",img);
+		//gray8_image_t img(2000, 2000);
+		//generate_basins(view(img));
+
+		rgb8_image_t colored_wshed_out(img.dimensions());
+		colored_watersheds1(const_view(img), view(colored_wshed_out));
+		png_write_view("colored_wshed1_out.png",const_view(colored_wshed_out));
+	}
+
+	{
+		gray8_image_t img;
+		png_read_image("min.png",img);
+
+		//gray8_image_t img(2000, 2000);
+		//generate_basins(view(img));
+
+		rgb8_image_t colored_min_out(img.dimensions());
+		colored_minima(const_view(img), view(colored_min_out));
+		//jpeg_write_view("colored_ccl_out.jpg",const_view(colored_ccl_out));
+		png_write_view("colored_minima.png", const_view(colored_min_out));
+
+		rgb8_image_t colored_wshed_out(img.dimensions());
+		colored_watersheds2(const_view(img), view(colored_wshed_out));
+		png_write_view("colored_wshed2_out.png",const_view(colored_wshed_out));
+	}
+
+
 
 /*	{
 		gray8_image_t img(2000, 2000);

@@ -30,10 +30,10 @@ public:
 
 	typedef typename dim_traits<tDim>::extents_t extents_t;
 
-	friend view_t view<>(device_image<TElement, tDim> &);
-	friend const_view_t const_view<>(device_image<TElement, tDim> &);
+	//friend view_t view<>(device_image<TElement, tDim> &);
+	//friend const_view_t const_view<>(device_image<TElement, tDim> &);
 public:
-	device_image() 
+	device_image()
 	{}
 
 	device_image(extents_t aExtents)
@@ -44,9 +44,22 @@ public:
 		: mData(typename dim_traits<tDim>::extents_t(aS0, aS1, aS2))
 	{}
 
-	CUGIP_DECL_HYBRID extents_t 
+	CUGIP_DECL_HYBRID extents_t
 	dimensions() const
 	{ return mData.dimensions(); }
+
+	view_t
+	view()
+	{
+		return view_t(mData);
+	}
+
+	const_view_t
+	const_view() const
+	{
+		return const_view_t(mData);
+	}
+
 protected:
 	device_image & operator=(const device_image &);
 	device_image(const device_image &);
@@ -61,14 +74,14 @@ template <typename TImage>
 typename TImage::view_t
 view(TImage &aImage)
 {
-	return typename TImage::view_t(aImage.mData);
+	return aImage.view();
 }
 
 template <typename TImage>
 typename TImage::const_view_t
 const_view(TImage &aImage)
 {
-	return typename TImage::const_view_t(aImage.mData);
+	return aImage.const_view();
 }
 
 /** \ingroup  traits
@@ -77,7 +90,7 @@ const_view(TImage &aImage)
 template<typename TElement, size_t tDim>
 struct dimension<device_image<TElement, tDim> >: dimension_helper<tDim> {};
 
-/** 
+/**
  * @}
  **/
 

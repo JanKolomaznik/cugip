@@ -6,6 +6,8 @@
 #include <cugip/device_flag.hpp>
 #include <cugip/access_utils.hpp>
 
+#include <cugip/neighborhood.hpp>
+
 
 namespace cugip {
 
@@ -21,7 +23,7 @@ init_lut_kernel(TImageView aImageView, TLUTBufferView aLUT)
 
 	if (idx < multiply(aImageView.dimensions())) {
 		//TODO - check 0
-		aLUT[idx] = linear_access(aImageView, idx);// = outBuffer.mData[idx] != 0 ? idx+1 : 0;
+		aLUT.set(idx + 1, linear_access(aImageView, idx));// = outBuffer.mData[idx] != 0 ? idx+1 : 0;
 	}
 }
 
@@ -47,13 +49,20 @@ struct scan_neighborhood_for_connections_ftor
 	CUGIP_DECL_HYBRID TInputType
 	minValidLabel(TLocator aLocator, TInputType aCurrent, const dimension_2d_tag &)
 	{
+		typedef full_neighborhood<dimension<TLocator>::value> neighborhood;
 		TInputType minimum = aCurrent;
-		for (int j = -1; j <= 1; ++j) {
+
+		for (size_t i = 0; i < neighborhood::count; ++i) {
+			TInputType value = aLocator[neighborhood::get(i)/*typename TLocator::diff_t(i, j)*/];
+			minimum = (value < minimum && value > 0) ? value : minimum;
+		}
+
+		/*for (int j = -1; j <= 1; ++j) {
 			for (int i = -1; i <= 1; ++i) {
 				TInputType value = aLocator[typename TLocator::diff_t(i, j)];
 				minimum = (value < minimum && value > 0) ? value : minimum;
 			}
-		}
+		}*/
 		return minimum;
 	}
 
@@ -64,9 +73,9 @@ struct scan_neighborhood_for_connections_ftor
 		TInputType current = aLocator.get();
 		if (0 < current) {
 			TInputType minLabel = minValidLabel(aLocator, current, typename dimension<TLocator>::type());;
-			if (minLabel < mLUT[current-1]) {
+			if (minLabel < mLUT.get(current)) {
 				//printf("%d - %d - %d; ", current, mLUT[current-1], minLabel);
-				mLUT[current-1] = minLabel;
+				mLUT.set(current, minLabel);
 				mLutUpdatedFlag.set_device();
 			}
 		}
@@ -95,13 +104,14 @@ update_lut_kernel(TImageView aImageView, TLUTBufferView aLUT)
 		int label = linear_access(aImageView, idx);
 
 		if (label == idx+1) {
-			int ref = label-1;
+			aLUT.compress(label);
+			/*int ref = label-1;
 			label = aLUT[idx];
 			while (ref != label-1) {
 				ref = label-1;
 				label = aLUT[ref];
 			}
-			aLUT[idx] = label;
+			aLUT[idx] = label;*/
 		}
 	}
 }
@@ -128,7 +138,7 @@ update_labels_kernel(TImageView aImageView, TLUTBufferView aLUT)
 	if (idx < multiply(aImageView.dimensions())) {
 		uint64_t label = linear_access(aImageView, idx);
 		if ( label > 0 ) {
-			linear_access(aImageView, idx) = aLUT[label-1];
+			linear_access(aImageView, idx) = aLUT.get(label);
 		}
 	}
 }

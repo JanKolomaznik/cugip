@@ -196,8 +196,8 @@ watershed_evolution_kernel(
 {
 	typedef typename TImageView::value_type Value;
 	typedef typename TIdImageView::value_type Label;
-	typedef typename TIdImageView::locator LabelLocator;
-	typedef typename TDistanceView::locator Locator;
+	typedef image_locator<TIdImageView, cugip::border_handling_repeat_t> LabelLocator;
+	typedef image_locator<TDistanceView, cugip::border_handling_repeat_t> DistanceLocator;
 	typedef typename TDistanceView::value_type Distance;
 
 	typename TImageView::coord_t coord(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y);
@@ -205,20 +205,20 @@ watershed_evolution_kernel(
 
 	if (coord < extents) {
 		Value value = aImageView[coord];
-		Locator distanceLocator = aDistanceView1.template locator<cugip::border_handling_repeat_t>(coord);
+		DistanceLocator distanceLocator = aDistanceView1.template locator<cugip::border_handling_repeat_t>(coord);
 		Distance currentDistance = distanceLocator.get();
 		LabelLocator labelLocator = aIdImageView.template locator<cugip::border_handling_repeat_t>(coord);
 		Label label = labelLocator.get();
 
 		Distance currentMinimum = max(0, currentDistance - value);
-		typename Locator::diff_t offset;
+		typename DistanceLocator::diff_t offset;
 		bool found = false;
 		for (int j = -1; j <= 1; ++j) {
 			for (int i = -1; i <= 1; ++i) {
-				Distance distance = distanceLocator[typename Locator::diff_t(i, j)];
+				Distance distance = distanceLocator[typename DistanceLocator::diff_t(i, j)];
 				if (distance < currentMinimum) {
 					currentMinimum = distance;
-					offset = typename Locator::diff_t(i, j);
+					offset = typename DistanceLocator::diff_t(i, j);
 					found = true;
 				}
 			}
@@ -270,9 +270,13 @@ watershed_transformation2(
 	device_flag updatedFlag;
 	updatedFlag.reset_host();
 
-
+	D_PRINT("    Init WSHED computation ...");
 	init_watershed_buffers(aIdImageView, aDistanceView1);
-	while (updatedFlag.check_host()) {
+
+	int i = 0;
+	do {
+		D_PRINT("    Running WSHED iteration ..." << ++i);
+		updatedFlag.reset_host();
 		watershed_evolution(
 				aImageView,
 				aIdImageView,
@@ -280,6 +284,208 @@ watershed_transformation2(
 				aDistanceView1,
 				aDistanceView2,
 				updatedFlag.view());
+		std::swap(aTmpIdImageView, aIdImageView);
+		std::swap(aDistanceView1, aDistanceView2);
+		//TODO handle copying after last iteration
+	} while (updatedFlag.check_host());
+}
+//==================================================================================
+
+//**************************************************
+template<typename TUnionFind, typename TExtents>
+struct init_watershed_labels_ftor
+{
+	init_watershed_labels_ftor(TUnionFind aUnionFind, TExtents aExtents)
+		: unionFind(aUnionFind)
+		, extents(aExtents)
+	{}
+
+	template<typename TLabel, typename TCoordinates>
+	CUGIP_DECL_HYBRID TLabel
+	operator()(const TLabel &aLabel, const TCoordinates &aCoords)
+	{
+		TLabel label = 1 + get_linear_access_index(extents, aCoords);
+		unionFind.set(label, label);
+		return label;
+	}
+
+	TUnionFind unionFind;
+	TExtents extents;
+};
+
+template <typename TIdImageView, typename TUnionFind>
+void
+init_watershed_labels(TIdImageView aIdImageView, TUnionFind aUnionFind)
+{
+	for_each_position(
+		aIdImageView,
+		init_watershed_labels_ftor<TUnionFind, typename TIdImageView::extents_t>(aUnionFind, aIdImageView.dimensions())
+		);
+}
+
+//**************************************************
+template<typename TUnionFind, typename TExtents>
+struct init_watershed_labels_from_plateaus_ftor
+{
+	init_watershed_labels_from_plateaus_ftor(TUnionFind aUnionFind, TExtents aExtents)
+		: unionFind(aUnionFind)
+		, extents(aExtents)
+	{}
+
+	template<typename TLabel, typename TCoordinates>
+	CUGIP_DECL_HYBRID TLabel
+	operator()(const TLabel &aLabel, const TCoordinates &aCoords)
+	{
+		if (aLabel != 0) {
+			return aLabel;
+		}
+		TLabel label = 1 + get_linear_access_index(extents, aCoords);
+		unionFind.set(label, label);
+		return label;
+	}
+
+	TUnionFind unionFind;
+	TExtents extents;
+};
+
+template <typename TIdImageView, typename TUnionFind>
+void
+init_watershed_from_plateaus_labels(TIdImageView aIdImageView, TUnionFind aUnionFind)
+{
+	for_each_position(
+		aIdImageView,
+		init_watershed_labels_from_plateaus_ftor<TUnionFind, typename TIdImageView::extents_t>(aUnionFind, aIdImageView.dimensions())
+		);
+}
+
+
+
+//-----------------------------------------------------------------------------
+
+template<typename TUnionFind>
+struct scan_image_for_wshed_path_ftor
+{
+	scan_image_for_wshed_path_ftor(TUnionFind aUnionFind, device_flag_view aUpdatedFlag)
+		: mUnionFind(aUnionFind)
+		, mUpdatedFlag(aUpdatedFlag)
+	{}
+
+	template<typename TImageLocator, typename TLabelImageLocator>
+	CUGIP_DECL_DEVICE void // TODO hybrid
+	operator()(TImageLocator aImageLocator, TLabelImageLocator aLabelLocator)
+	{
+		typedef typename TImageLocator::value_type Value;
+		typedef typename TLabelImageLocator::value_type Label;
+		Value current = aImageLocator.get();
+		Value minimum = current;
+		typename TImageLocator::diff_t offset;
+		bool found = false;
+		bool hasBigger = false;
+		//bool isPlateau = true;
+		Label currentLabel = aLabelLocator.get();
+		bool print = (aImageLocator.coords()[0] == 133) && (aImageLocator.coords()[1] == 32);
+	//	Label plateauLabel = aLabelLocator[typename TLabelImageLocator::diff_t(-1, -1)];
+		for (int j = -1; j <= 1; ++j) {
+			for (int i = -1; i <= 1; ++i) {
+				Value value = aImageLocator[typename TImageLocator::diff_t(i, j)];
+				if (value > current) {
+					hasBigger = true;
+				}
+				/*if (value != current) {
+					isPlateau = false;*/
+					if (value <= minimum && i != 0 && j != 0/* || hasBigger && value == minimum*/) {
+						minimum = value;
+						found = true;
+						offset = typename TImageLocator::diff_t(i, j);
+					}
+				if (print) {
+					printf("%d, %d, label = %d, val = %d; h = %d; o = %d %d \n", i, j, int(aLabelLocator[typename TImageLocator::diff_t(i, j)]), int(value), int(hasBigger), offset[0], offset[1]);
+				}
+			/*	} else {
+					plateauLabel = min(plateauLabel, aLabelLocator[typename TImageLocator::diff_t(i, j)]);
+				}*/
+			}
+		}
+
+		/*if (isPlateau) {
+			Label minLabel = min(plateauLabel, currentLabel);
+			Label maxLabel = max(plateauLabel, currentLabel);
+			if (minLabel < mUnionFind.get(currentLabel)) {
+				mUnionFind.set(currentLabel, minLabel);
+				mUpdatedFlag.set_device();
+			}
+		} else {*/
+			if (found && (minimum < current || hasBigger)) {
+				Label lowerLabel = aLabelLocator[offset];
+				Label minLabel = min(lowerLabel, currentLabel);
+				Label maxLabel = max(lowerLabel, currentLabel);
+				if (minLabel < mUnionFind.get(maxLabel)) {
+					mUnionFind.set(maxLabel, minLabel);
+					mUpdatedFlag.set_device();
+				}
+			}
+		//}
+	}
+
+	TUnionFind mUnionFind;
+	device_flag_view mUpdatedFlag;
+};
+
+
+template <typename TImageView, typename TIdImageView, typename TUnionFind>
+void
+scan_image_for_wshed_path(
+		TImageView aImageView,
+		TIdImageView aIdImageView,
+		TUnionFind aUnionFind,
+		device_flag_view aUpdatedFlag)
+{
+	for_each_locator(
+		aImageView,
+		aIdImageView,
+		scan_image_for_wshed_path_ftor<TUnionFind>(aUnionFind, aUpdatedFlag));
+}
+
+
+template <typename TImageView, typename TIdImageView, typename TUnionFind>
+void
+watershed_transformation1(
+		TImageView aImageView,
+		TIdImageView aIdImageView,
+		TUnionFind aUnionFind
+		)
+{
+	device_flag updatedFlag;
+	updatedFlag.reset_host();
+
+	D_PRINT("    Init WSHED computation ...");
+
+	filter(aImageView, aIdImageView, local_minima_detection_ftor<typename TIdImageView::value_type>());
+	connected_component_labeling(aIdImageView, aUnionFind);
+
+	init_watershed_from_plateaus_labels(aIdImageView, aUnionFind);
+
+	//init_watershed_labels(aIdImageView, aUnionFind);
+	scan_image_for_wshed_path(
+		aImageView,
+		aIdImageView,
+		aUnionFind,
+		updatedFlag.view());
+
+
+	int i = 0;
+	while (updatedFlag.check_host()) {
+		D_PRINT("    Running WSHED iteration ..." << ++i);
+		updatedFlag.reset_host();
+
+		detail::update_lut(aIdImageView, aUnionFind);
+		detail::update_labels(aIdImageView, aUnionFind);
+
+		scan_image_for_wshed_path(
+			aImageView,
+			aIdImageView,
+			aUnionFind,
+			updatedFlag.view());
 	}
 }
 
