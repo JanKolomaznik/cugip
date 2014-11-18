@@ -30,12 +30,12 @@ namespace detail {
 				% ((size_t)aFrom.data().mData.p)
 				% ((size_t)aTo.data().mData.p)
 				));
-			CUGIP_CHECK_RESULT(cudaMemcpy2D(aTo.data().mData.p, 
+			CUGIP_CHECK_RESULT(cudaMemcpy2D(aTo.data().mData.p,
 				      aTo.data().mPitch,
-				      aFrom.data().mData.p, 
+				      aFrom.data().mData.p,
 				      aFrom.data().mPitch,
-				      get<0>(aTo.dimensions())*sizeof(typename TTo::value_type), 
-				      get<1>(aTo.dimensions()), 
+				      get<0>(aTo.dimensions())*sizeof(typename TTo::value_type),
+				      get<1>(aTo.dimensions()),
 				      cudaMemcpyDeviceToDevice));
 		}
 	};
@@ -48,6 +48,7 @@ namespace detail {
 		static void
 		copy(TFrom &aFrom, TTo &aTo)
 		{
+			D_PRINT("COPY: host to device");
 
 			CUGIP_ASSERT(aFrom.width() == aTo.dimensions().template get<0>());
 			CUGIP_ASSERT(aFrom.height() == aTo.dimensions().template get<1>());
@@ -59,15 +60,15 @@ namespace detail {
 
 			D_PRINT(boost::str(boost::format("COPY: host to device, %1$#x => %2$#x")
 				% ((size_t) src)
-				% ((size_t)aTo.data().mData.p)		
+				% ((size_t)aTo.data().mData.p)
 				));
-					
-			CUGIP_CHECK_RESULT(cudaMemcpy2D(aTo.data().mData.p, 
-				      aTo.data().mPitch, 
-				      src, 
-				      diff, 
-				      aFrom.width()*sizeof(typename TFrom::value_type), 
-				      aFrom.height(), 
+
+			CUGIP_CHECK_RESULT(cudaMemcpy2D(aTo.data().mData.p,
+				      aTo.data().mPitch,
+				      src,
+				      diff,
+				      aFrom.width()*sizeof(typename TFrom::value_type),
+				      aFrom.height(),
 				      cudaMemcpyHostToDevice));
 			cudaThreadSynchronize();
 		}
@@ -106,12 +107,12 @@ namespace detail {
 				% ((size_t)aFrom.data().mData.p)
 				% ((size_t) dst)
 				));
-			CUGIP_CHECK_RESULT(cudaMemcpy2D(dst, 
+			CUGIP_CHECK_RESULT(cudaMemcpy2D(dst,
 				      diff,
-				      aFrom.data().mData.p, 
+				      aFrom.data().mData.p,
 				      aFrom.data().mPitch,
-				      aTo.width()*sizeof(typename TTo::value_type), 
-				      aTo.height(), 
+				      aTo.width()*sizeof(typename TTo::value_type),
+				      aTo.height(),
 				      cudaMemcpyDeviceToHost));
 		}
 	};
@@ -124,7 +125,7 @@ void
 copy(TFrom aFrom, TTo aTo)
 {
 	cugip::detail::copy_methods_impl<
-			cugip::is_device_view<TFrom>::value, 
+			cugip::is_device_view<TFrom>::value,
 			cugip::is_device_view<TTo>::value
 		>::copy(aFrom, aTo);
 }

@@ -48,6 +48,12 @@ public:
 	CUGIP_DECL_HYBRID const memory_t&
 	data() const
 	{ return mData; }
+
+	CUGIP_DECL_HYBRID extents_t
+	dimensions() const
+	{ return mExtents; }
+
+
 protected:
 	memory_t mData;
 
@@ -97,6 +103,10 @@ public:
 	CUGIP_DECL_HYBRID const memory_t&
 	data() const
 	{ return mData; }
+
+	CUGIP_DECL_HYBRID extents_t
+	dimensions() const
+	{ return mExtents; }
 protected:
 	memory_t mData;
 };

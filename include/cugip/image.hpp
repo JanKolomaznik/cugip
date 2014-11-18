@@ -59,7 +59,6 @@ public:
 	{
 		return const_view_t(mData);
 	}
-
 protected:
 	device_image & operator=(const device_image &);
 	device_image(const device_image &);
