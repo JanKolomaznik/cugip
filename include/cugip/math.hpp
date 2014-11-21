@@ -14,16 +14,46 @@ class simple_vector//: public boost::array<TCoordinateType, tDim>
 {
 public:
 	typedef TCoordinateType coord_t;
+	typedef simple_vector<TCoordinateType, tDim> this_t;
 	static const size_t dim = tDim;
     /*inline CUGIP_DECL_HYBRID simple_vector()
     {}*/
 
-	inline CUGIP_DECL_HYBRID simple_vector(TCoordinateType const& v0 = 0, TCoordinateType const& v1 = 0, TCoordinateType const& v2 = 0)
+	CUGIP_DECL_HYBRID simple_vector()
 	{
-		if (tDim >= 1) mValues[0] = v0;
-		if (tDim >= 2) mValues[1] = v1;
-		//TODO
-		//if (tDim >= 3) mValues[2] = v2;
+		for (size_t i = 0; i < tDim; ++i) {
+			mValues[i] = 0;
+		}
+	}
+
+	CUGIP_DECL_HYBRID simple_vector(TCoordinateType const& v0)
+	{
+		CUGIP_ASSERT(tDim >= 1);
+		mValues[0] = v0;
+		for (size_t i = 1; i < tDim; ++i) {
+			mValues[i] = 0;
+		}
+	}
+
+	CUGIP_DECL_HYBRID simple_vector(TCoordinateType const& v0, TCoordinateType const& v1)
+	{
+		CUGIP_ASSERT(tDim >= 2);
+		mValues[0] = v0;
+		mValues[1] = v1;
+		for (size_t i = 2; i < tDim; ++i) {
+			mValues[i] = 0;
+		}
+	}
+
+	CUGIP_DECL_HYBRID simple_vector(TCoordinateType const& v0, TCoordinateType const& v1, TCoordinateType const& v2)
+	{
+		CUGIP_ASSERT(tDim >= 3);
+		mValues[0] = v0;
+		mValues[1] = v1;
+		mValues[2] = v2;
+		for (size_t i = 3; i < tDim; ++i) {
+			mValues[i] = 0;
+		}
 	}
 
 	template<typename TOtherCoordType>
@@ -98,6 +128,17 @@ public:
 	{
 		//BOOST_STATIC_ASSERT(tIdx < tDim);
 		mValues[tIdx] = value;
+	}
+
+
+	static CUGIP_DECL_HYBRID this_t
+	fill(TCoordinateType aValue)
+	{
+		this_t val;
+		for (size_t i = 0; i < tDim; ++i) {
+			val[i] = aValue;
+		}
+		return val;
 	}
 
 	TCoordinateType mValues[tDim];
@@ -272,6 +313,8 @@ typedef simple_vector<double, 2> intervald_t;
 typedef simple_vector<float, 2> vect2f_t;
 typedef simple_vector<float, 3> vect3f_t;
 
+typedef simple_vector<size_t, 2> size2_t;
+typedef simple_vector<size_t, 3> size3_t;
 /** \ingroup traits
  * @{
  **/

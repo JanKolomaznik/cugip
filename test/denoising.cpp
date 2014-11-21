@@ -1,9 +1,18 @@
+#include "itkImage.h"
 #include "itkImageFileReader.h"
 #include "itkImageFileWriter.h"
 
 #include <boost/program_options.hpp>
 
 namespace po = boost::program_options;
+
+typedef itk::Image<float, 3> ImageType;
+
+//void
+//denoise(ImageType::Pointer aInput, ImageType::Pointer aOutput);
+
+void
+denoise(float *aInput, float *aOutput, size_t aWidth, size_t aHeight, size_t aDepth);
 
 
 int main( int argc, char* argv[] )
@@ -42,8 +51,8 @@ int main( int argc, char* argv[] )
 
 	const unsigned int Dimension = 3;
 
-	typedef float                              PixelType;
-	typedef itk::Image< PixelType, Dimension > ImageType;
+	//typedef float                              PixelType;
+	//typedef itk::Image< PixelType, Dimension > ImageType;
 
 	typedef itk::ImageFileReader<ImageType>  ReaderType;
 	typedef itk::ImageFileWriter<ImageType> WriterType;
@@ -54,10 +63,22 @@ int main( int argc, char* argv[] )
 
 	ImageType::Pointer image = reader->GetOutput();
 
+	ImageType::Pointer output_image = ImageType::New();
+	output_image->SetRegions(image->GetLargestPossibleRegion());
+	output_image->Allocate();
+
+	//denoise(image, output_image);
+	denoise(
+		image->GetPixelContainer()->GetBufferPointer(),
+		output_image->GetPixelContainer()->GetBufferPointer(),
+		image->GetLargestPossibleRegion().GetSize()[0],
+		image->GetLargestPossibleRegion().GetSize()[1],
+		image->GetLargestPossibleRegion().GetSize()[2]);
+
 
 	WriterType::Pointer writer = WriterType::New();
 	writer->SetFileName(output_file);
-	writer->SetInput(image);
+	writer->SetInput(output_image);
 
 	try
 	{

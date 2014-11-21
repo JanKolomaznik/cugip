@@ -1,21 +1,41 @@
+#if defined(__CUDACC__)
+#ifndef BOOST_NOINLINE
+#	define BOOST_NOINLINE __attribute__ ((noinline))
+#endif //BOOST_NOINLINE
+#endif //__CUDACC__
+
+//#include "itkImage.h"
 
 #include <cugip/image.hpp>
 #include <cugip/advanced_operations/nonlocal_means.hpp>
+#include <cugip/memory_view.hpp>
+#include <cugip/memory.hpp>
+#include <cugip/copy.hpp>
 
+//typedef itk::Image<float, 3> ImageType;
 
 void
-denoise(...aInput, ...aOutput)
+denoise(float *aInput, float *aOutput, size_t aWidth, size_t aHeight, size_t aDepth)
+//denoise(ImageType::Pointer aInput, ImageType::Pointer aOutput)
 {
+	//cugip::const_host_memory_3d<float> pom(aInput, aWidth, aHeight, aDepth, aWidth * sizeof(float));
+
+	cugip::const_memory_view<float, 3> inView(cugip::const_host_memory_3d<float>(aInput, aWidth, aHeight, aDepth, aWidth * sizeof(float)));
+	cugip::memory_view<float, 3> outView(cugip::host_memory_3d<float>(aOutput, aWidth, aHeight, aDepth, aWidth * sizeof(float)));
+	D_PRINT(aDepth);
+	D_PRINT(inView.dimensions());
+
+	//cugip::print_error_enums();
 	D_PRINT(cugip::cudaMemoryInfoText());
-	cugip::device_image<float> inImage(aInput.dimensions());
-	cugip::device_image<float> outImage(aInput.dimensions());
+	cugip::device_image<float, 3> inImage(inView.dimensions());
+	cugip::device_image<float, 3> outImage(inView.dimensions());
 	D_PRINT(cugip::cudaMemoryInfoText());
 
-	cugip::copy(aInput, cugip::view(inImage));
+	cugip::copy_to(inView, cugip::view(inImage));
 
-	cugip::nonlocal_means(cugip::const_view(inImage), cugip::view(outImage));
+	cugip::nonlocal_means(cugip::const_view(inImage), cugip::view(outImage), cugip::nl_means_parameters<1, 3>());
 
-	cugip::copy(cugip::view(outImage), aOutput);
+	cugip::copy_from(cugip::view(outImage), outView);
 
 	CUGIP_CHECK_ERROR_STATE("denoise");
 

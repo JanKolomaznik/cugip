@@ -159,5 +159,4 @@ swap(TType &aArg1, TType &aArg2)
  *
  **/
 
-
 }//namespace cugip

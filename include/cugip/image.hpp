@@ -40,7 +40,15 @@ public:
 		: mData(aExtents)
 	{}
 
-	device_image(size_t aS0, size_t aS1 = 1, size_t aS2 = 1)
+	device_image(size_t aS0)
+		: mData(typename dim_traits<tDim>::extents_t(aS0))
+	{}
+
+	device_image(size_t aS0, size_t aS1)
+		: mData(typename dim_traits<tDim>::extents_t(aS0, aS1))
+	{}
+
+	device_image(size_t aS0, size_t aS1, size_t aS2)
 		: mData(typename dim_traits<tDim>::extents_t(aS0, aS1, aS2))
 	{}
 
