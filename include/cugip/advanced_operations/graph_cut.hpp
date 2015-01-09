@@ -279,16 +279,16 @@ pushKernel(device_flag_view aPushSuccessfulFlag, EdgeList aEdges, VertexList aVe
 	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
 	int edgeIdx = blockId * blockDim.x + threadIdx.x;
 
-	if ( edgeIdx < aEdges.size() ) {
+	if (edgeIdx < aEdges.size()) {
 		int v1, v2;
 		int label1, label2;
 		EdgeResidualsRecord residualCapacities;
 		loadEdgeV1V2L1L2C( aEdges, aVertices, edgeIdx, v1, v2, label1, label2, residualCapacities );
 		//printf( "%i -> %i => %i -> %i %f; %f\n", v1, label1, v2, label2, residualCapacities.getResidual( true ), residualCapacities.getResidual( false ) );
 		if (label1 > label2) {
-			tryToPushFromTo(aPushSuccessfulFlag, aVertices, v1, v2, aEdges, edgeIdx, residualCapacities.getResidual( v1 < v2 ) );
+			tryToPushFromTo(aPushSuccessfulFlag, aVertices, v1, v2, aEdges, edgeIdx, residualCapacities.getResidual(v1 < v2));
 		} else if ( label1 < label2 ) {
-			tryToPushFromTo(aPushSuccessfulFlag, aVertices, v2, v1, aEdges, edgeIdx, residualCapacities.getResidual( v2 < v1 ) );
+			tryToPushFromTo(aPushSuccessfulFlag, aVertices, v2, v1, aEdges, edgeIdx, residualCapacities.getResidual(v2 < v1));
 		}
 	}
 }
@@ -318,7 +318,7 @@ Graph::push()
 	//	CUDA_CHECK_RESULT( cudaMemcpyToSymbol( "pushSuccessful", &(pushSuccessful = 0), sizeof(int), 0, cudaMemcpyHostToDevice ) );
 
 		//CheckCudaErrorState( TO_STRING( "Before push kernel n. " << pushIterations ) );
-		pushKernel<<< gridSize1D, blockSize1D >>>(pushSuccessfulFlag.view(), mEdges, mVertices );
+		pushKernel<<<gridSize1D, blockSize1D>>>(pushSuccessfulFlag.view(), mEdges, mVertices);
 		//CheckCudaErrorState( TO_STRING( "After push iteration n. " << pushIterations ) );
 
 	//	CUDA_CHECK_RESULT( cudaThreadSynchronize() );
@@ -335,13 +335,13 @@ Graph::push()
 
 
 CUGIP_GLOBAL void
-relabelPhase1Kernel( VertexList aVertices, bool *aEnabledVertices )
+getVerticesWithExcessKernel( VertexList aVertices, bool *aEnabledVertices )
 {
 	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
 	int vertexIdx = blockId * blockDim.x + threadIdx.x;
 
 	if ( vertexIdx < aVertices.size() && vertexIdx > 0 ) {
-		aEnabledVertices[ vertexIdx ] = aVertices.getExcess( vertexIdx ) > 0.0f;
+		aEnabledVertices[vertexIdx] = aVertices.getExcess(vertexIdx) > 0.0f;
 	}
 }
 
@@ -356,20 +356,19 @@ loadEdgeV1V2L1L2( EdgeList &aEdges, VertexList &aVertices, int aEdgeIdx, int &aV
 	aLabel2 = aVertices.getLabel( aV2 );
 }*/
 
-__device__ void
+CUGIP_DECL_DEVICE void
 trySetNewHeight( int *aLabels, int aVertexIdx, int label )
 {
-	atomicMax( aLabels + aVertexIdx, label );
+	atomicMax(aLabels + aVertexIdx, label);
 }
 
 CUGIP_GLOBAL void
-relabelPhase2Kernel( EdgeList aEdges, VertexList aVertices, bool *aEnabledVertices, int *aLabels, int aSource, int aSink )
+processEdgesToFindNewLabelsKernel(EdgeList aEdges, VertexList aVertices, bool *aEnabledVertices, int *aLabels, int aSource, int aSink)
 {
-
 	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
 	int edgeIdx = blockId * blockDim.x + threadIdx.x;
 
-	if ( edgeIdx < aEdges.size() ) {
+	if (edgeIdx < aEdges.size()) {
 		int v1, v2;
 		int label1, label2;
 		EdgeResidualsRecord residualCapacities;
@@ -378,16 +377,16 @@ relabelPhase2Kernel( EdgeList aEdges, VertexList aVertices, bool *aEnabledVertic
 		bool v1Enabled = aEnabledVertices[v1];
 		bool v2Enabled = aEnabledVertices[v2];
 
-		if ( v1Enabled ) { //TODO - check if set to maximum is right
-			if( label1 <= label2 || residualCapacities.getResidual( v1 < v2 ) <= 0.0f/* || v2 == aSink*//* || v2 == aSource*/ ) { //TODO check if edge is saturated in case its leading down
+		if (v1Enabled) { //TODO - check if set to maximum is right
+			if (label1 <= label2 || residualCapacities.getResidual(v1 < v2) <= 0.0f/* || v2 == aSink*//* || v2 == aSource*/ ) { //TODO check if edge is saturated in case its leading down
 				trySetNewHeight( aLabels, v1, label2+1 );
 			} else {
 				//printf( "%i -> %i, l1 %i l2 %i label1\n", v1, v2, label1, label2 );
 				aEnabledVertices[v1] = false;
 			}
 		}
-		if ( v2Enabled ) {
-			if( label2 <= label1 || residualCapacities.getResidual( v2 < v1 ) <= 0.0f/* || v1 == aSink*//* || v1 == aSource*/  ) { //TODO check if edge is saturated in case its leading down
+		if (v2Enabled) {
+			if( label2 <= label1 || residualCapacities.getResidual(v2 < v1) <= 0.0f/* || v1 == aSink*//* || v1 == aSource*/  ) { //TODO check if edge is saturated in case its leading down
 				trySetNewHeight( aLabels, v2, label1+1 );
 			} else {
 				aEnabledVertices[v2] = false;
@@ -397,7 +396,7 @@ relabelPhase2Kernel( EdgeList aEdges, VertexList aVertices, bool *aEnabledVertic
 }
 
 CUGIP_GLOBAL void
-relabelPhase3Kernel( VertexList aVertices, bool *aEnabledVertices, int *aLabels, int aSource, int aSink )
+assignNewLabelsKernel( VertexList aVertices, bool *aEnabledVertices, int *aLabels, int aSource, int aSink )
 {
 	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
 	int vertexIdx = blockId * blockDim.x + threadIdx.x;
@@ -430,15 +429,15 @@ Graph::relabel()
 	//int relabelSuccessful;
 	//cudaMemcpyToSymbol( "relabelSuccessful", &(relabelSuccessful = 0), sizeof(int), 0, cudaMemcpyHostToDevice );
 	//D_COMMAND( M4D::Common::Clock clock; );
-	relabelPhase1Kernel<<< vertexGridSize1D, blockSize1D >>>(
+	getVerticesWithExcessKernel<<< vertexGridSize1D, blockSize1D >>>(
 					mVertices,
 					thrust::raw_pointer_cast(&aEnabledVertices[0])
 					);
 	//cudaThreadSynchronize();
-	//CheckCudaErrorState( "After relabelPhase1Kernel()" );
+	//CheckCudaErrorState( "After getVerticesWithExcessKernel()" );
 
 	//thrust::fill( aLabels.begin(), aLabels.end(), MAX_LABEL );
-	relabelPhase2Kernel<<< edgeGridSize1D, blockSize1D >>>(
+	processEdgesToFindNewLabelsKernel<<<edgeGridSize1D, blockSize1D>>>(
 					mEdges,
 					mVertices,
 					thrust::raw_pointer_cast(&aEnabledVertices[0]),
@@ -447,13 +446,13 @@ Graph::relabel()
 					aSink
 					);
 	//cudaThreadSynchronize();
-	//CheckCudaErrorState( "After relabelPhase2Kernel()" );
+	//CheckCudaErrorState( "After processEdgesToFindNewLabelsKernel()" );
 
 
 	//Sink and source doesn't change height
 	//aEnabledVertices[aSource] = false;
 	//aEnabledVertices[aSink] = false;
-	relabelPhase3Kernel<<< vertexGridSize1D, blockSize1D >>>(
+	assignNewLabelsKernel<<< vertexGridSize1D, blockSize1D >>>(
 					mVertices,
 					thrust::raw_pointer_cast(&aEnabledVertices[0]),
 					thrust::raw_pointer_cast(&aLabels[0]),
@@ -461,7 +460,7 @@ Graph::relabel()
 					aSink
 					);
 	//cudaThreadSynchronize();
-	//CheckCudaErrorState( "After relabelPhase3Kernel()" );
+	//CheckCudaErrorState( "After assignNewLabelsKernel()" );
 
 
 	//cudaMemcpyFromSymbol( &relabelSuccessful, "relabelSuccessful", sizeof(int), 0, cudaMemcpyDeviceToHost );
