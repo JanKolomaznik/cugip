@@ -7,9 +7,55 @@
 
 #include <cugip/advanced_operations/graph_cut.hpp>
 
+#include <vector>
+
+
 void
 test_graph_cut()
 {
+	cugip::Graph graph;
+	graph.set_vertex_count(16);
 
+	//std::vector<int>
+	int nlinksVertices1[24] = {
+		0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 
+		};
+	//std::vector<int>
+	int nlinksVertices2[24] = {
+		1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15, 
+		4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
+		};
+
+	EdgeRecord edges[24];
+	//std::vector<float> 
+	float nlinksWeights[24] = {
+		5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 
+		5.0f, 5.0f, 5.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 5.0f, 5.0f, 5.0f, 5.0f
+		};
+
+	float tlinksSource[16] = {
+		100.0f, 100.0f, 100.0f, 100.0f, 
+		0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f
+		};
+
+	float tlinksSink[16] = {
+		0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+		100.0f, 100.0f, 100.0f, 100.0f
+		};
+
+	graph.set_nweights(
+		24,
+		/*nlinksVertices1,
+		nlinksVertices2,*/
+		edges,
+		nlinksWeights);
+
+	graph.set_tweights(
+		tlinksSource,
+		tlinksSink
+		);
+
+	graph.max_flow();
 }
 

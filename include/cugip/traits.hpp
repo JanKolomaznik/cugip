@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cugip/utils.hpp>
+
 namespace cugip {
 
 struct dimension_1d_tag { };

@@ -27,6 +27,8 @@ namespace cugip {
 //#define CUGIP_ASSERT_RESULT( ... ) \
 //	CUGIP_CHECK_RESULT_MSG( "Assertion failure!", __VA_ARGS__ )
 
+//#define CUGIP_ASSERT( ... )
+
 #define CUGIP_STRINGIFY_ENUM(ENUM)\
 	std::cout << "(" << ENUM << "): " << #ENUM <<"\n"
 
