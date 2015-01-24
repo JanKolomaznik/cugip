@@ -12,21 +12,22 @@ typedef itk::Image<float, 3> ImageType;
 //denoise(ImageType::Pointer aInput, ImageType::Pointer aOutput);
 
 void
-denoise(float *aInput, float *aOutput, size_t aWidth, size_t aHeight, size_t aDepth);
+denoise(float *aInput, float *aOutput, size_t aWidth, size_t aHeight, size_t aDepth, float aVariance);
 
 
 int main( int argc, char* argv[] )
 {
 	std::string input_file;
 	std::string output_file;
-	int iteration_count;
-	float sigma;
+	float variance;
 
 	po::options_description desc("Allowed options");
 	desc.add_options()
 		("help", "produce help message")
 		("input,i", po::value<std::string>(&input_file), "input file")
 		("output,o", po::value<std::string>(&output_file), "output file")
+		("variance,v", po::value<float>(&variance)->default_value(10.0), "variance")
+
 		;
 
 	po::variables_map vm;
@@ -73,7 +74,8 @@ int main( int argc, char* argv[] )
 		output_image->GetPixelContainer()->GetBufferPointer(),
 		image->GetLargestPossibleRegion().GetSize()[0],
 		image->GetLargestPossibleRegion().GetSize()[1],
-		image->GetLargestPossibleRegion().GetSize()[2]);
+		image->GetLargestPossibleRegion().GetSize()[2],
+		variance);
 
 
 	WriterType::Pointer writer = WriterType::New();

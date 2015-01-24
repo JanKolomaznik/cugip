@@ -15,7 +15,7 @@
 //typedef itk::Image<float, 3> ImageType;
 
 void
-denoise(float *aInput, float *aOutput, size_t aWidth, size_t aHeight, size_t aDepth)
+denoise(float *aInput, float *aOutput, size_t aWidth, size_t aHeight, size_t aDepth, float aVariance)
 //denoise(ImageType::Pointer aInput, ImageType::Pointer aOutput)
 {
 	//cugip::const_host_memory_3d<float> pom(aInput, aWidth, aHeight, aDepth, aWidth * sizeof(float));
@@ -31,11 +31,14 @@ denoise(float *aInput, float *aOutput, size_t aWidth, size_t aHeight, size_t aDe
 	cugip::device_image<float, 3> outImage(inView.dimensions());
 	D_PRINT(cugip::cudaMemoryInfoText());
 
+	D_PRINT("nonlocal_means ...");
+
 	cugip::copy_to(inView, cugip::view(inImage));
 
-	cugip::nonlocal_means(cugip::const_view(inImage), cugip::view(outImage), cugip::nl_means_parameters<1, 3>());
+	cugip::nonlocal_means(cugip::const_view(inImage), cugip::view(outImage), cugip::nl_means_parameters<2, 3>(aVariance));
 
 	cugip::copy_from(cugip::view(outImage), outView);
+	D_PRINT("nonlocal_means done!");
 
 	CUGIP_CHECK_ERROR_STATE("denoise");
 

@@ -7,8 +7,21 @@
 namespace cugip {
 
 template<typename TImageSize>
-dim3
+cugip::simple_vector<int, 3>
 compute_grid_size(const dim3 &aBlockSize, const TImageSize &aImageSize)
+{
+	cugip::simple_vector<int, 3> grid(1, 1, 1);
+	cugip::simple_vector<int, 3> block(aBlockSize.x, aBlockSize.y, aBlockSize.z);
+
+	for (int i = 0; i < dimension<TImageSize>::value; ++i) {
+		grid[i] = (aImageSize[i] + block[i] - 1) / block[i];
+	}
+	return grid;
+}
+
+template<typename TImageSize>
+dim3
+compute_grid_size_dim3(const dim3 &aBlockSize, const TImageSize &aImageSize)
 {
 	cugip::simple_vector<int, 3> grid(1, 1, 1);
 	cugip::simple_vector<int, 3> block(aBlockSize.x, aBlockSize.y, aBlockSize.z);
@@ -18,6 +31,7 @@ compute_grid_size(const dim3 &aBlockSize, const TImageSize &aImageSize)
 	}
 	return dim3(grid[0], grid[1], grid[2]);
 }
+
 
 template<typename TCoords>
 CUGIP_DECL_DEVICE TCoords
