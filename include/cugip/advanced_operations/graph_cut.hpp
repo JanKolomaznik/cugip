@@ -58,7 +58,12 @@ struct EdgeRecord
 
 struct EdgeList
 {
-	EdgeList(thrust::device_vector< EdgeRecord > &aEdges, thrust::device_vector< float > &aWeights, thrust::device_vector< EdgeResidualsRecord > &aResiduals, int aEdgeCount)
+	EdgeList(
+		thrust::device_vector< EdgeRecord > &aEdges,
+		thrust::device_vector< float > &aWeights,
+		thrust::device_vector< EdgeResidualsRecord > &aResiduals,
+		int aEdgeCount
+		)
 		: mEdges( aEdges.data().get() )
 		, mWeights( aWeights.data().get() )
 		, mEdgeResiduals( aResiduals.data().get() )
@@ -183,6 +188,8 @@ public:
 protected:
 	void
 	init_labels(EdgeList &mEdges, VertexList &mVertices);
+	void
+	init_residuals();
 
 	void
 	push_through_tlinks_from_source();
@@ -206,6 +213,7 @@ protected:
 
 	thrust::device_vector<EdgeWeight> mExcess; // n
 	thrust::device_vector<int> mLabels; // n
+	thrust::device_vector< EdgeResidualsRecord > mResiduals; // m
 
 	int mSourceLabel;
 
@@ -220,6 +228,8 @@ Graph::set_vertex_count(size_t aCount)
 	mSinkTLinks.resize(aCount);
 	mExcess.resize(aCount);
 	mLabels.resize(aCount);
+
+	mVertices = VertexList(mLabels, mExcess, aCount);
 }
 
 void
@@ -232,6 +242,11 @@ Graph::set_nweights(
 {
 	mEdgeDefinitions.resize(aEdgeCount);
 	mEdgeWeights.resize(aEdgeCount);
+
+	thrust::copy(aEdges, aEdges + aEdgeCount, mEdgeDefinitions.begin());
+	thrust::copy(aEdgeWeights, aEdgeWeights + aEdgeCount, mEdgeWeights.begin());
+
+	mEdges = EdgeList(mEdgeDefinitions, mEdgeWeights, mResiduals, aEdgeCount);
 }
 
 void
@@ -239,7 +254,8 @@ Graph::set_tweights(
 	EdgeWeight *aCapSource,
 	EdgeWeight *aCapSink)
 {
-
+	thrust::copy(aCapSource, aCapSource + mSourceTLinks.size(), mSourceTLinks.begin());
+	thrust::copy(aCapSink, aCapSink + mSinkTLinks.size(), mSinkTLinks.begin());
 }
 
 
@@ -247,7 +263,15 @@ Graph::set_tweights(
 void
 Graph::init_labels(EdgeList &mEdges, VertexList &mVertices)
 {
+	thrust::fill(mExcess.begin(), mExcess.end(), 0.0f);
+	thrust::fill(mLabels.begin(), mLabels.end(), 0);
+}
 
+
+void
+Graph::init_residuals()
+{
+//	thrust::fill(mResiduals.begin(), mResiduals.end(), 0.0f);
 }
 
 void
