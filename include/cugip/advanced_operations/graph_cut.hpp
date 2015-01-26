@@ -140,14 +140,14 @@ struct VertexList
 	__device__ float &
 	getExcess( int aIdx )
 	{
-		CUGIP_ASSERT( aIdx < size() && aIdx > 0 );
+		CUGIP_ASSERT( aIdx < size()/* && aIdx > 0 */);
 		return mExcessArray[aIdx];
 	}
 
 	__device__ int &
 	getLabel( int aIdx )
 	{
-		CUGIP_ASSERT( aIdx < size() && aIdx > 0 );
+		CUGIP_ASSERT( aIdx < size()/* && aIdx > 0 */);
 		return mLabelArray[aIdx];
 	}
 
@@ -242,9 +242,10 @@ Graph::set_nweights(
 {
 	mEdgeDefinitions.resize(aEdgeCount);
 	mEdgeWeights.resize(aEdgeCount);
+	mResiduals.resize(aEdgeCount);
 
 	thrust::copy(aEdges, aEdges + aEdgeCount, mEdgeDefinitions.begin());
-	thrust::copy(aEdgeWeights, aEdgeWeights + aEdgeCount, mEdgeWeights.begin());
+	thrust::copy(aWeights, aWeights + aEdgeCount, mEdgeWeights.begin());
 
 	mEdges = EdgeList(mEdgeDefinitions, mEdgeWeights, mResiduals, aEdgeCount);
 }
@@ -622,7 +623,7 @@ Graph::relabel()
 					//aSink,
 					relabelSuccessfulFlag.view()
 					);
-	//cudaThreadSynchronize();
+	cudaThreadSynchronize();
 	//CheckCudaErrorState( "After assignNewLabelsKernel()" );
 
 

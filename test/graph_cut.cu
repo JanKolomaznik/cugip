@@ -28,6 +28,10 @@ test_graph_cut()
 		};
 
 	EdgeRecord edges[24];
+	for (int i = 0; i < 24; ++i) {
+		edges[i] = EdgeRecord(nlinksVertices1[i], nlinksVertices2[i]);
+	}
+
 	//std::vector<float> 
 	float nlinksWeights[24] = {
 		5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 

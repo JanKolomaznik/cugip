@@ -85,6 +85,7 @@ struct device_ptr : device_base_ptr<TType>
 	{
 		TType tmp;
 		CUGIP_CHECK_RESULT(cudaMemcpy(&tmp, this->p, sizeof(TType), cudaMemcpyDeviceToHost));
+		//cudaThreadSynchronize(); //TODO - check
 		return tmp;
 	}
 
