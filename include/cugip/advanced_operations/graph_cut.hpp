@@ -229,6 +229,8 @@ Graph::set_vertex_count(size_t aCount)
 	mExcess.resize(aCount);
 	mLabels.resize(aCount);
 
+	mEnabledVertices.resize(aCount);
+
 	mVertices = VertexList(mLabels, mExcess, aCount);
 }
 
@@ -491,7 +493,7 @@ getVerticesWithExcessKernel( VertexList aVertices, bool *aEnabledVertices )
 	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
 	int vertexIdx = blockId * blockDim.x + threadIdx.x;
 
-	if ( vertexIdx < aVertices.size() && vertexIdx > 0 ) {
+	if ( vertexIdx < aVertices.size()/* && vertexIdx > 0 */) {
 		aEnabledVertices[vertexIdx] = aVertices.getExcess(vertexIdx) > 0.0f;
 	}
 }
@@ -563,8 +565,8 @@ assignNewLabelsKernel(
 	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
 	int vertexIdx = blockId * blockDim.x + threadIdx.x;
 
-	if ( vertexIdx < aVertices.size() && vertexIdx >= 0 ) {
-		if ( /*vertexIdx != aSink && */aEnabledVertices[ vertexIdx ] ) {
+	if (vertexIdx < aVertices.size()) {
+		if (aEnabledVertices[vertexIdx]) {
 			//printf( "vertexIdx %i orig label %i, label = %i excess = %f\n", vertexIdx, aVertices.getLabel( vertexIdx ), aLabels[ vertexIdx ], aVertices.mExcessArray[ vertexIdx ] );
 			int newLabel = aLabels[ vertexIdx ];
 			//if (newLabel != MAX_LABEL)
@@ -584,6 +586,8 @@ assignNewLabelsKernel(
 bool
 Graph::relabel()
 {
+	CUGIP_CHECK_ERROR_STATE("Before relabel()");
+
 	dim3 blockSize1D( 512 );
 	dim3 vertexGridSize1D( (mVertices.size() + 64*blockSize1D.x - 1) / (64*blockSize1D.x) , 64 );
 	dim3 edgeGridSize1D( (mEdges.size() + 64*blockSize1D.x - 1) / (64*blockSize1D.x) , 64 );
@@ -596,8 +600,8 @@ Graph::relabel()
 					mVertices,
 					thrust::raw_pointer_cast(&mEnabledVertices[0])
 					);
-	//cudaThreadSynchronize();
-	//CheckCudaErrorState( "After getVerticesWithExcessKernel()" );
+	cudaThreadSynchronize();
+	CUGIP_CHECK_ERROR_STATE("After getVerticesWithExcessKernel()");
 
 	//thrust::fill( aLabels.begin(), aLabels.end(), MAX_LABEL );
 	processEdgesToFindNewLabelsKernel<<<edgeGridSize1D, blockSize1D>>>(
@@ -608,14 +612,14 @@ Graph::relabel()
 					//aSource,
 					//aSink
 					);
-	//cudaThreadSynchronize();
-	//CheckCudaErrorState( "After processEdgesToFindNewLabelsKernel()" );
+	cudaThreadSynchronize();
+	CUGIP_CHECK_ERROR_STATE("After processEdgesToFindNewLabelsKernel()");
 
 
 	//Sink and source doesn't change height
 	//aEnabledVertices[aSource] = false;
 	//aEnabledVertices[aSink] = false;
-	assignNewLabelsKernel<<< vertexGridSize1D, blockSize1D >>>(
+	assignNewLabelsKernel<<<vertexGridSize1D, blockSize1D>>>(
 					mVertices,
 					thrust::raw_pointer_cast(&mEnabledVertices[0]),
 					thrust::raw_pointer_cast(&mLabels[0]),
@@ -624,7 +628,7 @@ Graph::relabel()
 					relabelSuccessfulFlag.view()
 					);
 	cudaThreadSynchronize();
-	//CheckCudaErrorState( "After assignNewLabelsKernel()" );
+	CUGIP_CHECK_ERROR_STATE("After assignNewLabelsKernel()");
 
 
 	//cudaMemcpyFromSymbol( &relabelSuccessful, "relabelSuccessful", sizeof(int), 0, cudaMemcpyDeviceToHost );
