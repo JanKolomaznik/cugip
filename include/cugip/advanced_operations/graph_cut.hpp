@@ -9,6 +9,9 @@
 #include <limits>
 
 #include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
+
+#define MAX_LABEL (1 << 30)
 
 typedef unsigned NodeId;
 typedef unsigned long CombinedNodeId;
@@ -124,7 +127,7 @@ struct EdgeList
 struct VertexList
 {
 	VertexList( thrust::device_vector< int >  &aLabels, thrust::device_vector< float >  &aExcess, int aVertexCount )
-		: mLabelArray( aLabels.data().get() ), mExcessArray( aExcess.data().get() ), mSize( aVertexCount + 1 )
+		: mLabelArray(aLabels.data().get()), mExcessArray(aExcess.data().get()), mSize(aVertexCount)
 	{
 
 	}
@@ -187,6 +190,10 @@ public:
 	max_flow();
 protected:
 	void
+	debug_print();
+
+
+	void
 	init_labels(EdgeList &mEdges, VertexList &mVertices);
 	void
 	init_residuals();
@@ -196,6 +203,9 @@ protected:
 
 	void
 	push_through_tlinks_to_sink();
+	void
+	push_through_tlinks_to_source();
+
 
 	bool
 	push();
@@ -213,13 +223,24 @@ protected:
 
 	thrust::device_vector<EdgeWeight> mExcess; // n
 	thrust::device_vector<int> mLabels; // n
-	thrust::device_vector< EdgeResidualsRecord > mResiduals; // m
+	thrust::device_vector<EdgeResidualsRecord> mResiduals; // m
 
 	int mSourceLabel;
 
 	thrust::device_vector<bool> mEnabledVertices;
+	thrust::device_vector<int> mTemporaryLabels; // n
 };
 
+void
+Graph::debug_print()
+{
+	thrust::host_vector<EdgeWeight> excess = mExcess;
+	thrust::host_vector<int> labels = mLabels;
+
+	for (size_t i = 0; i < excess.size(); ++i) {
+		std::cout << i << ": " << excess[i] << " - " << labels[i] << "\n";
+	}
+}
 
 void
 Graph::set_vertex_count(size_t aCount)
@@ -230,8 +251,11 @@ Graph::set_vertex_count(size_t aCount)
 	mLabels.resize(aCount);
 
 	mEnabledVertices.resize(aCount);
+	mTemporaryLabels.resize(aCount);
 
 	mVertices = VertexList(mLabels, mExcess, aCount);
+
+	mSourceLabel = aCount;
 }
 
 void
@@ -270,17 +294,36 @@ Graph::init_labels(EdgeList &mEdges, VertexList &mVertices)
 	thrust::fill(mLabels.begin(), mLabels.end(), 0);
 }
 
+CUGIP_GLOBAL void
+initResidualsKernel(float *aWeights, EdgeResidualsRecord *aResiduals, int aSize)
+{
+	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
+	int edgeIdx = blockId * blockDim.x + threadIdx.x;
+
+	if (edgeIdx < aSize) {
+		aResiduals[edgeIdx].residuals[0] = aWeights[edgeIdx];
+		aResiduals[edgeIdx].residuals[1] = aWeights[edgeIdx];
+	}
+}
 
 void
 Graph::init_residuals()
 {
-//	thrust::fill(mResiduals.begin(), mResiduals.end(), 0.0f);
+	dim3 blockSize1D( 512 );
+	dim3 edgeGridSize1D((mEdges.size() + 64*blockSize1D.x - 1) / (64*blockSize1D.x), 64);
+
+	initResidualsKernel<<<edgeGridSize1D, blockSize1D>>>(
+					thrust::raw_pointer_cast(&mEdgeWeights[0]),
+					thrust::raw_pointer_cast(&mResiduals[0]),
+					mResiduals.size()
+					);
 }
 
 void
 Graph::max_flow()
 {
 	init_labels(mEdges, mVertices/*, aSourceID, aSinkID */);
+	init_residuals();
 	//testForCut( aEdges, aVertices, aSourceID, aSinkID );
 	push_through_tlinks_from_source();
 
@@ -289,9 +332,14 @@ Graph::max_flow()
 	while(!done) {
 		bool push_result = push();// aEdges, aVertices, aSourceID, aSinkID );
 
+		std::cout << "PUSH\n";
+
 		done = relabel();// aEdges, aVertices, tmpEnabledVertex, tmpLabels, aSourceID, aSinkID );
+
+		std::cout << "RELABEL " << iteration << "\n";
 		++iteration;
 
+		if (iteration > 10) break;
 		//D_PRINT( "Finished iteration n.: " << iteration << "; Push sucessful = " << pushRes << "; seconds passed: " << clock.secondsPassed() );
 		/*if( iteration % 20 == 0 ) {
 			//globalRelabel( aEdges, aVertices, aSourceID, aSinkID );
@@ -416,6 +464,43 @@ Graph::push_through_tlinks_from_source()
 					);
 }
 
+
+CUGIP_GLOBAL void
+pushThroughTLinksToSourceKernel(
+		VertexList aVertices,
+		float *aTLinks,
+		int aSourceLabel
+		)
+{
+	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
+	int vertexIdx = blockId * blockDim.x + threadIdx.x;
+
+	if (vertexIdx < aVertices.size() && aVertices.getLabel(vertexIdx) > aSourceLabel) {
+		float excess = aVertices.getExcess(vertexIdx);
+		float flow = min(aTLinks[vertexIdx], excess);
+		if (flow > 0.0f) {
+			aVertices.getExcess(vertexIdx) -= flow;
+		}
+	}
+}
+
+
+void
+Graph::push_through_tlinks_to_source()
+{
+	dim3 blockSize1D( 512 );
+	dim3 vertexGridSize1D( (mVertices.size() + 64*blockSize1D.x - 1) / (64*blockSize1D.x) , 64 );
+
+	pushThroughTLinksToSourceKernel<<< vertexGridSize1D, blockSize1D >>>(
+					mVertices,
+					thrust::raw_pointer_cast(&mSourceTLinks[0]),
+					mSourceLabel
+					);
+}
+
+
+
+
 CUGIP_GLOBAL void
 pushThroughTLinksToSinkKernel(
 		VertexList aVertices,
@@ -427,8 +512,11 @@ pushThroughTLinksToSinkKernel(
 
 	if (vertexIdx < aVertices.size()) {
 		float capacity = aTLinks[vertexIdx];
-		if (capacity > 0.0) {
-			aVertices.getExcess(vertexIdx) += capacity;
+		float excess = aVertices.getExcess(vertexIdx);
+		if (capacity > 0.0f && excess > 0.0f) {
+			float flow = min(capacity, excess);
+
+			aVertices.getExcess(vertexIdx) -= flow;
 		}
 	}
 }
@@ -468,7 +556,6 @@ Graph::push()
 
 		++pushIterations;
 	//	CUDA_CHECK_RESULT( cudaMemcpyToSymbol( "pushSuccessful", &(pushSuccessful = 0), sizeof(int), 0, cudaMemcpyHostToDevice ) );
-
 		//CheckCudaErrorState( TO_STRING( "Before push kernel n. " << pushIterations ) );
 		pushKernel<<<gridSize1D, blockSize1D>>>(pushSuccessfulFlag.view(), mEdges, mVertices);
 		//CheckCudaErrorState( TO_STRING( "After push iteration n. " << pushIterations ) );
@@ -482,18 +569,20 @@ Graph::push()
 	} while (pushSuccessfulFlag.check_host());
 
 	push_through_tlinks_to_sink();
+	push_through_tlinks_to_source();
+	debug_print();
 	//D_PRINT( "Push iteration count = " << pushIterations << "; Sink excess = " << *sinkExcess << "; took " << clock.SecondsPassed());
 	return pushIterations == 0;
 }
 
 
 CUGIP_GLOBAL void
-getVerticesWithExcessKernel( VertexList aVertices, bool *aEnabledVertices )
+getActiveVerticesKernel( VertexList aVertices, bool *aEnabledVertices )
 {
 	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
 	int vertexIdx = blockId * blockDim.x + threadIdx.x;
 
-	if ( vertexIdx < aVertices.size()/* && vertexIdx > 0 */) {
+	if ( vertexIdx < aVertices.size()) {
 		aEnabledVertices[vertexIdx] = aVertices.getExcess(vertexIdx) > 0.0f;
 	}
 }
@@ -512,7 +601,8 @@ loadEdgeV1V2L1L2( EdgeList &aEdges, VertexList &aVertices, int aEdgeIdx, int &aV
 CUGIP_DECL_DEVICE void
 trySetNewHeight( int *aLabels, int aVertexIdx, int label )
 {
-	atomicMax(aLabels + aVertexIdx, label);
+	//atomicMax(aLabels + aVertexIdx, label);
+	atomicMin(aLabels + aVertexIdx, label);
 }
 
 CUGIP_GLOBAL void
@@ -535,20 +625,28 @@ processEdgesToFindNewLabelsKernel(
 		bool v1Enabled = aEnabledVertices[v1];
 		bool v2Enabled = aEnabledVertices[v2];
 
-		if (v1Enabled) { //TODO - check if set to maximum is right
-			if (label1 <= label2 || residualCapacities.getResidual(v1 < v2) <= 0.0f/* || v2 == aSink*//* || v2 == aSource*/ ) { //TODO check if edge is saturated in case its leading down
+		if (v1Enabled && !v2Enabled) { //TODO - check if set to maximum is right
+			if (label1 <= label2 && residualCapacities.getResidual(v1 < v2) > 0.0f) {
+				printf("*1 %i-%i; %i - %i %f - current label %i\n", v1, v2, label1, label2, residualCapacities.getResidual(v1 < v2), aLabels[v1]);
+				trySetNewHeight(aLabels, v1, label2+1);
+			}
+			/*if (label1 <= label2 || residualCapacities.getResidual(v1 < v2) <= 0.0f) { //TODO check if edge is saturated in case its leading down
 				trySetNewHeight( aLabels, v1, label2+1 );
 			} else {
 				//printf( "%i -> %i, l1 %i l2 %i label1\n", v1, v2, label1, label2 );
 				aEnabledVertices[v1] = false;
-			}
+			}*/
 		}
-		if (v2Enabled) {
-			if( label2 <= label1 || residualCapacities.getResidual(v2 < v1) <= 0.0f/* || v1 == aSink*//* || v1 == aSource*/  ) { //TODO check if edge is saturated in case its leading down
+		if (v2Enabled && !v1Enabled) {
+			if (label2 <= label1 && residualCapacities.getResidual(v2 < v1) > 0.0f) {
+				printf("*2 %i-%i; %i - %i %f - current label %i\n", v2, v1, label2, label1, residualCapacities.getResidual(v2 < v1), aLabels[v2]);
+				trySetNewHeight(aLabels, v2, label1+1);
+			}
+			/*if( label2 <= label1 || residualCapacities.getResidual(v2 < v1) <= 0.0f) { //TODO check if edge is saturated in case its leading down
 				trySetNewHeight( aLabels, v2, label1+1 );
 			} else {
 				aEnabledVertices[v2] = false;
-			}
+			}*/
 		}
 	}
 }
@@ -556,29 +654,27 @@ processEdgesToFindNewLabelsKernel(
 CUGIP_GLOBAL void
 assignNewLabelsKernel(
 		VertexList aVertices,
+		float *aTLinkWeights,
 		bool *aEnabledVertices,
 		int *aLabels,
-		//int aSource,
+		int aSourceLabel,
 		//int aSink,
 		device_flag_view aRelabelSuccessfulFlag)
 {
 	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
 	int vertexIdx = blockId * blockDim.x + threadIdx.x;
 
-	if (vertexIdx < aVertices.size()) {
-		if (aEnabledVertices[vertexIdx]) {
-			//printf( "vertexIdx %i orig label %i, label = %i excess = %f\n", vertexIdx, aVertices.getLabel( vertexIdx ), aLabels[ vertexIdx ], aVertices.mExcessArray[ vertexIdx ] );
-			int newLabel = aLabels[ vertexIdx ];
-			//if (newLabel != MAX_LABEL)
-			{
-				aVertices.getLabel( vertexIdx ) = newLabel;
-				//if ( vertexIdx != aSource ) {
-					aRelabelSuccessfulFlag.set_device();
-					//relabelSuccessful = 1;
-					//printf("relabel %i\n", vertexIdx);
-				//}
+	if (vertexIdx < aVertices.size() && aEnabledVertices[vertexIdx]) {
+		int oldLabel = aVertices.getLabel( vertexIdx );
+		int newLabel = aLabels[vertexIdx];
+		if (newLabel > aSourceLabel + 1) {
+			if (aTLinkWeights[vertexIdx] > 0.0f) {
+				newLabel = aSourceLabel + 1;
 			}
 		}
+		printf( "vertexIdx %i orig label %i, label = %i\n", vertexIdx, oldLabel, newLabel);
+		aVertices.getLabel(vertexIdx) = newLabel;
+		aRelabelSuccessfulFlag.set_device();
 	}
 }
 
@@ -596,19 +692,19 @@ Graph::relabel()
 	//int relabelSuccessful;
 	//cudaMemcpyToSymbol( "relabelSuccessful", &(relabelSuccessful = 0), sizeof(int), 0, cudaMemcpyHostToDevice );
 	//D_COMMAND( M4D::Common::Clock clock; );
-	getVerticesWithExcessKernel<<< vertexGridSize1D, blockSize1D >>>(
+	getActiveVerticesKernel<<< vertexGridSize1D, blockSize1D >>>(
 					mVertices,
 					thrust::raw_pointer_cast(&mEnabledVertices[0])
 					);
 	cudaThreadSynchronize();
-	CUGIP_CHECK_ERROR_STATE("After getVerticesWithExcessKernel()");
+	CUGIP_CHECK_ERROR_STATE("After getActiveVerticesKernel()");
 
-	//thrust::fill( aLabels.begin(), aLabels.end(), MAX_LABEL );
+	thrust::fill(mTemporaryLabels.begin(), mTemporaryLabels.end(), MAX_LABEL);
 	processEdgesToFindNewLabelsKernel<<<edgeGridSize1D, blockSize1D>>>(
 					mEdges,
 					mVertices,
 					thrust::raw_pointer_cast(&mEnabledVertices[0]),
-					thrust::raw_pointer_cast(&mLabels[0])//,
+					thrust::raw_pointer_cast(&mTemporaryLabels[0])//,
 					//aSource,
 					//aSink
 					);
@@ -621,8 +717,10 @@ Graph::relabel()
 	//aEnabledVertices[aSink] = false;
 	assignNewLabelsKernel<<<vertexGridSize1D, blockSize1D>>>(
 					mVertices,
+					thrust::raw_pointer_cast(&mSourceTLinks[0]),
 					thrust::raw_pointer_cast(&mEnabledVertices[0]),
-					thrust::raw_pointer_cast(&mLabels[0]),
+					thrust::raw_pointer_cast(&mTemporaryLabels[0]),
+					mSourceLabel,
 					//aSource,
 					//aSink,
 					relabelSuccessfulFlag.view()
