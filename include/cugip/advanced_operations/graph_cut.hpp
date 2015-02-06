@@ -294,6 +294,7 @@ Graph::check_flow()
 void
 Graph::set_vertex_count(size_t aCount)
 {
+	std::cout << cudaMemoryInfoText();
 	mSourceTLinks.resize(aCount);
 	mSinkTLinks.resize(aCount);
 	mExcess.resize(aCount);
@@ -434,6 +435,7 @@ initBFSKernel(float *aTLinks, int *aLabels, int aSize)
 	}
 }
 
+
 CUGIP_GLOBAL void
 bfsPropagationKernel(device_flag_view aPropagationSuccessfulFlag, EdgeList aEdges, int *aLabels, int aCurrentLevel)
 {
@@ -446,7 +448,7 @@ bfsPropagationKernel(device_flag_view aPropagationSuccessfulFlag, EdgeList aEdge
 		int l1 = aLabels[v1];
 		int l2 = aLabels[v2];
 		//TODO - check residuals index
-		if (l1 == aCurrentLevel && l2 == INVALID_LABEL && aEdges.getResiduals(edgeIdx).getResidual(v1 > v2)) {
+		if (l1 == aCurrentLevel && l2 == INVALID_LABEL && aEdges.getResiduals(edgeIdx).getResidual(v1 > v2) > 0.0f) {
 			aLabels[v2] = aCurrentLevel + 1;
 			aPropagationSuccessfulFlag.set_device();
 		}
@@ -457,6 +459,7 @@ bfsPropagationKernel(device_flag_view aPropagationSuccessfulFlag, EdgeList aEdge
 		}
 	}
 }
+
 
 struct compare_value
 {

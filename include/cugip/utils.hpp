@@ -44,7 +44,27 @@ cudaMemoryInfoText()
 		);
 }
 
+inline std::string
+cudaDeviceInfoText()
+{
+	std::string result;
+	int count = 0;
+	CUGIP_CHECK_RESULT(cudaGetDeviceCount(&count));
 
+	result = boost::str(boost::format("Number of detected CUDA devices: %1%\n\n") % count);
+
+	for (int i = 0; i < count; ++i) {
+		cudaDeviceProp properties;
+		CUGIP_CHECK_RESULT(cudaGetDeviceProperties(&properties, i));
+
+		result += boost::str(boost::format("Name: %1%\nCompute capability: %2%.%3%\n\n")
+				% properties.name
+				% properties.major
+				% properties.minor);
+	}
+
+	return result;
+}
 
 template<typename TType, int tChannelCount>
 struct element

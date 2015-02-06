@@ -243,6 +243,10 @@ void run_BK301_3D_26C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double*
 
 int run(const char *dataset_path) 
 {
+	cudaDeviceReset();
+	std::cout << cugip::cudaDeviceInfoText();
+
+
   void (*run_BK301[4][27][3][3])(MFI*,unsigned char*,int*,double*,double*,double*);                                               \
 
   run_BK301[2][ 4][MFI::TYPE_UINT8 ][MFI::TYPE_UINT8 ] = run_BK301_2D_4C<unsigned char ,unsigned char >;
