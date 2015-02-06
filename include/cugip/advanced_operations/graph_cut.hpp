@@ -10,8 +10,25 @@
 
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
+#include <thrust/count.h>
+
+
+#include <boost/filesystem.hpp>
+#include <fstream>
+template<typename TItem>
+void
+dump_buffer(const boost::filesystem::path &aPath, const TItem *aBuffer, size_t aCount)
+{
+	std::ofstream out;
+	out.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+
+	out.open(aPath.string().c_str(), std::ios_base::binary);
+	out.write(reinterpret_cast<const char *>(aBuffer), aCount * sizeof(TItem));
+}
+
 
 #define MAX_LABEL (1 << 30)
+#define INVALID_LABEL 1000 //(1 << 30)
 
 typedef unsigned NodeId;
 typedef unsigned long CombinedNodeId;
@@ -186,12 +203,17 @@ public:
 		EdgeWeight *aCapSource,
 		EdgeWeight *aCapSink);
 
-	void
+	float
 	max_flow();
+
+	void
+	save_to_graphml(const boost::filesystem::path &file) const;
 protected:
 	void
 	debug_print();
 
+	void
+	check_flow();
 
 	void
 	init_labels(EdgeList &mEdges, VertexList &mVertices);
@@ -206,6 +228,8 @@ protected:
 	void
 	push_through_tlinks_to_source();
 
+	void
+	assign_label_by_distance();
 
 	bool
 	push();
@@ -227,9 +251,14 @@ protected:
 
 	int mSourceLabel;
 
-	thrust::device_vector<bool> mEnabledVertices;
+	thrust::device_vector<bool> mEnabledVertices; // n
 	thrust::device_vector<int> mTemporaryLabels; // n
+	thrust::device_vector<EdgeWeight> mSinkFlow; // n
+
+	thrust::device_vector<EdgeWeight> mPushedFlow; // n
 };
+
+
 
 void
 Graph::debug_print()
@@ -238,7 +267,27 @@ Graph::debug_print()
 	thrust::host_vector<int> labels = mLabels;
 
 	for (size_t i = 0; i < excess.size(); ++i) {
-		std::cout << i << ": " << excess[i] << " - " << labels[i] << "\n";
+		if (excess[i] > 0)
+			std::cout << i << ": " << excess[i] << " - " << labels[i] << "\n";
+	}
+}
+
+void
+Graph::check_flow()
+{
+	thrust::host_vector<EdgeResidualsRecord> residuals = mResiduals;
+	thrust::host_vector<EdgeWeight> weights = mEdgeWeights;
+
+	for (int i = 0; i < weights.size(); ++i) {
+		float diff = 0.0f;
+		if (residuals[i].residuals[0] > weights[i]) {
+			diff = weights[i] - residuals[i].residuals[1];
+		} else {
+			diff = weights[i] - residuals[i].residuals[0];
+		}
+		if (diff < 0.0f) {
+			std::cout << "invalid flow - edge: " << i << "\n";
+		}
 	}
 }
 
@@ -252,10 +301,13 @@ Graph::set_vertex_count(size_t aCount)
 
 	mEnabledVertices.resize(aCount);
 	mTemporaryLabels.resize(aCount);
+	mSinkFlow.resize(aCount);
 
 	mVertices = VertexList(mLabels, mExcess, aCount);
 
 	mSourceLabel = aCount;
+
+	mPushedFlow.resize(aCount);
 }
 
 void
@@ -283,6 +335,12 @@ Graph::set_tweights(
 {
 	thrust::copy(aCapSource, aCapSource + mSourceTLinks.size(), mSourceTLinks.begin());
 	thrust::copy(aCapSink, aCapSink + mSinkTLinks.size(), mSinkTLinks.begin());
+
+	thrust::fill(mSinkFlow.begin(), mSinkFlow.end(), 0.0f);
+
+
+	dump_buffer("source_float.raw", aCapSource, mSourceLabel);
+	dump_buffer("sink_float.raw", aCapSink, mSourceLabel);
 }
 
 
@@ -319,7 +377,7 @@ Graph::init_residuals()
 					);
 }
 
-void
+float
 Graph::max_flow()
 {
 	init_labels(mEdges, mVertices/*, aSourceID, aSinkID */);
@@ -327,26 +385,124 @@ Graph::max_flow()
 	//testForCut( aEdges, aVertices, aSourceID, aSinkID );
 	push_through_tlinks_from_source();
 
+	assign_label_by_distance();
+
+	thrust::host_vector<int> labels = mLabels;
+	dump_buffer("labels_int.raw", &(labels[0]), mSourceLabel);
+
 	bool done = false;
 	size_t iteration = 0;
 	while(!done) {
-		bool push_result = push();// aEdges, aVertices, aSourceID, aSinkID );
+		bool push_result = push();
+		thrust::host_vector<float> excess = mExcess;
+		//dump_buffer(boost::str(boost::format("excess_float_%1%.raw") % iteration), &(excess[0]), mSourceLabel);
+		labels = mLabels;
+		dump_buffer(boost::str(boost::format("labels_int_%1%.raw") % iteration), &(labels[0]), mSourceLabel);
+		thrust::host_vector<float> flow = mPushedFlow;
+		dump_buffer(boost::str(boost::format("flow_float_%1%.raw") % iteration), &(flow[0]), mSourceLabel);
+		/*debug_print();
+		break;*/
+		//std::cout << "PUSH\n";
+		if (iteration > 2) {
+			//debug_print();
+			//save_to_graphml("progress.xml");
+			break;
+		}
 
-		std::cout << "PUSH\n";
+		assign_label_by_distance();
+		//done = relabel();
 
-		done = relabel();// aEdges, aVertices, tmpEnabledVertex, tmpLabels, aSourceID, aSinkID );
-
-		std::cout << "RELABEL " << iteration << "\n";
+		//std::cout << "RELABEL " << iteration << "\n";
 		++iteration;
 
-		if (iteration > 10) break;
-		//D_PRINT( "Finished iteration n.: " << iteration << "; Push sucessful = " << pushRes << "; seconds passed: " << clock.secondsPassed() );
-		/*if( iteration % 20 == 0 ) {
-			//globalRelabel( aEdges, aVertices, aSourceID, aSinkID );
-			//testForCut( aEdges, aVertices, aSourceID, aSinkID );
-		}*/
+	}
+	return thrust::reduce(mSinkFlow.begin(), mSinkFlow.end());
+}
+
+CUGIP_GLOBAL void
+initBFSKernel(float *aTLinks, int *aLabels, int aSize)
+{
+	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
+	int vertexIdx = blockId * blockDim.x + threadIdx.x;
+
+	if (vertexIdx < aSize) {
+		int label = INVALID_LABEL;
+		if (aTLinks[vertexIdx] > 0.0) {
+			label = 1;
+		}
+		aLabels[vertexIdx] = label;
 	}
 }
+
+CUGIP_GLOBAL void
+bfsPropagationKernel(device_flag_view aPropagationSuccessfulFlag, EdgeList aEdges, int *aLabels, int aCurrentLevel)
+{
+	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
+	int edgeIdx = blockId * blockDim.x + threadIdx.x;
+
+	if (edgeIdx < aEdges.size()) {
+		int v1 = aEdges.getEdge(edgeIdx).first;
+		int v2 = aEdges.getEdge(edgeIdx).second;
+		int l1 = aLabels[v1];
+		int l2 = aLabels[v2];
+		//TODO - check residuals index
+		if (l1 == aCurrentLevel && l2 == INVALID_LABEL && aEdges.getResiduals(edgeIdx).getResidual(v1 > v2)) {
+			aLabels[v2] = aCurrentLevel + 1;
+			aPropagationSuccessfulFlag.set_device();
+		}
+
+		if (l2 == aCurrentLevel && l1 == INVALID_LABEL && aEdges.getResiduals(edgeIdx).getResidual(v2 > v1) > 0.0f) {
+			aLabels[v1] = aCurrentLevel + 1;
+			aPropagationSuccessfulFlag.set_device();
+		}
+	}
+}
+
+struct compare_value
+{
+	compare_value(int aVal = 0)
+		: val(aVal)
+	{}
+
+	__host__ __device__
+	bool operator()(int x)
+	{
+		return x == val;
+	}
+	int val;
+};
+
+
+void
+Graph::assign_label_by_distance()
+{
+	dim3 blockSize1D( 512 );
+	dim3 vertexGridSize1D( (mVertices.size() + 64*blockSize1D.x - 1) / (64*blockSize1D.x) , 64 );
+	dim3 edgeGridSize1D( (mEdges.size() + 64*blockSize1D.x - 1) / (64*blockSize1D.x) , 64 );
+
+	initBFSKernel<<<vertexGridSize1D, blockSize1D>>>(
+				thrust::raw_pointer_cast(&mSinkTLinks[0]),
+				thrust::raw_pointer_cast(&mLabels[0]),
+				mVertices.size()
+				);
+
+	device_flag propagationSuccessfulFlag;
+	size_t currentLevel = 1;
+	do {
+		propagationSuccessfulFlag.reset_host();
+		bfsPropagationKernel<<<edgeGridSize1D, blockSize1D>>>(
+				propagationSuccessfulFlag.view(),
+				mEdges,
+				thrust::raw_pointer_cast(&mLabels[0]),
+				currentLevel);
+		std::cout << "Level " << currentLevel << "; count = " << thrust::count_if(mLabels.begin(), mLabels.end(), compare_value(currentLevel)) << "\n";
+
+		++currentLevel;
+	} while (propagationSuccessfulFlag.check_host());
+
+	std::cout << "BFS levels = " << (currentLevel-1) << "\n";
+}
+
 
 //*********************************************************************************************************
 
@@ -381,6 +537,8 @@ tryPullFromVertex( VertexList &aVertices, int aVertex, float aResidualCapacity )
 	while ( excess > 0.0f ) {
 		pushedFlow = min( excess, aResidualCapacity );
 		float oldExcess = atomicFloatCAS(&(aVertices.getExcess( aVertex )), excess, excess - pushedFlow);
+		/*float oldExcess = excess;
+		aVertices.getExcess( aVertex ) = excess - pushedFlow;*/
 		if(excess == oldExcess) {
 			return pushedFlow;
 		} else {
@@ -394,41 +552,69 @@ inline CUGIP_DECL_DEVICE void
 pushToVertex( VertexList &aVertices, int aVertex, float aPushedFlow )
 {
 	atomicAdd( &(aVertices.getExcess( aVertex )), aPushedFlow );
+	//aVertices.getExcess( aVertex ) += aPushedFlow;
 }
 
-CUGIP_DECL_DEVICE void
-tryToPushFromTo(device_flag_view &aPushSuccessfulFlag, VertexList &aVertices, int aFrom, int aTo, EdgeList &aEdges, int aEdgeIdx, float residualCapacity )
+CUGIP_DECL_DEVICE bool
+tryToPushFromTo(float *aFlow, VertexList &aVertices, int aFrom, int aTo, EdgeList &aEdges, int aEdgeIdx, float residualCapacity )
 {
 	//printf( "Push successfull\n" );
 	if ( residualCapacity > 0 ) {
 		float pushedFlow = tryPullFromVertex( aVertices, aFrom, residualCapacity );
 		if( pushedFlow > 0.0f ) {
 			pushToVertex( aVertices, aTo, pushedFlow );
+
+			atomicAdd( &(aFlow[aTo]), 1/*pushedFlow */);
 			updateResiduals( aEdges, aEdgeIdx, pushedFlow, aFrom, aTo );
-			aPushSuccessfulFlag.set_device();
+			return true;
+			//aPushSuccessfulFlag.set_device();
 			//printf( "Push successfull from %i to %i (edge %i), flow = %f\n", aFrom, aTo, aEdgeIdx, pushedFlow );
 		}
 	}
+	return false;
 }
 
+CUGIP_DECL_DEVICE bool
+pushThroughEdge(float *aFlow, int edgeIdx, EdgeList &aEdges, VertexList &aVertices)
+{
+	bool pushed = false;
+	int v1, v2;
+	int label1, label2;
+	EdgeResidualsRecord residualCapacities;
+	loadEdgeV1V2L1L2C(aEdges, aVertices, edgeIdx, v1, v2, label1, label2, residualCapacities);
+	if (label1 == -1 || label2 == -1) printf("Wrong label");
+	if (label1 > label2) {
+		pushed = tryToPushFromTo(aFlow, /*aPushSuccessfulFlag, */aVertices, v1, v2, aEdges, edgeIdx, residualCapacities.getResidual(v1 < v2));
+	} else if ( label1 < label2 ) {
+		pushed = tryToPushFromTo(aFlow, /*aPushSuccessfulFlag, */aVertices, v2, v1, aEdges, edgeIdx, residualCapacities.getResidual(v2 < v1));
+	}
+	/*if (pushed) {
+		printf( "%i -> %i => %i -> %i %f; %f\n", v1, label1, v2, label2, residualCapacities.getResidual( true ), residualCapacities.getResidual( false ) );
+	}*/
+	return pushed;
+}
 
 CUGIP_GLOBAL void
-pushKernel(device_flag_view aPushSuccessfulFlag, EdgeList aEdges, VertexList aVertices )
+pushKernel(float *aFlow, device_flag_view aPushSuccessfulFlag, EdgeList aEdges, VertexList aVertices )
 {
 	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
-	int edgeIdx = blockId * blockDim.x + threadIdx.x;
+	//int edgeIdx = blockId * blockDim.x + threadIdx.x;
+	int batchIdx = blockId * blockDim.x + threadIdx.x;
 
-	if (edgeIdx < aEdges.size()) {
-		int v1, v2;
-		int label1, label2;
-		EdgeResidualsRecord residualCapacities;
-		loadEdgeV1V2L1L2C(aEdges, aVertices, edgeIdx, v1, v2, label1, label2, residualCapacities);
-		//printf( "%i -> %i => %i -> %i %f; %f\n", v1, label1, v2, label2, residualCapacities.getResidual( true ), residualCapacities.getResidual( false ) );
-		if (label1 > label2) {
-			tryToPushFromTo(aPushSuccessfulFlag, aVertices, v1, v2, aEdges, edgeIdx, residualCapacities.getResidual(v1 < v2));
-		} else if ( label1 < label2 ) {
-			tryToPushFromTo(aPushSuccessfulFlag, aVertices, v2, v1, aEdges, edgeIdx, residualCapacities.getResidual(v2 < v1));
+	int batchSize = (aEdges.size()/* + 31*/) ;// / 32;
+
+	bool pushed = false;
+	if (batchIdx < batchSize) {
+		for (int i = 0; i < 1/*32*/; ++i) {
+			int edgeIdx = i * batchSize + batchIdx;
+			if (edgeIdx < aEdges.size()) {
+				pushed = pushThroughEdge(aFlow, edgeIdx, aEdges, aVertices) || pushed;
+			}
 		}
+	}
+	pushed = __any(pushed);
+	if (threadIdx.x == 0 && pushed) {
+		aPushSuccessfulFlag.set_device();
 	}
 }
 
@@ -504,7 +690,8 @@ Graph::push_through_tlinks_to_source()
 CUGIP_GLOBAL void
 pushThroughTLinksToSinkKernel(
 		VertexList aVertices,
-		float *aTLinks
+		float *aTLinks,
+		float *aSinkFlow
 		)
 {
 	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
@@ -517,6 +704,7 @@ pushThroughTLinksToSinkKernel(
 			float flow = min(capacity, excess);
 
 			aVertices.getExcess(vertexIdx) -= flow;
+			aSinkFlow[vertexIdx] += flow;
 		}
 	}
 }
@@ -530,7 +718,8 @@ Graph::push_through_tlinks_to_sink()
 
 	pushThroughTLinksToSinkKernel<<< vertexGridSize1D, blockSize1D >>>(
 					mVertices,
-					thrust::raw_pointer_cast(&mSinkTLinks[0])
+					thrust::raw_pointer_cast(&mSinkTLinks[0]),
+					thrust::raw_pointer_cast(&mSinkFlow[0])
 					);
 }
 
@@ -539,39 +728,23 @@ bool
 Graph::push()
 {
 	dim3 blockSize1D( 512 );
+	int batchSize = (mEdges.size() + 31) / 32;
 	dim3 gridSize1D((mEdges.size() + 64*blockSize1D.x - 1) / (64*blockSize1D.x), 64);
-
-	//thrust::device_ptr<float > sourceExcess( mVertices.mExcessArray + aSource );
-	//thrust::device_ptr<float > sinkExcess( mVertices.mExcessArray + aSink );
+	//dim3 gridSize1D((batchSize + 64*blockSize1D.x - 1) / (64*blockSize1D.x), 64);
 
 	device_flag pushSuccessfulFlag;
-	//D_PRINT( "gridSize1D " << gridSize1D.x << "; " << gridSize1D.y << "; " << gridSize1D.z );
-	//static const float SOURCE_EXCESS = 1000000.0f;
-	//D_COMMAND( M4D::Common::Clock clock; );
 	size_t pushIterations = 0;
 	do {
 		pushSuccessfulFlag.reset_host();
-		//CUDA_CHECK_RESULT( cudaMemcpy( (void*)(aVertices.mExcessArray + aSource), (void*)(&SOURCE_EXCESS), sizeof(float), cudaMemcpyHostToDevice ) );
-	//	*sourceExcess = SOURCE_EXCESS;
-
 		++pushIterations;
-	//	CUDA_CHECK_RESULT( cudaMemcpyToSymbol( "pushSuccessful", &(pushSuccessful = 0), sizeof(int), 0, cudaMemcpyHostToDevice ) );
-		//CheckCudaErrorState( TO_STRING( "Before push kernel n. " << pushIterations ) );
-		pushKernel<<<gridSize1D, blockSize1D>>>(pushSuccessfulFlag.view(), mEdges, mVertices);
-		//CheckCudaErrorState( TO_STRING( "After push iteration n. " << pushIterations ) );
-
-	//	CUDA_CHECK_RESULT( cudaThreadSynchronize() );
-
-	//	CUDA_CHECK_RESULT( cudaMemcpyFromSymbol( &pushSuccessful, "pushSuccessful", sizeof(int), 0, cudaMemcpyDeviceToHost ) );
-
-		//D_PRINT( "-----------------------------------" );
+		pushKernel<<<gridSize1D, blockSize1D>>>(thrust::raw_pointer_cast(&(mPushedFlow[0])), pushSuccessfulFlag.view(), mEdges, mVertices);
 
 	} while (pushSuccessfulFlag.check_host());
 
 	push_through_tlinks_to_sink();
 	push_through_tlinks_to_source();
-	debug_print();
-	//D_PRINT( "Push iteration count = " << pushIterations << "; Sink excess = " << *sinkExcess << "; took " << clock.SecondsPassed());
+
+	std::cout << "Push iterations = " << pushIterations << "\n";
 	return pushIterations == 0;
 }
 
@@ -627,7 +800,7 @@ processEdgesToFindNewLabelsKernel(
 
 		if (v1Enabled && !v2Enabled) { //TODO - check if set to maximum is right
 			if (label1 <= label2 && residualCapacities.getResidual(v1 < v2) > 0.0f) {
-				printf("*1 %i-%i; %i - %i %f - current label %i\n", v1, v2, label1, label2, residualCapacities.getResidual(v1 < v2), aLabels[v1]);
+				//printf("*1 %i-%i; %i - %i %f - current label %i\n", v1, v2, label1, label2, residualCapacities.getResidual(v1 < v2), aLabels[v1]);
 				trySetNewHeight(aLabels, v1, label2+1);
 			}
 			/*if (label1 <= label2 || residualCapacities.getResidual(v1 < v2) <= 0.0f) { //TODO check if edge is saturated in case its leading down
@@ -639,7 +812,7 @@ processEdgesToFindNewLabelsKernel(
 		}
 		if (v2Enabled && !v1Enabled) {
 			if (label2 <= label1 && residualCapacities.getResidual(v2 < v1) > 0.0f) {
-				printf("*2 %i-%i; %i - %i %f - current label %i\n", v2, v1, label2, label1, residualCapacities.getResidual(v2 < v1), aLabels[v2]);
+				//printf("*2 %i-%i; %i - %i %f - current label %i\n", v2, v1, label2, label1, residualCapacities.getResidual(v2 < v1), aLabels[v2]);
 				trySetNewHeight(aLabels, v2, label1+1);
 			}
 			/*if( label2 <= label1 || residualCapacities.getResidual(v2 < v1) <= 0.0f) { //TODO check if edge is saturated in case its leading down
@@ -672,7 +845,7 @@ assignNewLabelsKernel(
 				newLabel = aSourceLabel + 1;
 			}
 		}
-		printf( "vertexIdx %i orig label %i, label = %i\n", vertexIdx, oldLabel, newLabel);
+		//printf( "vertexIdx %i orig label %i, label = %i\n", vertexIdx, oldLabel, newLabel);
 		aVertices.getLabel(vertexIdx) = newLabel;
 		aRelabelSuccessfulFlag.set_device();
 	}
@@ -736,3 +909,5 @@ Graph::relabel()
 
 
 }//namespace cugip
+
+#include "graph_to_graphml.hpp"
