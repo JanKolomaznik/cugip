@@ -22,6 +22,13 @@ struct device_flag_view
 		//*mFlag = false;
 	}
 
+	CUGIP_DECL_DEVICE void
+	reset_device()
+	{
+		mFlag.assign_device(false);
+		//*mFlag = false;
+	}
+
 	CUGIP_DECL_HOST void
 	set_host()
 	{
@@ -40,6 +47,12 @@ struct device_flag_view
 	check_host()
 	{
 		return mFlag.retrieve_host();
+	}
+
+	CUGIP_DECL_DEVICE bool
+	check_device()
+	{
+		return mFlag.retrieve_device();
 	}
 
 

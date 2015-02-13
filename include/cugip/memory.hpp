@@ -88,6 +88,12 @@ struct device_ptr : device_base_ptr<TType>
 		return tmp;
 	}
 
+	CUGIP_DECL_HOST TType
+	retrieve_device() const
+	{
+		return *(this->p);
+	}
+
 
 /*	CUGIP_DECL_HYBRID TType *
 	get() const

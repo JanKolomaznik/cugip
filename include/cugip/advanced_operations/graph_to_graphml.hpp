@@ -13,7 +13,8 @@ Graph::save_to_graphml(const boost::filesystem::path &file) const
 	thrust::host_vector<int> labels = mLabels;
 
 	thrust::host_vector<EdgeRecord> edges = mEdgeDefinitions;
-	thrust::host_vector<EdgeWeight> weights = mEdgeWeights;
+	thrust::host_vector<EdgeWeight> weights = mEdgeWeightsForward;
+	thrust::host_vector<EdgeWeight> weightsBackward = mEdgeWeightsBackward; //TODO - backward capacity
 
 	thrust::host_vector<EdgeWeight> source_links = mSourceTLinks;
 	thrust::host_vector<EdgeWeight> sink_links = mSinkTLinks;

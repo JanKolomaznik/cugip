@@ -1,7 +1,5 @@
 #pragma once
 
-
-#include <cugip/math.hpp>
 #include <cugip/math.hpp>
 #include <cugip/traits.hpp>
 #include <cugip/utils.hpp>
@@ -15,6 +13,64 @@
 
 #include <boost/filesystem.hpp>
 #include <fstream>
+
+template<typename TType>
+class ParallelQueue
+{
+public:
+	CUGIP_DECL_DEVICE int
+	allocate(int aItemCount)
+	{
+
+	}
+
+	TType *mData;
+	int mSize;
+}
+
+template<typename TFlow>
+struct GraphCutData
+{
+	CUGIP_DECL_DEVICE int
+	neighborCount(int aVertexId)
+	{
+		return firstNeighborIndex(aVertexId + 1) - firstNeighborIndex(aVertexId);
+	}
+
+	CUGIP_DECL_DEVICE TFlow &
+	excess(int aVertexId)
+	{
+		return vertexExcess[aVertexId];
+	}
+
+	CUGIP_DECL_DEVICE int &
+	label(int aVertexId)
+	{
+		return labels[aVertexId];
+	}
+
+	CUGIP_DECL_DEVICE int
+	vertexCount()
+	{
+		return vertexCount;
+	}
+
+	CUGIP_DECL_DEVICE int
+	firstNeighborIndex(int aVertexId)
+	{
+		return neighbors[aVertexId];
+	}
+
+	int vertexCount;
+
+	TFlow *vertexExcess;
+	int *labels;
+	int *neighbors;
+};
+
+/*
+
+
 template<typename TItem>
 void
 dump_buffer(const boost::filesystem::path &aPath, const TItem *aBuffer, size_t aCount)
@@ -262,10 +318,8 @@ protected:
 	thrust::device_vector<EdgeWeight> mPushedFlow; // n
 };
 
+*/
 
-
-#include "graph_cut.tcc"
 
 }//namespace cugip
 
-#include "graph_to_graphml.hpp"

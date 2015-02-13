@@ -9,11 +9,11 @@ struct Instance
 };
 
 const Instance instances[] = {
-  { "/ctu/lazybrush/footman",                    2, "%s/ctu/lazybrush/footman/footman%d.mfi" },
-  /*{ "/ctu/lazybrush/footman",                    8, "%s/ctu/lazybrush/footman/footman%d.mfi" },
+  //{ "/ctu/lazybrush/footman",                    2, "%s/ctu/lazybrush/footman/footman%d.mfi" },
+  { "/ctu/lazybrush/footman",                    8, "%s/ctu/lazybrush/footman/footman%d.mfi" },
   { "/ctu/lazybrush/hmdman",                     6, "%s/ctu/lazybrush/hmdman/hmdman%d.mfi" },
   { "/ctu/lazybrush/mangadinner",               10, "%s/ctu/lazybrush/mangadinner/mangadinner%d.mfi" },
-  { "/ctu/lazybrush/mangagirl",                  7, "%s/ctu/lazybrush/mangagirl/mangagirl%d.mfi" },
+  /*{ "/ctu/lazybrush/mangagirl",                  7, "%s/ctu/lazybrush/mangagirl/mangagirl%d.mfi" },
   { "/ctu/lazybrush/elephant",                   3, "%s/ctu/lazybrush/elephant/elephant%d.mfi" },
   { "/ctu/lazybrush/bird",                       3, "%s/ctu/lazybrush/bird/bird%d.mfi" },
   { "/ctu/lazybrush/doctor",                     5, "%s/ctu/lazybrush/doctor/doctor%d.mfi" },
@@ -25,7 +25,7 @@ const Instance instances[] = {
   { "/middlebury/stereo/venus",                 19, "%s/middlebury/stereo/venus/venus%d.mfi" },
   { "/middlebury/stereo/teddy",                 59, "%s/middlebury/stereo/teddy/teddy%d.mfi" },
 
-  { "/middlebury/segmentation/flower",           3, "%s/middlebury/segmentation/flower/flower%d.mfi" },
+  /*{ "/middlebury/segmentation/flower",           3, "%s/middlebury/segmentation/flower/flower%d.mfi" },
   { "/middlebury/segmentation/person",           3, "%s/middlebury/segmentation/person/person%d.mfi" },
   { "/middlebury/segmentation/sponge",           3, "%s/middlebury/segmentation/sponge/sponge%d.mfi" },
 

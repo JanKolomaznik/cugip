@@ -44,11 +44,13 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 	std::vector<float> tlinksSink(w*h);
 	std::vector<EdgeRecord> edges((w-1)*h + (h-1)*w);
 	std::vector<float> weights((w-1)*h + (h-1)*w);
+	std::vector<float> weightsBackward((w-1)*h + (h-1)*w);
 	/*edges.reserve((w-1)*(h-1));
 	weights.reserve((w-1)*(h-1));*/
 
 	int source_count = 0;
 	int sink_count = 0;
+	bool different = false;
 	for(int y=0;y<h;y++) {
 		for(int x=0;x<w;x++) {    
 			if (cap_source[x+y*w] > 0) {
@@ -62,13 +64,17 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 			//graph->add_tweights(x+y*w,cap_source[x+y*w],cap_sink[x+y*w]);
 			bool is_zero = false;
 			if (x<w-1) {
+				//different = different || cap_neighbor[MFI::ARC_GE][x+y*w] != cap_neighbor[MFI::ARC_LE][x+y*w];
 				edges[x+y*(w-1)] = EdgeRecord(x+y*w, (x+1)+y*w);
-				weights[x+y*(w-1)] = cap_neighbor[MFI::ARC_GE][x+y*w];
+				weights[x+y*(w-1)] = cap_neighbor[MFI::ARC_LE][x+y*w];
+				weightsBackward[x+y*(w-1)] = cap_neighbor[MFI::ARC_GE][x+y*w];
 				is_zero = cap_neighbor[MFI::ARC_GE][x+y*w] == 0;
 			}
 			if (y<h-1) {
+				//different = different || cap_neighbor[MFI::ARC_EG][x+y*w] != cap_neighbor[MFI::ARC_EL][x+y*w];
 				edges[(w-1)*(h) + x+y*(w-1)] = EdgeRecord(x+y*w,x+(y+1)*w);
-				weights[(w-1)*(h) + x+y*(w-1)] = cap_neighbor[MFI::ARC_EG][x+y*w];
+				weights[(w-1)*(h) + x+y*(w-1)] = cap_neighbor[MFI::ARC_EL][x+y*w];
+				weightsBackward[(w-1)*(h) + x+y*(w-1)] = cap_neighbor[MFI::ARC_EG][x+y*w];
 				is_zero = is_zero || cap_neighbor[MFI::ARC_EG][x+y*w] == 0;
 			}
 			buffer[x+y*w] = is_zero ? 100 : 0;
@@ -77,6 +83,9 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 	dump_buffer("zero.raw", &(buffer[0]), w*h);
 
 	printf("source_count = %d\nsink_count = %d\n", source_count, sink_count);
+/*	if (different) {
+		printf("AAAAAAAAAAAAAA DIFFERENT\n\n");
+	}*/
 	CLOCK_START();
 	cugip::Graph graph;
 	graph.set_vertex_count(w*h);
@@ -85,7 +94,8 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 	graph.set_nweights(
 		edges.size(),
 		&(edges[0]),
-		&(weights[0]));
+		&(weightsBackward[0]),
+		&(weightsBackward[0]));
 
 	graph.set_tweights(
 		&(tlinksSource[0]),
