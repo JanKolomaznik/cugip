@@ -42,7 +42,7 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 	//typedef Graph<int,int,int> GraphType;
 	std::vector<float> tlinksSource(w*h);
 	std::vector<float> tlinksSink(w*h);
-	std::vector<EdgeRecord> edges((w-1)*h + (h-1)*w);
+	std::vector<cugip::EdgeRecord> edges((w-1)*h + (h-1)*w);
 	std::vector<float> weights((w-1)*h + (h-1)*w);
 	std::vector<float> weightsBackward((w-1)*h + (h-1)*w);
 	/*edges.reserve((w-1)*(h-1));
@@ -50,7 +50,7 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 
 	int source_count = 0;
 	int sink_count = 0;
-	bool different = false;
+	//bool different = false;
 	for(int y=0;y<h;y++) {
 		for(int x=0;x<w;x++) {    
 			if (cap_source[x+y*w] > 0) {
@@ -65,14 +65,14 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 			bool is_zero = false;
 			if (x<w-1) {
 				//different = different || cap_neighbor[MFI::ARC_GE][x+y*w] != cap_neighbor[MFI::ARC_LE][x+y*w];
-				edges[x+y*(w-1)] = EdgeRecord(x+y*w, (x+1)+y*w);
+				edges[x+y*(w-1)] = cugip::EdgeRecord(x+y*w, (x+1)+y*w);
 				weights[x+y*(w-1)] = cap_neighbor[MFI::ARC_LE][x+y*w];
 				weightsBackward[x+y*(w-1)] = cap_neighbor[MFI::ARC_GE][x+y*w];
 				is_zero = cap_neighbor[MFI::ARC_GE][x+y*w] == 0;
 			}
 			if (y<h-1) {
 				//different = different || cap_neighbor[MFI::ARC_EG][x+y*w] != cap_neighbor[MFI::ARC_EL][x+y*w];
-				edges[(w-1)*(h) + x+y*(w-1)] = EdgeRecord(x+y*w,x+(y+1)*w);
+				edges[(w-1)*(h) + x+y*(w-1)] = cugip::EdgeRecord(x+y*w,x+(y+1)*w);
 				weights[(w-1)*(h) + x+y*(w-1)] = cap_neighbor[MFI::ARC_EL][x+y*w];
 				weightsBackward[(w-1)*(h) + x+y*(w-1)] = cap_neighbor[MFI::ARC_EG][x+y*w];
 				is_zero = is_zero || cap_neighbor[MFI::ARC_EG][x+y*w] == 0;
@@ -80,14 +80,14 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 			buffer[x+y*w] = is_zero ? 100 : 0;
 		}
 	}	
-	dump_buffer("zero.raw", &(buffer[0]), w*h);
+	//dump_buffer("zero.raw", &(buffer[0]), w*h);
 
 	printf("source_count = %d\nsink_count = %d\n", source_count, sink_count);
 /*	if (different) {
 		printf("AAAAAAAAAAAAAA DIFFERENT\n\n");
 	}*/
 	CLOCK_START();
-	cugip::Graph graph;
+	cugip::Graph<float> graph;
 	graph.set_vertex_count(w*h);
 	printf("node_count %d\n", w*h);
 

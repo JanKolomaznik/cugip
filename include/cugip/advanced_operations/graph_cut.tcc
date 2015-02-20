@@ -557,7 +557,7 @@ Graph::push()
 }
 
 
-CUGIP_GLOBAL void
+/*CUGIP_GLOBAL void
 metaPushKernel(device_flag_view aPushSuccessfulFlag, EdgeList aEdges, VertexList aVertices)
 {
 	dim3 blockSize1D( 512 );
@@ -571,7 +571,7 @@ metaPushKernel(device_flag_view aPushSuccessfulFlag, EdgeList aEdges, VertexList
 
 	} while (aPushSuccessfulFlag.check_device());
 
-}
+}*/
 
 
 

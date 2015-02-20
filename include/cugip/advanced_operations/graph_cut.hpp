@@ -2,7 +2,7 @@
 
 
 #include <cugip/math.hpp>
-#include <cugip/math.hpp>
+#include <cugip/memory.hpp>
 #include <cugip/traits.hpp>
 #include <cugip/utils.hpp>
 #include <cugip/device_flag.hpp>
@@ -15,6 +15,239 @@
 
 #include <boost/filesystem.hpp>
 #include <fstream>
+
+#include <cugip/advanced_operations/detail/graph_cut_implementation.hpp>
+
+namespace cugip {
+
+typedef unsigned NodeId;
+typedef unsigned long CombinedNodeId;
+struct EdgeRecord
+{
+	__host__ __device__
+	EdgeRecord( NodeId aFirst, NodeId aSecond )
+	{
+		first = min( aFirst, aSecond );
+		second = max( aFirst, aSecond );
+	}
+	__host__ __device__
+	EdgeRecord(): edgeCombIdx(0)
+	{ }
+
+	union {
+		CombinedNodeId edgeCombIdx;
+		struct {
+			NodeId second;
+			NodeId first;
+		};
+	};
+};
+
+
+template <typename TFlow>
+class Graph
+{
+public:
+	typedef int VertexId;
+	typedef TFlow EdgeWeight;
+
+	void
+	set_vertex_count(size_t aCount);
+
+	void
+	set_nweights(
+		size_t aEdgeCount,
+		EdgeRecord *aEdges,
+		EdgeWeight *aWeightsForward,
+		EdgeWeight *aWeightsBackward);
+
+	void
+	set_tweights(
+		EdgeWeight *aCapSource,
+		EdgeWeight *aCapSink);
+
+	TFlow
+	max_flow();
+protected:
+	void
+	assign_label_by_distance();
+
+	void
+	push_through_tlinks_from_source();
+
+	bool
+	push();
+
+	GraphCutData<TFlow> mGraphData;
+
+	ParallelQueue<int> mVertexQueue;
+
+	thrust::device_vector<EdgeWeight> mSourceTLinks; // n
+	thrust::device_vector<EdgeWeight> mSinkTLinks; // n
+	thrust::device_vector<EdgeWeight> mExcess; // n
+	thrust::device_vector<int> mLabels; // n
+
+	thrust::device_vector<EdgeResidualsRecord<TFlow> > mResiduals; // m
+
+	//thrust::device_vector<int> mSecondVerte
+/*
+	EdgeList mEdges;
+	VertexList mVertices;
+
+	thrust::device_vector<EdgeRecord> mEdgeDefinitions; // m
+	thrust::device_vector<EdgeWeight> mEdgeWeightsForward; // m
+	thrust::device_vector<EdgeWeight> mEdgeWeightsBackward; // m
+
+
+	int mSourceLabel;
+
+	thrust::device_vector<bool> mEnabledVertices; // n
+	thrust::device_vector<int> mTemporaryLabels; // n
+	thrust::device_vector<EdgeWeight> mSinkFlow; // n
+
+	thrust::device_vector<EdgeWeight> mPushedFlow; // n
+*/
+};
+
+
+template<typename TFlow>
+bool
+Graph<TFlow>::push()
+{
+	dim3 blockSize1D(512);
+	dim3 gridSize1D((mGraphData.vertexCount() + 64*blockSize1D.x - 1) / (64*blockSize1D.x), 64);
+	device_flag pushSuccessfulFlag;
+	size_t pushIterations = 0;
+	do {
+		pushSuccessfulFlag.reset_host();
+		++pushIterations;
+		pushKernel<<<gridSize1D, blockSize1D>>>(mGraphData, pushSuccessfulFlag.view());
+	} while (pushSuccessfulFlag.check_host());
+
+	//push_through_tlinks_to_sink(); //TODO implement
+
+	//push_through_tlinks_to_source();
+
+	return pushIterations > 1;
+}
+
+
+template<typename TFlow>
+void
+Graph<TFlow>::assign_label_by_distance()
+{
+	dim3 blockSize1D( 512 );
+	dim3 gridSize1D((mGraphData.vertexCount() + 64*blockSize1D.x - 1) / (64*blockSize1D.x), 64);
+
+	/*initBFSKernel<<<vertexGridSize1D, blockSize1D>>>(
+				thrust::raw_pointer_cast(&mSinkTLinks[0]),
+				thrust::raw_pointer_cast(&mLabels[0]),
+				mVertices.size()
+				);*/
+
+	std::vector<int> levelStarts;
+	device_flag propagationSuccessfulFlag;
+	size_t currentLevel = 1;
+	do {
+		propagationSuccessfulFlag.reset_host();
+		bfsPropagationKernel<<<gridSize1D, blockSize1D>>>(
+				mVertexQueue,
+				levelStarts[currentLevel - 1],
+				levelStarts[currentLevel] - levelStarts[currentLevel - 1],
+				mGraphData,
+				currentLevel,
+				propagationSuccessfulFlag.view());
+		levelStarts.push_back(mVertexQueue.size());
+		++currentLevel;
+	} while (propagationSuccessfulFlag.check_host());
+}
+
+
+template<typename TFlow>
+TFlow
+Graph<TFlow>::max_flow()
+{
+	//init_residuals();
+	push_through_tlinks_from_source();
+
+	bool done = false;
+	size_t iteration = 0;
+	while(!done) {
+		assign_label_by_distance();
+		done = !push();
+		++iteration;
+	}
+	return 0;//thrust::reduce(mSinkFlow.begin(), mSinkFlow.end());
+}
+
+
+template<typename TFlow>
+void
+Graph<TFlow>::push_through_tlinks_from_source()
+{
+	dim3 blockSize1D( 512 );
+	dim3 gridSize1D((mGraphData.vertexCount() + 64*blockSize1D.x - 1) / (64*blockSize1D.x) , 64 );
+
+	pushThroughTLinksFromSourceKernel<<<gridSize1D, blockSize1D>>>(mGraphData);
+}
+
+
+void
+Graph::set_vertex_count(size_t aCount)
+{
+	mSourceTLinks.resize(aCount);
+	mSinkTLinks.resize(aCount);
+	mExcess.resize(aCount);
+	mLabels.resize(aCount);
+
+	/*mEnabledVertices.resize(aCount);
+	mTemporaryLabels.resize(aCount);
+	mSinkFlow.resize(aCount);
+
+	mVertices = VertexList(mLabels, mExcess, aCount);
+
+	mSourceLabel = aCount;
+
+	mPushedFlow.resize(aCount);*/
+}
+
+void
+Graph::set_nweights(
+	size_t aEdgeCount,
+	EdgeRecord *aEdges,
+	EdgeWeight *aWeightsForward,
+	EdgeWeight *aWeightsBackward)
+{
+	mEdgeDefinitions.resize(aEdgeCount);
+	mEdgeWeightsForward.resize(aEdgeCount);
+	mEdgeWeightsBackward.resize(aEdgeCount);
+	mResiduals.resize(aEdgeCount);
+
+	thrust::copy(aEdges, aEdges + aEdgeCount, mEdgeDefinitions.begin());
+	thrust::copy(aWeightsForward, aWeightsForward + aEdgeCount, mEdgeWeightsForward.begin());
+	thrust::copy(aWeightsBackward, aWeightsBackward + aEdgeCount, mEdgeWeightsBackward.begin());
+
+	mEdges = EdgeList(mEdgeDefinitions, mResiduals, aEdgeCount);
+}
+
+void
+Graph::set_tweights(
+	EdgeWeight *aCapSource,
+	EdgeWeight *aCapSink)
+{
+	thrust::copy(aCapSource, aCapSource + mSourceTLinks.size(), mSourceTLinks.begin());
+	thrust::copy(aCapSink, aCapSink + mSinkTLinks.size(), mSinkTLinks.begin());
+
+	thrust::fill(mSinkFlow.begin(), mSinkFlow.end(), 0.0f);
+}
+
+
+
+
+} //namespace cugip
+
+#if 0
+
 template<typename TItem>
 void
 dump_buffer(const boost::filesystem::path &aPath, const TItem *aBuffer, size_t aCount)
@@ -269,3 +502,6 @@ protected:
 }//namespace cugip
 
 #include "graph_to_graphml.hpp"
+
+#endif
+

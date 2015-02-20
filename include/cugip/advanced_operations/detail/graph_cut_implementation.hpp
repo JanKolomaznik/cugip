@@ -14,6 +14,28 @@
 #include <boost/filesystem.hpp>
 #include <fstream>
 
+#define INVALID_LABEL (1 << 30)
+
+namespace cugip {
+
+template<typename TFlow>
+struct EdgeResidualsRecord
+{
+	__host__ __device__
+	EdgeResidualsRecord( TFlow aWeight = 0.0f )
+	{
+		residuals[0] = residuals[1] = aWeight;
+	}
+
+	__host__ __device__ float &
+	getResidual( bool aFirst )
+	{
+		return aFirst ? residuals[0] : residuals[1];
+	}
+	TFlow residuals[2];
+};
+
+
 template<typename TType>
 class ParallelQueue
 {
@@ -21,12 +43,32 @@ public:
 	CUGIP_DECL_DEVICE int
 	allocate(int aItemCount)
 	{
+		return atomicAdd(mSize.get(), aItemCount);
+	}
 
+	CUGIP_DECL_DEVICE int
+	append(const TType &aItem)
+	{
+		int index = atomicAdd(mSize.get(), 1);
+		mData[index] = aItem;
+		return index;
+	}
+
+	CUGIP_DECL_HOST int
+	size()
+	{
+		return mSize.retrieve_host();
+	}
+
+	CUGIP_DECL_DEVICE TType &
+	get_device(int aIndex)
+	{
+		return mData[aIndex];
 	}
 
 	TType *mData;
-	int mSize;
-}
+	device_ptr<int> mSize;
+};
 
 template<typename TFlow>
 struct GraphCutData
@@ -52,7 +94,7 @@ struct GraphCutData
 	CUGIP_DECL_DEVICE int
 	vertexCount()
 	{
-		return vertexCount;
+		return mVertexCount;
 	}
 
 	CUGIP_DECL_DEVICE int
@@ -61,13 +103,148 @@ struct GraphCutData
 		return neighbors[aVertexId];
 	}
 
-	int vertexCount;
+	CUGIP_DECL_DEVICE int
+	secondVertex(int aIndex)
+	{
+		return edgeVertices[aIndex];
+	}
 
-	TFlow *vertexExcess;
-	int *labels;
-	int *neighbors;
+	CUGIP_DECL_DEVICE TFlow
+	sourceTLinkCapacity(int aIndex)
+	{
+		return mSourceTLinks[aIndex];
+	}
+
+	CUGIP_DECL_DEVICE EdgeResidualsRecord<TFlow> &
+	residuals(int aIndex)
+	{
+		return mResiduals[aIndex];
+	}
+
+
+	int mVertexCount;
+
+	TFlow *vertexExcess; // n
+	int *labels; // n
+	int *neighbors; // n
+
+	int *edgeVertices; // m
+
+	TFlow *mSourceTLinks; // n
+	TFlow *mSinkTLinks; // n
+
+	EdgeResidualsRecord<TFlow> *mResiduals; // m
+
 };
 
+template<typename TFlow>
+CUGIP_GLOBAL void
+bfsPropagationKernel(
+		ParallelQueue<int> aVertices,
+		int aStart,
+		int aCount,
+		GraphCutData<TFlow> aGraph,
+		int aCurrentLevel,
+		device_flag_view aPropagationSuccessfulFlag)
+{
+	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
+	int index = blockId * blockDim.x + threadIdx.x;
+
+	if (index < aCount) {
+		int vertex = aVertices.get_device(aStart + index);
+		int neighborCount = aGraph.neighborCount(vertex);
+		int firstNeighborIndex = aGraph.firstNeighborIndex(vertex);
+		for (int i = 0; i < neighborCount; ++i) {
+			int secondVertex = aGraph.secondVertex(firstNeighborIndex + i);
+			int label = aGraph.label(secondVertex);
+			if (label == INVALID_LABEL) {
+				aGraph.label(secondVertex) = aCurrentLevel;
+				aVertices.append(secondVertex);
+				aPropagationSuccessfulFlag.set_device();
+			}
+		}
+	}
+}
+
+template<typename TFlow>
+CUGIP_DECL_DEVICE TFlow
+tryPull(GraphCutData<TFlow> &aGraph, int aFrom, int aTo, TFlow aCapacity)
+{
+	TFlow excess = aGraph.excess(aFrom);
+	while (excess > 0.0f) {
+		float pushedFlow = min(excess, aCapacity);
+		TFlow oldExcess = atomicFloatCAS(&(aGraph.excess(aFrom)), excess, excess - pushedFlow);
+		if(excess == oldExcess) {
+			return pushedFlow;
+		} else {
+			excess = oldExcess;
+		}
+	}
+
+	return 0;
+}
+
+
+template<typename TFlow>
+CUGIP_DECL_DEVICE bool
+tryPullPush(GraphCutData<TFlow> &aGraph, int aFrom, int aTo, int aConnectionIndex)
+{
+	EdgeResidualsRecord<TFlow> &edge = aGraph.residuals(aConnectionIndex);
+	TFlow residual = edge.getResidual(aFrom < aTo);
+	TFlow flow = tryPull(aGraph, aFrom, aTo, residual);
+	if (flow > 0) {
+		atomicAdd(&(aGraph.excess(aFrom)), flow);
+		edge.getResidual(aFrom < aTo) -= flow;
+		edge.getResidual(aFrom > aTo) += flow;
+		return true;
+	}
+	return false;
+}
+
+template<typename TFlow>
+CUGIP_GLOBAL void
+pushKernel(
+		GraphCutData<TFlow> aGraph,
+		device_flag_view aPushSuccessfulFlag)
+{
+	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
+	int index = blockId * blockDim.x + threadIdx.x;
+
+	if (index < aGraph.vertexCount()) {
+		int neighborCount = aGraph.neighborCount(index);
+		int firstNeighborIndex = aGraph.firstNeighborIndex(index);
+		int label = aGraph.label(index);
+		for (int i = 0; i < neighborCount; ++i) {
+			int secondVertex = aGraph.secondVertex(firstNeighborIndex + i);
+			int secondLabel = aGraph.label(secondVertex);
+			if (label > secondLabel) {
+				if (tryPullPush(aGraph, index, secondVertex, firstNeighborIndex + i)) {
+					aPushSuccessfulFlag.set_device();
+				}
+			}
+		}
+	}
+}
+
+
+template<typename TFlow>
+CUGIP_GLOBAL void
+pushThroughTLinksFromSourceKernel(GraphCutData<TFlow> aGraph)
+{
+	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
+	int index = blockId * blockDim.x + threadIdx.x;
+
+	if (index < aGraph.vertexCount()) {
+		float capacity = aGraph.sourceTLinkCapacity(index);
+		if (capacity > 0.0) {
+			aGraph.excess(index) += capacity;
+		}
+	}
+}
+
+
+
+} // namespace cugip
 /*
 
 
@@ -154,9 +331,9 @@ struct EdgeList
 	size()const
 	{ return mSize; }
 
-	/*__device__ __host__ int
-	residualsCount()const
-	{ return 0; }*/
+	//__device__ __host__ int
+	//residualsCount()const
+	//{ return 0; }
 
 	__device__ EdgeRecord &
 	getEdge( int aIdx )
@@ -166,16 +343,16 @@ struct EdgeList
 		return mEdges[aIdx];
 	}
 
-	/*__device__ int &
-	getEdgeIndexToOtherStructures( int aIdx ) const
-	{
-		CUGIP_ASSERT( aIdx < size() );
-		int tmp = mEdgeIndices[ aIdx ];
-		CUGIP_ASSERT( tmp < residualsCount() );
+	//__device__ int &
+	//getEdgeIndexToOtherStructures( int aIdx ) const
+	//{
+	//	CUGIP_ASSERT( aIdx < size() );
+	//	int tmp = mEdgeIndices[ aIdx ];
+	//	CUGIP_ASSERT( tmp < residualsCount() );
 
 
-		return tmp;
-	}*/
+	//	return tmp;
+	//}
 
 	__device__ EdgeResidualsRecord &
 	getResiduals( int aIdx )
@@ -212,14 +389,14 @@ struct VertexList
 	__device__ float &
 	getExcess( int aIdx )
 	{
-		CUGIP_ASSERT( aIdx < size()/* && aIdx > 0 */);
+		CUGIP_ASSERT( aIdx < size());
 		return mExcessArray[aIdx];
 	}
 
 	__device__ int &
 	getLabel( int aIdx )
 	{
-		CUGIP_ASSERT( aIdx < size()/* && aIdx > 0 */);
+		CUGIP_ASSERT( aIdx < size());
 		return mLabelArray[aIdx];
 	}
 
@@ -227,12 +404,12 @@ struct VertexList
 	float *mExcessArray;
 	int mSize;
 };
-
+*/
 //*********************************************************************************************************
 
 
 namespace cugip {
-
+/*
 class Graph
 {
 public:
@@ -245,8 +422,8 @@ public:
 	void
 	set_nweights(
 		size_t aEdgeCount,
-		/*VertexId *aVertices1,
-		VertexId *aVertices2,*/
+		//VertexId *aVertices1,
+		//VertexId *aVertices2,
 		EdgeRecord *aEdges,
 		EdgeWeight *aWeightsForward,
 		EdgeWeight *aWeightsBackward);
