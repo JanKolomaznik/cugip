@@ -68,52 +68,67 @@ public:
 
 	TFlow
 	max_flow();
+
+	void
+	debug_print();
 protected:
+	void
+	init_residuals();
+
 	void
 	assign_label_by_distance();
 
 	void
 	push_through_tlinks_from_source();
 
+	void
+	push_through_tlinks_to_sink();
+
 	bool
 	push();
 
 	GraphCutData<TFlow> mGraphData;
 
+	std::vector<int> mLevelStarts;
 	ParallelQueue<int> mVertexQueue;
 
 	thrust::device_vector<EdgeWeight> mSourceTLinks; // n
 	thrust::device_vector<EdgeWeight> mSinkTLinks; // n
 	thrust::device_vector<EdgeWeight> mExcess; // n
 	thrust::device_vector<int> mLabels; // n
+	thrust::device_vector<int> mNeighbors; // n
 
+	thrust::device_vector<int> mSecondVertices; // 2*m
+	thrust::device_vector<int> mEdges; // 2*m
 	thrust::device_vector<EdgeResidualsRecord<TFlow> > mResiduals; // m
 
+	thrust::device_vector<EdgeWeight> mEdgeWeightsForward; // m
+	thrust::device_vector<EdgeWeight> mEdgeWeightsBackward; // m
+
+	thrust::device_vector<EdgeWeight> mSinkFlow; // n
 	//thrust::device_vector<int> mSecondVerte
 /*
 	EdgeList mEdges;
 	VertexList mVertices;
 
 	thrust::device_vector<EdgeRecord> mEdgeDefinitions; // m
-	thrust::device_vector<EdgeWeight> mEdgeWeightsForward; // m
-	thrust::device_vector<EdgeWeight> mEdgeWeightsBackward; // m
 
 
 	int mSourceLabel;
 
 	thrust::device_vector<bool> mEnabledVertices; // n
 	thrust::device_vector<int> mTemporaryLabels; // n
-	thrust::device_vector<EdgeWeight> mSinkFlow; // n
 
 	thrust::device_vector<EdgeWeight> mPushedFlow; // n
 */
 };
 
-
+/*
 template<typename TFlow>
 bool
 Graph<TFlow>::push()
 {
+	//CUGIP_DPRINT("push()");
 	dim3 blockSize1D(512);
 	dim3 gridSize1D((mGraphData.vertexCount() + 64*blockSize1D.x - 1) / (64*blockSize1D.x), 64);
 	device_flag pushSuccessfulFlag;
@@ -122,13 +137,35 @@ Graph<TFlow>::push()
 		pushSuccessfulFlag.reset_host();
 		++pushIterations;
 		pushKernel<<<gridSize1D, blockSize1D>>>(mGraphData, pushSuccessfulFlag.view());
+		cudaThreadSynchronize();
+		CUGIP_CHECK_ERROR_STATE("After pushKernel()");
 	} while (pushSuccessfulFlag.check_host());
-
+	CUGIP_DPRINT("Push iterations " << pushIterations);
+	cudaThreadSynchronize();
+	CUGIP_CHECK_ERROR_STATE("After push()");
 	//push_through_tlinks_to_sink(); //TODO implement
 
 	//push_through_tlinks_to_source();
 
 	return pushIterations > 1;
+}*/
+
+template<typename TFlow>
+bool
+Graph<TFlow>::push()
+{
+	//CUGIP_DPRINT("push()");
+	dim3 blockSize1D(512);
+	device_flag pushSuccessfulFlag;
+
+	for (int i = mLevelStarts.size() - 2; i > 0; --i) {
+		int count = mLevelStarts[i] - mLevelStarts[i-1];
+		dim3 gridSize1D((count + 64*blockSize1D.x - 1) / (64*blockSize1D.x), 64);
+		pushKernel<<<gridSize1D, blockSize1D>>>(mGraphData, mVertexQueue.view(), mLevelStarts[i-1], mLevelStarts[i], pushSuccessfulFlag.view());
+	}
+	cudaThreadSynchronize();
+	CUGIP_CHECK_ERROR_STATE("After push()");
+	return pushSuccessfulFlag.check_host();
 }
 
 
@@ -136,30 +173,42 @@ template<typename TFlow>
 void
 Graph<TFlow>::assign_label_by_distance()
 {
+	//CUGIP_DPRINT("assign_label_by_distance");
 	dim3 blockSize1D( 512 );
 	dim3 gridSize1D((mGraphData.vertexCount() + 64*blockSize1D.x - 1) / (64*blockSize1D.x), 64);
 
-	/*initBFSKernel<<<vertexGridSize1D, blockSize1D>>>(
-				thrust::raw_pointer_cast(&mSinkTLinks[0]),
-				thrust::raw_pointer_cast(&mLabels[0]),
-				mVertices.size()
-				);*/
+	mVertexQueue.clear();
+	initBFSKernel<<<gridSize1D, blockSize1D>>>(mVertexQueue.view(), mGraphData);
 
-	std::vector<int> levelStarts;
-	device_flag propagationSuccessfulFlag;
+	cudaThreadSynchronize();
+	CUGIP_CHECK_ERROR_STATE("After initBFSKernel()");
+	int lastLevelSize = mVertexQueue.size();
+	//CUGIP_DPRINT("Level 1 size: " << lastLevelSize);
+	mLevelStarts.clear();
+	mLevelStarts.push_back(0);
+	mLevelStarts.push_back(lastLevelSize);
 	size_t currentLevel = 1;
-	do {
-		propagationSuccessfulFlag.reset_host();
-		bfsPropagationKernel<<<gridSize1D, blockSize1D>>>(
-				mVertexQueue,
-				levelStarts[currentLevel - 1],
-				levelStarts[currentLevel] - levelStarts[currentLevel - 1],
+	bool finished = lastLevelSize == 0;
+	while (!finished) {
+		dim3 levelGridSize1D(((mLevelStarts[currentLevel] - mLevelStarts[currentLevel - 1]) + 64*blockSize1D.x - 1) / (64*blockSize1D.x), 64);
+		CUGIP_CHECK_ERROR_STATE("Before bfsPropagationKernel()");
+		bfsPropagationKernel<<<levelGridSize1D, blockSize1D>>>(
+				mVertexQueue.view(),
+				mLevelStarts[currentLevel - 1],
+				mLevelStarts[currentLevel] - mLevelStarts[currentLevel - 1],
 				mGraphData,
-				currentLevel,
-				propagationSuccessfulFlag.view());
-		levelStarts.push_back(mVertexQueue.size());
+				currentLevel + 1);
+		cudaThreadSynchronize();
+		CUGIP_CHECK_ERROR_STATE("After bfsPropagationKernel()");
+		lastLevelSize = mVertexQueue.size();
+		finished = lastLevelSize == mLevelStarts.back();
+		//CUGIP_DPRINT("Level " << (currentLevel + 1) << " size: " << (lastLevelSize - levelStarts.back()));
+		mLevelStarts.push_back(lastLevelSize);
 		++currentLevel;
-	} while (propagationSuccessfulFlag.check_host());
+	}
+
+	cudaThreadSynchronize();
+	CUGIP_CHECK_ERROR_STATE("After assign_label_by_distance()");
 }
 
 
@@ -167,17 +216,26 @@ template<typename TFlow>
 TFlow
 Graph<TFlow>::max_flow()
 {
-	//init_residuals();
+	//CUGIP_DPRINT("MAX FLOW");
+	init_residuals();
 	push_through_tlinks_from_source();
+
+	//debug_print();
+	cudaThreadSynchronize();
+	CUGIP_CHECK_ERROR_STATE("After max_flow init");
 
 	bool done = false;
 	size_t iteration = 0;
 	while(!done) {
+		//CUGIP_DPRINT("**iteration " << iteration);
 		assign_label_by_distance();
+		//debug_print();
 		done = !push();
 		++iteration;
 	}
-	return 0;//thrust::reduce(mSinkFlow.begin(), mSinkFlow.end());
+	push_through_tlinks_to_sink();
+	//CUGIP_DPRINT("Used iterations: " << iteration);
+	return thrust::reduce(mSinkFlow.begin(), mSinkFlow.end());
 }
 
 
@@ -185,53 +243,101 @@ template<typename TFlow>
 void
 Graph<TFlow>::push_through_tlinks_from_source()
 {
+	//CUGIP_DPRINT("push_through_tlinks_from_source");
+
 	dim3 blockSize1D( 512 );
 	dim3 gridSize1D((mGraphData.vertexCount() + 64*blockSize1D.x - 1) / (64*blockSize1D.x) , 64 );
 
 	pushThroughTLinksFromSourceKernel<<<gridSize1D, blockSize1D>>>(mGraphData);
+
+	cudaThreadSynchronize();
+	CUGIP_CHECK_ERROR_STATE("After pushThroughTLinksFromSourceKernel");
+}
+
+template<typename TFlow>
+void
+Graph<TFlow>::push_through_tlinks_to_sink()
+{
+	//CUGIP_DPRINT("push_through_tlinks_to_sink");
+
+	dim3 blockSize1D( 512 );
+	dim3 gridSize1D((mGraphData.vertexCount() + 64*blockSize1D.x - 1) / (64*blockSize1D.x) , 64 );
+
+	pushThroughTLinksToSinkKernel<<<gridSize1D, blockSize1D>>>(mGraphData, thrust::raw_pointer_cast(&mSinkFlow[0]));
+
+	cudaThreadSynchronize();
+	CUGIP_CHECK_ERROR_STATE("After push_through_tlinks_to_sink");
 }
 
 
+template<typename TFlow>
 void
-Graph::set_vertex_count(size_t aCount)
+Graph<TFlow>::set_vertex_count(size_t aCount)
 {
 	mSourceTLinks.resize(aCount);
 	mSinkTLinks.resize(aCount);
 	mExcess.resize(aCount);
 	mLabels.resize(aCount);
-
-	/*mEnabledVertices.resize(aCount);
-	mTemporaryLabels.resize(aCount);
+	mNeighbors.resize(aCount);
 	mSinkFlow.resize(aCount);
 
-	mVertices = VertexList(mLabels, mExcess, aCount);
+	mGraphData.vertexExcess = thrust::raw_pointer_cast(&mExcess[0]); // n
+	mGraphData.labels = thrust::raw_pointer_cast(&mLabels[0]);; // n
+	mGraphData.mSourceTLinks = thrust::raw_pointer_cast(&mSourceTLinks[0]);// n
+	mGraphData.mSinkTLinks = thrust::raw_pointer_cast(&mSinkTLinks[0]);// n
+	mGraphData.mVertexCount = aCount;
 
-	mSourceLabel = aCount;
-
-	mPushedFlow.resize(aCount);*/
+	mVertexQueue.reserve(aCount);
+	mVertexQueue.clear();
 }
 
+template<typename TFlow>
 void
-Graph::set_nweights(
+Graph<TFlow>::set_nweights(
 	size_t aEdgeCount,
 	EdgeRecord *aEdges,
 	EdgeWeight *aWeightsForward,
 	EdgeWeight *aWeightsBackward)
 {
-	mEdgeDefinitions.resize(aEdgeCount);
+	std::vector<std::vector<std::pair<int, int> > > edges(mLabels.size());
+	for (size_t i = 0; i < aEdgeCount; ++i) {
+		EdgeRecord &edge = aEdges[i];
+		edges[edge.first].push_back(std::make_pair(int(i), edge.second));
+		edges[edge.second].push_back(std::make_pair(int(i), edge.first));
+	}
+	thrust::host_vector<int> neighbors(mLabels.size());
+	thrust::host_vector<int> secondVertices(2 * aEdgeCount);
+	thrust::host_vector<int> edgeIndex(2 * aEdgeCount);
+
+	int start = 0;
+	for (size_t i = 0; i < edges.size(); ++i) {
+		neighbors[i] = start;
+		for (size_t j = 0; j < edges[i].size(); ++j) {
+			secondVertices[start + j] = edges[i][j].second;
+			edgeIndex[start + j] = edges[i][j].first;
+		}
+		start += edges[i].size();
+	}
+
+	mNeighbors = neighbors;
+	mGraphData.neighbors = thrust::raw_pointer_cast(&mNeighbors[0]);
+	mSecondVertices = secondVertices;
+	mGraphData.secondVertices = thrust::raw_pointer_cast(&mSecondVertices[0]);
+	mEdges = edgeIndex;
+	mGraphData.connectionIndices = thrust::raw_pointer_cast(&mEdges[0]);
+
 	mEdgeWeightsForward.resize(aEdgeCount);
 	mEdgeWeightsBackward.resize(aEdgeCount);
-	mResiduals.resize(aEdgeCount);
-
-	thrust::copy(aEdges, aEdges + aEdgeCount, mEdgeDefinitions.begin());
 	thrust::copy(aWeightsForward, aWeightsForward + aEdgeCount, mEdgeWeightsForward.begin());
 	thrust::copy(aWeightsBackward, aWeightsBackward + aEdgeCount, mEdgeWeightsBackward.begin());
 
-	mEdges = EdgeList(mEdgeDefinitions, mResiduals, aEdgeCount);
+	mResiduals.resize(aEdgeCount);
+	mGraphData.mResiduals = thrust::raw_pointer_cast(&mResiduals[0]);
 }
 
+template<typename TFlow>
 void
-Graph::set_tweights(
+Graph<TFlow>::set_tweights(
 	EdgeWeight *aCapSource,
 	EdgeWeight *aCapSink)
 {
@@ -241,8 +347,37 @@ Graph::set_tweights(
 	thrust::fill(mSinkFlow.begin(), mSinkFlow.end(), 0.0f);
 }
 
+template<typename TFlow>
+void
+Graph<TFlow>::init_residuals()
+{
+	//CUGIP_DPRINT("init_residuals()");
+	dim3 blockSize1D( 512 );
+	dim3 gridSize1D((mResiduals.size() + 64*blockSize1D.x - 1) / (64*blockSize1D.x), 64);
 
+	initResidualsKernel<<<gridSize1D, blockSize1D>>>(
+					thrust::raw_pointer_cast(&mEdgeWeightsForward[0]),
+					thrust::raw_pointer_cast(&mEdgeWeightsBackward[0]),
+					thrust::raw_pointer_cast(&mResiduals[0]),
+					mResiduals.size()
+					);
 
+	cudaThreadSynchronize();
+	CUGIP_CHECK_ERROR_STATE("After init_residuals()");
+}
+
+template<typename TFlow>
+void
+Graph<TFlow>::debug_print()
+{
+	thrust::host_vector<EdgeWeight> excess = mExcess;
+	thrust::host_vector<int> labels = mLabels;
+
+	for (size_t i = 0; i < excess.size(); ++i) {
+		//if (excess[i] > 0)
+			std::cout << i << ": " << excess[i] << " - " << labels[i] << "\n";
+	}
+}
 
 } //namespace cugip
 

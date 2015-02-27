@@ -29,6 +29,16 @@ struct device_base_ptr
 	TType *p;
 };
 
+template<typename TType>
+std::ostream &
+operator<<(std::ostream &s, const device_base_ptr<TType> &aPtr)
+{
+	std::ios_base::fmtflags flags = s.flags();
+	s << std::hex << std::showbase << size_t(aPtr.p);
+	s.flags(flags);
+	return s;
+}
+
 
 template<typename TType>
 struct device_ptr : device_base_ptr<TType>
@@ -47,15 +57,29 @@ struct device_ptr : device_base_ptr<TType>
 
 	CUGIP_DECL_DEVICE TType *
 	operator->()
-	{ return this->p; }
+	{
+		return this->p;
+	}
 
 	CUGIP_DECL_HYBRID device_ptr &
 	operator=(const device_ptr &aArg)
-	{ this->p = aArg.p; return *this; }
+	{
+		this->p = aArg.p;
+		return *this;
+	}
 
 	CUGIP_DECL_HYBRID device_ptr &
 	operator=(TType *aArg)
-	{ this->p = aArg; return *this; }
+	{
+		this->p = aArg;
+		return *this;
+	}
+
+	CUGIP_DECL_HYBRID void
+	assign(TType *aArg)
+	{
+		this->p = aArg;
+	}
 
 	/*CUGIP_DECL_HYBRID
 	operator bool() const
@@ -410,8 +434,8 @@ struct device_memory_3d
 	operator[](coord_t aCoords) const
 	{
 		int offset = aCoords[0] * sizeof(value_type)
-		             + aCoords[1] * mPitch
-		             + aCoords[2] * mPitch * mExtents[1];
+			     + aCoords[1] * mPitch
+			     + aCoords[2] * mPitch * mExtents[1];
 		return *reinterpret_cast<value_type *>(reinterpret_cast<char *>(mData.p) + offset);
 	}
 
@@ -466,8 +490,8 @@ struct const_device_memory_3d
 	operator[](coord_t aCoords) const
 	{
 		int offset = aCoords[0] * sizeof(value_type)
-		             + aCoords[1] * mPitch
-		             + aCoords[2] * mPitch * mExtents[1];
+			     + aCoords[1] * mPitch
+			     + aCoords[2] * mPitch * mExtents[1];
 		return *reinterpret_cast<value_type *>(reinterpret_cast<const char *>(mData.p) + offset);
 	}
 
@@ -495,11 +519,15 @@ struct device_memory_1d_owner: public device_memory_1d<TType>
 		void *devPtr = NULL;
 		CUGIP_CHECK_RESULT(cudaMalloc(&devPtr, aSize * sizeof(TType)));
 		this->mExtents.template set<0>(aSize);
-		this->mData = reinterpret_cast<TType*>(devPtr);
+		this->mData = static_cast<TType*>(devPtr);
+		//int *ptr = (int*)devPtr;
+		//this->mData.assign(ptr);
 
-		D_PRINT(boost::str(boost::format("GPU allocation: 1D memory - %1% items, %2% item size")
+		/*D_PRINT(boost::str(boost::format("GPU allocation: 1D memory - %1% items, %2% bytes per item, address %3$#x")
 					% this->mExtents
-					% sizeof(TType)));
+					% sizeof(TType)
+					% size_t(this->mData.p)));*/
+		CUGIP_ASSERT(this->mData.p);
 	}
 
 	device_memory_1d_owner(extents_t aExtents)
@@ -509,14 +537,17 @@ struct device_memory_1d_owner: public device_memory_1d<TType>
 		this->mExtents = aExtents;
 		this->mData = reinterpret_cast<TType*>(devPtr);
 
-		D_PRINT(boost::str(boost::format("GPU allocation: 1D memory - %1% items, %2% item size")
+		/*D_PRINT(boost::str(boost::format("GPU allocation: 1D memory - %1% items, %2% bytes per item, address %3$#x")
 					% this->mExtents
-					% sizeof(TType)));
+					% sizeof(TType)
+					% size_t(this->mData.p)));*/
+		CUGIP_ASSERT(this->mData.p);
 	}
 
 	~device_memory_1d_owner()
 	{
 		if (this->mData) {
+			//CUGIP_DPRINT("Releasing memory at: " << this->mData);
 			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
 		}
 	}
@@ -543,6 +574,7 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 					% this->mExtents
 					% this->mPitch
 					% sizeof(TType)));
+		CUGIP_ASSERT(this->mData.p);
 	}
 
 	device_memory_2d_owner(extents_t aExtents)
@@ -556,6 +588,7 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 					% this->mExtents
 					% this->mPitch
 					% sizeof(TType)));
+		CUGIP_ASSERT(this->mData.p);
 	}
 
 	~device_memory_2d_owner()
@@ -590,6 +623,7 @@ struct device_memory_3d_owner: public device_memory_3d<TType>
 					% this->mExtents
 					% this->mPitch
 					% sizeof(TType)));
+		CUGIP_ASSERT(this->mData.p);
 	}
 
 	device_memory_3d_owner(extents_t aExtents)
@@ -605,6 +639,7 @@ struct device_memory_3d_owner: public device_memory_3d<TType>
 					% this->mPitch
 					% sizeof(TType)));
 
+		CUGIP_ASSERT(this->mData.p);
 		CUGIP_CHECK_RESULT(cudaMemset(pitchedDevPtr.ptr, 0, this->mPitch * aExtents[1] * aExtents[2]));
 	}
 

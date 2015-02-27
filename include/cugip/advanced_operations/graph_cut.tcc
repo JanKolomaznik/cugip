@@ -7,7 +7,7 @@ Graph::debug_print()
 	thrust::host_vector<int> labels = mLabels;
 
 	for (size_t i = 0; i < excess.size(); ++i) {
-		if (excess[i] > 0)
+		//if (excess[i] > 0)
 			std::cout << i << ": " << excess[i] << " - " << labels[i] << "\n";
 	}
 }

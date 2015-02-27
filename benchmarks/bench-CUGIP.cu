@@ -30,7 +30,7 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 {
 	const int w = mfi->width;
 	const int h = mfi->height;
-	printf("width %d, height %d\n", w, h);
+	//printf("width %d, height %d\n", w, h);
 	const type_terminal_cap* cap_source = (type_terminal_cap*)mfi->cap_source;
 	const type_terminal_cap* cap_sink   = (type_terminal_cap*)mfi->cap_sink;
 
@@ -52,7 +52,7 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 	int sink_count = 0;
 	//bool different = false;
 	for(int y=0;y<h;y++) {
-		for(int x=0;x<w;x++) {    
+		for(int x=0;x<w;x++) {
 			if (cap_source[x+y*w] > 0) {
 				++source_count;
 			}
@@ -79,17 +79,17 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 			}
 			buffer[x+y*w] = is_zero ? 100 : 0;
 		}
-	}	
+	}
 	//dump_buffer("zero.raw", &(buffer[0]), w*h);
 
-	printf("source_count = %d\nsink_count = %d\n", source_count, sink_count);
+	//printf("source_count = %d\nsink_count = %d\n", source_count, sink_count);
 /*	if (different) {
 		printf("AAAAAAAAAAAAAA DIFFERENT\n\n");
 	}*/
 	CLOCK_START();
 	cugip::Graph<float> graph;
 	graph.set_vertex_count(w*h);
-	printf("node_count %d\n", w*h);
+	//printf("node_count %d\n", w*h);
 
 	graph.set_nweights(
 		edges.size(),
@@ -127,27 +127,27 @@ void run_BK301_3D_6C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
   /*const int w = mfi->width;
   const int h = mfi->height;
   const int d = mfi->depth;
-  
+
   const type_terminal_cap* cap_source = (type_terminal_cap*)mfi->cap_source;
   const type_terminal_cap* cap_sink   = (type_terminal_cap*)mfi->cap_sink;
-  
+
   const type_neighbor_cap* cap_neighbor[6] = { (type_neighbor_cap*)(mfi->cap_neighbor[0]),
-                                               (type_neighbor_cap*)(mfi->cap_neighbor[1]),
-                                               (type_neighbor_cap*)(mfi->cap_neighbor[2]),
-                                               (type_neighbor_cap*)(mfi->cap_neighbor[3]),
-                                               (type_neighbor_cap*)(mfi->cap_neighbor[4]),
-                                               (type_neighbor_cap*)(mfi->cap_neighbor[5]) };
-    
+					       (type_neighbor_cap*)(mfi->cap_neighbor[1]),
+					       (type_neighbor_cap*)(mfi->cap_neighbor[2]),
+					       (type_neighbor_cap*)(mfi->cap_neighbor[3]),
+					       (type_neighbor_cap*)(mfi->cap_neighbor[4]),
+					       (type_neighbor_cap*)(mfi->cap_neighbor[5]) };
+
   const int num_nodes = w*h*d;
   const int num_edges = (w-1)*(h*d) + (h-1)*(w*d) + (d-1)*(w*h);
-  
+
   typedef Graph<int,int,int> GraphType;
 
   CLOCK_START();
-  GraphType* graph = new GraphType(num_nodes,num_edges); 
-        
-  graph->add_node(num_nodes); 
-  
+  GraphType* graph = new GraphType(num_nodes,num_edges);
+
+  graph->add_node(num_nodes);
+
   for(int z=0;z<d;z++)
   for(int y=0;y<h;y++)
   for(int x=0;x<w;x++)
@@ -157,7 +157,7 @@ void run_BK301_3D_6C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
     if (x<w-1) graph->add_edge(x+y*w+z*(w*h),(x+1)+y*w+z*(w*h),cap_neighbor[MFI::ARC_GEE][x+y*w+z*(w*h)],cap_neighbor[MFI::ARC_LEE][(x+1)+y*w+z*(w*h)]);
     if (y<h-1) graph->add_edge(x+y*w+z*(w*h),x+(y+1)*w+z*(w*h),cap_neighbor[MFI::ARC_EGE][x+y*w+z*(w*h)],cap_neighbor[MFI::ARC_ELE][x+(y+1)*w+z*(w*h)]);
     if (z<d-1) graph->add_edge(x+y*w+z*(w*h),x+y*w+(z+1)*(w*h),cap_neighbor[MFI::ARC_EEG][x+y*w+z*(w*h)],cap_neighbor[MFI::ARC_EEL][x+y*w+(z+1)*(w*h)]);
-  }   
+  }
   CLOCK_STOP(time_init);
 
   CLOCK_START();
@@ -166,7 +166,7 @@ void run_BK301_3D_6C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 
   CLOCK_START();
   for(int xyz=0;xyz<num_nodes;xyz++) out_label[xyz] = graph->what_segment(xyz);
-  
+
   delete graph;
   CLOCK_STOP(time_output);*/
 }
@@ -177,47 +177,47 @@ void run_BK301_3D_26C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double*
   /*const int w = mfi->width;
   const int h = mfi->height;
   const int d = mfi->depth;
-  
+
   const type_terminal_cap* cap_source = (type_terminal_cap*)mfi->cap_source;
   const type_terminal_cap* cap_sink   = (type_terminal_cap*)mfi->cap_sink;
-  
+
   const type_neighbor_cap* cap_neighbor[26] = { (type_neighbor_cap*)(mfi->cap_neighbor[ 0]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[ 1]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[ 2]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[ 3]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[ 4]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[ 5]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[ 6]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[ 7]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[ 8]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[ 9]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[10]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[11]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[12]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[13]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[14]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[15]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[16]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[17]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[18]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[19]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[20]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[21]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[22]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[23]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[24]),
-                                                (type_neighbor_cap*)(mfi->cap_neighbor[25]) };
-                                                    
+						(type_neighbor_cap*)(mfi->cap_neighbor[ 1]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[ 2]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[ 3]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[ 4]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[ 5]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[ 6]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[ 7]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[ 8]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[ 9]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[10]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[11]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[12]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[13]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[14]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[15]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[16]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[17]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[18]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[19]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[20]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[21]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[22]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[23]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[24]),
+						(type_neighbor_cap*)(mfi->cap_neighbor[25]) };
+
   const int num_nodes = w*h*d;
   const int num_edges = 13*w*h*d;
-  
+
   typedef Graph<int,int,int> GraphType;
 
   CLOCK_START();
-  GraphType* graph = new GraphType(num_nodes,num_edges); 
-        
+  GraphType* graph = new GraphType(num_nodes,num_edges);
+
   graph->add_node(num_nodes);
-  
+
   for(int z=0;z<d;z++)
   for(int y=0;y<h;y++)
   for(int x=0;x<w;x++)
@@ -237,7 +237,7 @@ void run_BK301_3D_26C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double*
     if (                  z<d-1) graph->add_edge(x+y*w+z*(w*h),(x  )+(y  )*w+(z+1)*(w*h),cap_neighbor[MFI::ARC_EEG][x+y*w+z*(w*h)],cap_neighbor[MFI::ARC_EEL][(x  )+(y  )*w+(z+1)*(w*h)]);
     if (         y>0   && z<d-1) graph->add_edge(x+y*w+z*(w*h),(x  )+(y-1)*w+(z+1)*(w*h),cap_neighbor[MFI::ARC_ELG][x+y*w+z*(w*h)],cap_neighbor[MFI::ARC_EGL][(x  )+(y-1)*w+(z+1)*(w*h)]);
     if (         y<h-1         ) graph->add_edge(x+y*w+z*(w*h),(x  )+(y+1)*w+(z  )*(w*h),cap_neighbor[MFI::ARC_EGE][x+y*w+z*(w*h)],cap_neighbor[MFI::ARC_ELE][(x  )+(y+1)*w+(z  )*(w*h)]);
-  }   
+  }
   CLOCK_STOP(time_init);
 
   CLOCK_START();
@@ -246,12 +246,12 @@ void run_BK301_3D_26C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double*
 
   CLOCK_START()
   for(int xyz=0;xyz<num_nodes;xyz++) out_label[xyz] = graph->what_segment(xyz);
-  
+
   delete graph;
   CLOCK_STOP(time_output);*/
 }
 
-int run(const char *dataset_path) 
+int run(const char *dataset_path)
 {
 	cudaDeviceReset();
 	std::cout << cugip::cudaDeviceInfoText();
@@ -286,11 +286,11 @@ int run(const char *dataset_path)
   run_BK301[3][26][MFI::TYPE_UINT8 ][MFI::TYPE_UINT32] = run_BK301_3D_26C<unsigned char ,unsigned int  >;
   run_BK301[3][26][MFI::TYPE_UINT16][MFI::TYPE_UINT32] = run_BK301_3D_26C<unsigned short,unsigned int  >;
   run_BK301[3][26][MFI::TYPE_UINT32][MFI::TYPE_UINT32] = run_BK301_3D_26C<unsigned int,  unsigned int  >;
-    
+
 //  const char* dataset_path = argc==2 ? argv[1] : "./dataset";
-    
+
   int num_instances = (sizeof(instances)/sizeof(Instance));
-  
+
   printf("instance                            time-init  time-maxflow  time-output  total\n");
 
   for(int i=0;i<num_instances;i++)
@@ -302,26 +302,26 @@ int run(const char *dataset_path)
     for(int j=/*0*/1;j<instances[i].count;j++)
     {
       char filename[1024];
-      
+
       if (instances[i].count==1)
       {
-        sprintf(filename,instances[i].filename,dataset_path);
+	sprintf(filename,instances[i].filename,dataset_path);
       }
       else
       {
-        sprintf(filename,instances[i].filename,dataset_path,j);
+	sprintf(filename,instances[i].filename,dataset_path,j);
       }
 
       MFI* mfi = mfi_read(filename);
-      
+
       if (!mfi)
       {
-        printf("FAILED to read instance %s\n",filename);
-        return 1;
+	printf("FAILED to read instance %s\n",filename);
+	return 1;
       }
-  
+
       unsigned char* label = (unsigned char*)malloc(mfi->width*mfi->height*mfi->depth);
-          
+
       int maxflow = -1;
 
       double time_init;
@@ -329,9 +329,9 @@ int run(const char *dataset_path)
       double time_output;
 
       run_BK301[mfi->dimension]
-               [mfi->connectivity]
-               [mfi->type_terminal_cap]
-               [mfi->type_neighbor_cap](mfi,label,&maxflow,&time_init,&time_maxflow,&time_output);
+	       [mfi->connectivity]
+	       [mfi->type_terminal_cap]
+	       [mfi->type_neighbor_cap](mfi,label,&maxflow,&time_init,&time_maxflow,&time_output);
 
       sum_time_init    += time_init;
       sum_time_maxflow += time_maxflow;
@@ -339,21 +339,21 @@ int run(const char *dataset_path)
 	printf("Flow: %d - %d\n", maxflow, (int)(mfi->maxflow));
       /*if (maxflow != mfi->maxflow)
       {
-        printf("INVALID maxflow value returned for instance %s\n",filename);
-        return 1;
+	printf("INVALID maxflow value returned for instance %s\n",filename);
+	return 1;
       }*/
 
       free(label);
-        
-      mfi_free(mfi);      
+
+      mfi_free(mfi);
     }
 
     double sum_time_total = sum_time_init + sum_time_maxflow + sum_time_output;
 
     printf("%-38s % 6.0f        % 6.0f       % 6.0f % 6.0f\n",
-           instances[i].name,sum_time_init,sum_time_maxflow,sum_time_output,sum_time_total);
+	   instances[i].name,sum_time_init,sum_time_maxflow,sum_time_output,sum_time_total);
   }
 
-  return 0;  
+  return 0;
 }
 
