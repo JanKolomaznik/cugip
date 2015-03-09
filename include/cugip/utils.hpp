@@ -129,8 +129,8 @@ CUGIP_DECL_HYBRID typename get_policy<tIdx, typename boost::remove_reference<TTy
 get(TType &aArg)
 {
 	return get_policy<tIdx,
-	                  typename boost::remove_reference<TType>::type
-	                  >::get(aArg);
+			  typename boost::remove_reference<TType>::type
+			  >::get(aArg);
 }
 
 template<size_t tIdx, typename TType, int tChannelCount>
@@ -146,8 +146,8 @@ get(const element<TType, tChannelCount> &aArg)
 {
 	//std::cout << typeid(aArg).name() << std::endl;
 	return aArg.data[tIdx]; //get_policy<tIdx,
-	                  //const element<TType, tChannelCount>
-	                  //>::get(aArg);
+			  //const element<TType, tChannelCount>
+			  //>::get(aArg);
 }
 
 
@@ -179,6 +179,28 @@ swap(TType &aArg1, TType &aArg2)
  *
  **/
 
+
+template<typename TType>
+CUGIP_DECL_DEVICE void
+block_prefix_sum(int aTid, int blockSize, const TType &aCurrent, TType *aSharedBuffer) {
+	TType sum = aCurrent;
+	aSharedBuffer[aTid] = sum;
+	__syncthreads();
+	for(int offset = 1; offset < blockSize; offset <<= 1) {
+		if(aTid >= offset) {
+			sum += aSharedBuffer[aTid - offset];
+		}
+
+		// wait until every thread has updated its partial sum
+		__syncthreads();
+
+		// write my partial sum
+		aSharedBuffer[aTid] = sum;
+
+		// wait until every thread has written its partial sum
+		__syncthreads();
+	}
+}
 
 
 CUGIP_DECL_DEVICE inline float
