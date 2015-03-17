@@ -180,8 +180,20 @@ swap(TType &aArg1, TType &aArg2)
  **/
 
 
+CUGIP_DECL_DEVICE inline float
+atomicFloatCAS(float *address, float old, float val)
+{
+	int i_val = __float_as_int(val);
+	int tmp0 = __float_as_int(old);
+
+	return __int_as_float(atomicCAS((int *)address, tmp0, i_val));
+}
+
+/**
+ * \param aSharedBuffer Buffer of block size length in shared memory
+ **/
 template<typename TType>
-CUGIP_DECL_DEVICE void
+CUGIP_DECL_DEVICE const TType &
 block_prefix_sum(int aTid, int blockSize, const TType &aCurrent, TType *aSharedBuffer) {
 	TType sum = aCurrent;
 	aSharedBuffer[aTid] = sum;
@@ -200,18 +212,41 @@ block_prefix_sum(int aTid, int blockSize, const TType &aCurrent, TType *aSharedB
 		// wait until every thread has written its partial sum
 		__syncthreads();
 	}
+	return aSharedBuffer[aTid];
 }
 
 
-CUGIP_DECL_DEVICE inline float
-atomicFloatCAS(float *address, float old, float val)
-{
-	int i_val = __float_as_int(val);
-	int tmp0 = __float_as_int(old);
 
-	return __int_as_float( atomicCAS((int *)address, tmp0, i_val) );
+__global__ void scan(float
+		*
+		d_data) {
+	__shared__ float temp[32];
+	float temp1, temp2;
+	int tid = threadIdx.x;
+	temp1 = d_data[tid+blockIdx.x
+		*
+		blockDim.x];
+	for (int d=1; d<32; d<<=1) {
+		temp2 = __shfl_up(temp1,d);
+		if (tid%32 >= d) temp1 += temp2;
+	}
+	if (tid%32 == 31) temp[tid/32] = temp1;
+	__syncthreads();
+
+	if (threadIdx.x < 32) {
+		temp2 = 0.0f;
+		if (tid < blockDim.x/32)
+			temp2 = temp[threadIdx.x];
+		for (int d=1; d<32; d<<=1) {
+			temp3 = __shfl_up(temp2,d);
+			if (tid%32 >= d) temp2 += temp3;
+		}
+		if (tid < blockDim.x/32) temp[tid] = temp2;
+	}
+	__syncthreads();
+
+	if (tid >= 32) temp1 += temp[tid/32 - 1];
 }
-
 
 
 }//namespace cugip

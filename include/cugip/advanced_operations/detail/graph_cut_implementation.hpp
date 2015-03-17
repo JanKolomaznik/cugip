@@ -286,7 +286,7 @@ tryPullPush(GraphCutData<TFlow> &aGraph, int aFrom, int aTo, int aConnectionInde
 	}
 	return false;
 }
-/*
+/* // Each iteration visits all vertices
 template<typename TFlow>
 CUGIP_GLOBAL void
 pushKernel(
@@ -392,6 +392,68 @@ initResidualsKernel(TFlow *aWeightsForward, TFlow *aWeightsBackward, EdgeResidua
 	}
 }
 
+template<typename TFlow, int tBlockSize>
+CUGIP_DECL_DEVICE void
+gatherScan(
+	GraphCutData<TFlow> &aGraph,
+	ParallelQueueView<int> aVertices,
+	int aStartIndex,
+	int aLevelEnd,
+	int tid)
+{
+	__shared__ int buffer[tBlockSize];
+	__shared__ int vertices[tBlockSize];
+	__shared__ int storeIndices[tBlockSize];
+	__shared__ int currentQueueRunStart;
+	int vertexId = -1;
+	int neighborCount = 0;
+	// neighbor starting index (r)
+	int index = 0;
+	if (aStartIndex + tid < aLevelEnd) {
+		vertexId = aVertices.get_device(aStartIndex + tid);
+		neighborCount = aGraph.neighborCount(vertexId);
+		index = aGraph.firstNeighborIndex(vertexId);
+	}
+	int neighborEnd = index + neighborCount;
+	int rsvRank = block_prefix_sum(tid, tBlockSize, neighborCount, buffer);
+	int total = buffer[tBlockSize - 1];
+
+	int ctaProgress = 0;
+	while ((int remain = total - ctaProgress) > 0) {
+		while ((rsvRank < ctaProgress + tBlockSize) && index < neighborEnd) {
+			buffer[rsvRank – ctaProgress] = index;
+			vertices[rsvRank – ctaProgress] = vertexId;
+			++rsvRank;
+			++index;
+		}
+		__syncthreads();
+		int shouldAppend = 0;
+		int secondVertex = -1;
+		if (tid < min(remain, tBlockSize) {
+			//int neighbor = C[buffer[tid]];
+			int firstVertex = vertices[tid];
+			secondVertex = aGraph.secondVertex(buffer[tid]);
+			int label = aGraph.label(secondVertex);
+			TFlow residual = aGraph.residuals(aGraph.connectionIndex(buffer[tid])).getResidual(firstVertex > secondVertex);
+			if (label == INVALID_LABEL && residual > 0.0f) {
+				shouldAppend = (INVALID_LABEL == atomicCAS(&(aGraph.label(secondVertex)), INVALID_LABEL, aCurrentLevel)) ? 1 : 0;
+			}
+		}
+		ctaProgress += tBlockSize;
+		__syncthreads();
+		int queueOffset = block_prefix_sum(tid, tBlockSize, shouldAppend, buffer);
+		if (tid == 0) {
+			int totalAdded = buffer[tBlockSize - 1];
+			currentQueueRunStart = aVertices.allocate(totalAdded);
+		}
+		__syncthreads();
+		//TODO - store in shared buffer and then in global memory
+		if (shouldAppend) {
+			aVertices[currentQueueRunStart + queueOffset];
+		}
+		__syncthreads();
+	}
+}
 
 } // namespace cugip
 
