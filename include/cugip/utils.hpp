@@ -224,37 +224,44 @@ block_prefix_sum(int aTid, int blockSize, const TType &aCurrent, TType *aSharedB
 }
 
 
-/*
-__global__ void scan(float
-		*
-		d_data) {
-	__shared__ float temp[32];
-	float temp1, temp2;
-	int tid = threadIdx.x;
-	temp1 = d_data[tid+blockIdx.x
-		*
-		blockDim.x];
+
+template<typename TType>
+CUGIP_DECL_DEVICE TType
+block_prefix_sum2(int aTid, int blockSize, const TType &aCurrent, TType *aSharedBuffer) {
+	__shared__ TType temp[32];
+	TType temp1, temp2;
+	//int tid = threadIdx.x;
+	temp1 = aCurrent;//d_data[aTid+blockIdx.x*blockDim.x];
 	for (int d=1; d<32; d<<=1) {
 		temp2 = __shfl_up(temp1,d);
-		if (tid%32 >= d) temp1 += temp2;
+		if (aTid%32 >= d) temp1 += temp2;
 	}
-	if (tid%32 == 31) temp[tid/32] = temp1;
+	if (aTid%32 == 31) temp[aTid/32] = temp1;
 	__syncthreads();
 
-	if (threadIdx.x < 32) {
+	if (aTid < 32) {
 		temp2 = 0.0f;
-		if (tid < blockDim.x/32)
-			temp2 = temp[threadIdx.x];
+		if (aTid < blockSize/32)
+			temp2 = temp[aTid];
 		for (int d=1; d<32; d<<=1) {
-			temp3 = __shfl_up(temp2,d);
-			if (tid%32 >= d) temp2 += temp3;
+			TType temp3 = __shfl_up(temp2,d);
+			if (aTid%32 >= d) temp2 += temp3;
 		}
-		if (tid < blockDim.x/32) temp[tid] = temp2;
+		if (aTid < blockDim.x/32) temp[aTid] = temp2;
 	}
 	__syncthreads();
 
-	if (tid >= 32) temp1 += temp[tid/32 - 1];
-}*/
+	if (aTid >= 32) temp1 += temp[aTid/32 - 1];
+	if (aTid == blockSize -1) {
+		aSharedBuffer[blockSize] = temp1;
+	}
+	return temp1;
+}
 
+template<typename TType>
+CUGIP_DECL_DEVICE TType
+block_prefix_sum3(int aTid, int blockSize, const TType &aCurrent, TType *aSharedBuffer) {
+	return block_prefix_sum2<TType>(aTid, blockSize, aCurrent, aSharedBuffer) - aCurrent;
+}
 
 }//namespace cugip

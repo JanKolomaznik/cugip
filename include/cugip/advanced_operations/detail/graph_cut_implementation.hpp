@@ -241,9 +241,6 @@ bfsPropagationKernel(
 				//printf("%d - %d\n", vertex, secondVertex);
 			int label = aGraph.label(secondVertex);
 			TFlow residual = aGraph.residuals(aGraph.connectionIndex(firstNeighborIndex + i)).getResidual(vertex > secondVertex);
-			if (vertex == 210652) {
-				printf("aaaa - %d - %d %d\n", vertex, secondVertex, firstNeighborIndex + i);
-			}
 			if (label == INVALID_LABEL && residual > 0.0f) {
 				aGraph.label(secondVertex) = aCurrentLevel; //TODO atomic
 				aVertices.append(secondVertex);
@@ -410,7 +407,7 @@ gatherScan(
 	__shared__ int buffer[tBlockSize+1];
 	__shared__ int vertices[tBlockSize+1];
 	//__shared__ int storeIndices[tBlockSize];
-	//__shared__ int currentQueueRunStart;
+	__shared__ int currentQueueRunStart;
 	int vertexId = -1;
 	int neighborCount = 0;
 	// neighbor starting index (r)
@@ -421,7 +418,7 @@ gatherScan(
 		index = aGraph.firstNeighborIndex(vertexId);
 	}
 	int neighborEnd = index + neighborCount;
-	int rsvRank = block_prefix_sum(tid, tBlockSize, neighborCount, buffer);
+	int rsvRank = block_prefix_sum3(tid, tBlockSize, neighborCount, buffer);
 	__syncthreads();
 	int total = buffer[tBlockSize];
 	int ctaProgress = 0;
@@ -447,20 +444,21 @@ gatherScan(
 		}
 		ctaProgress += tBlockSize;
 		__syncthreads();
-		if (shouldAppend) {
+		/*if (shouldAppend) {
 			//printf("%d\n", secondVertex);
 			aVertices.append(secondVertex);
-		}
-		/*int queueOffset = block_prefix_sum(tid, tBlockSize, shouldAppend, buffer);
+		}*/
+		int queueOffset = block_prefix_sum(tid, tBlockSize, shouldAppend, buffer);
 		if (tid == 0) {
-			int totalAdded = buffer[tBlockSize - 1];
+			int totalAdded = buffer[tBlockSize];
+			//printf("Total added %d\n", totalAdded);
 			currentQueueRunStart = aVertices.allocate(totalAdded);
 		}
 		__syncthreads();
 		//TODO - store in shared buffer and then in global memory
 		if (shouldAppend) {
-			aVertices[currentQueueRunStart + queueOffset];
-		}*/
+			aVertices.get_device(currentQueueRunStart + queueOffset) = secondVertex;
+		}
 		__syncthreads();
 		//break;
 	}
@@ -491,7 +489,7 @@ CUGIP_GLOBAL void
 testBlockScan()
 {
 	__shared__ int buffer[512+1];
-	int rsvRank = block_prefix_sum(threadIdx.x, 512, 2, buffer);
+	int rsvRank = block_prefix_sum3(threadIdx.x, 512, 2, buffer);
 	__syncthreads();
 	printf("%d - %d - %d\n", threadIdx.x, rsvRank, buffer[threadIdx.x]);
 	__syncthreads();
