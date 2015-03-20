@@ -106,21 +106,6 @@ protected:
 	thrust::device_vector<EdgeWeight> mEdgeWeightsBackward; // m
 
 	thrust::device_vector<EdgeWeight> mSinkFlow; // n
-	//thrust::device_vector<int> mSecondVerte
-/*
-	EdgeList mEdges;
-	VertexList mVertices;
-
-	thrust::device_vector<EdgeRecord> mEdgeDefinitions; // m
-
-
-	int mSourceLabel;
-
-	thrust::device_vector<bool> mEnabledVertices; // n
-	thrust::device_vector<int> mTemporaryLabels; // n
-
-	thrust::device_vector<EdgeWeight> mPushedFlow; // n
-*/
 };
 
 /*
@@ -192,7 +177,7 @@ Graph<TFlow>::assign_label_by_distance()
 	while (!finished) {
 		dim3 levelGridSize1D(((mLevelStarts[currentLevel] - mLevelStarts[currentLevel - 1]) + 64*blockSize1D.x - 1) / (64*blockSize1D.x), 64);
 		CUGIP_CHECK_ERROR_STATE("Before bfsPropagationKernel()");
-		bfsPropagationKernel<<<levelGridSize1D, blockSize1D>>>(
+		bfsPropagationKernel2<<<levelGridSize1D, blockSize1D>>>(
 				mVertexQueue.view(),
 				mLevelStarts[currentLevel - 1],
 				mLevelStarts[currentLevel] - mLevelStarts[currentLevel - 1],
@@ -202,7 +187,8 @@ Graph<TFlow>::assign_label_by_distance()
 		CUGIP_CHECK_ERROR_STATE("After bfsPropagationKernel()");
 		lastLevelSize = mVertexQueue.size();
 		finished = lastLevelSize == mLevelStarts.back();
-		//CUGIP_DPRINT("Level " << (currentLevel + 1) << " size: " << (lastLevelSize - levelStarts.back()));
+		//CUGIP_DPRINT("Level " << (currentLevel + 1) << " size: " << (lastLevelSize - mLevelStarts.back()));
+		//break;
 		mLevelStarts.push_back(lastLevelSize);
 		++currentLevel;
 	}
@@ -216,6 +202,8 @@ template<typename TFlow>
 TFlow
 Graph<TFlow>::max_flow()
 {
+	/*testBlockScan<<<1, 512>>>();
+	return -1.0f;*/
 	//CUGIP_DPRINT("MAX FLOW");
 	init_residuals();
 	push_through_tlinks_from_source();

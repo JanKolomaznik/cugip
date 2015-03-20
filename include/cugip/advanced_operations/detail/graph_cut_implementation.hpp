@@ -238,11 +238,16 @@ bfsPropagationKernel(
 		int firstNeighborIndex = aGraph.firstNeighborIndex(vertex);
 		for (int i = 0; i < neighborCount; ++i) {
 			int secondVertex = aGraph.secondVertex(firstNeighborIndex + i);
+				//printf("%d - %d\n", vertex, secondVertex);
 			int label = aGraph.label(secondVertex);
 			TFlow residual = aGraph.residuals(aGraph.connectionIndex(firstNeighborIndex + i)).getResidual(vertex > secondVertex);
+			if (vertex == 210652) {
+				printf("aaaa - %d - %d %d\n", vertex, secondVertex, firstNeighborIndex + i);
+			}
 			if (label == INVALID_LABEL && residual > 0.0f) {
 				aGraph.label(secondVertex) = aCurrentLevel; //TODO atomic
 				aVertices.append(secondVertex);
+				//printf("%d\n", secondVertex);
 			}
 			//printf("%d, %d, %d\n", vertex, secondVertex, label);
 		}
@@ -399,12 +404,13 @@ gatherScan(
 	ParallelQueueView<int> aVertices,
 	int aStartIndex,
 	int aLevelEnd,
-	int tid)
+	int tid,
+	int aCurrentLevel)
 {
-	__shared__ int buffer[tBlockSize];
-	__shared__ int vertices[tBlockSize];
-	__shared__ int storeIndices[tBlockSize];
-	__shared__ int currentQueueRunStart;
+	__shared__ int buffer[tBlockSize+1];
+	__shared__ int vertices[tBlockSize+1];
+	//__shared__ int storeIndices[tBlockSize];
+	//__shared__ int currentQueueRunStart;
 	int vertexId = -1;
 	int neighborCount = 0;
 	// neighbor starting index (r)
@@ -416,21 +422,21 @@ gatherScan(
 	}
 	int neighborEnd = index + neighborCount;
 	int rsvRank = block_prefix_sum(tid, tBlockSize, neighborCount, buffer);
-	int total = buffer[tBlockSize - 1];
-
+	__syncthreads();
+	int total = buffer[tBlockSize];
 	int ctaProgress = 0;
-	while ((int remain = total - ctaProgress) > 0) {
+	int remain = 0;
+	while ((remain = total - ctaProgress) > 0) {
 		while ((rsvRank < ctaProgress + tBlockSize) && index < neighborEnd) {
-			buffer[rsvRank – ctaProgress] = index;
-			vertices[rsvRank – ctaProgress] = vertexId;
+			buffer[rsvRank - ctaProgress] = index;
+			vertices[rsvRank - ctaProgress] = vertexId;
 			++rsvRank;
 			++index;
 		}
 		__syncthreads();
 		int shouldAppend = 0;
 		int secondVertex = -1;
-		if (tid < min(remain, tBlockSize) {
-			//int neighbor = C[buffer[tid]];
+		if (tid < min(remain, tBlockSize)) {
 			int firstVertex = vertices[tid];
 			secondVertex = aGraph.secondVertex(buffer[tid]);
 			int label = aGraph.label(secondVertex);
@@ -441,7 +447,11 @@ gatherScan(
 		}
 		ctaProgress += tBlockSize;
 		__syncthreads();
-		int queueOffset = block_prefix_sum(tid, tBlockSize, shouldAppend, buffer);
+		if (shouldAppend) {
+			//printf("%d\n", secondVertex);
+			aVertices.append(secondVertex);
+		}
+		/*int queueOffset = block_prefix_sum(tid, tBlockSize, shouldAppend, buffer);
 		if (tid == 0) {
 			int totalAdded = buffer[tBlockSize - 1];
 			currentQueueRunStart = aVertices.allocate(totalAdded);
@@ -450,9 +460,42 @@ gatherScan(
 		//TODO - store in shared buffer and then in global memory
 		if (shouldAppend) {
 			aVertices[currentQueueRunStart + queueOffset];
-		}
+		}*/
 		__syncthreads();
+		//break;
 	}
+}
+
+template<typename TFlow>
+CUGIP_GLOBAL void
+bfsPropagationKernel2(
+		ParallelQueueView<int> aVertices,
+		int aStart,
+		int aCount,
+		GraphCutData<TFlow> aGraph,
+		int aCurrentLevel)
+{
+	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
+	int index = blockId * blockDim.x;// + threadIdx.x;
+
+	gatherScan<TFlow, 512>(
+		aGraph,
+		aVertices,
+		index,
+		aStart + aCount,
+		threadIdx.x,
+		aCurrentLevel);
+}
+
+CUGIP_GLOBAL void
+testBlockScan()
+{
+	__shared__ int buffer[512+1];
+	int rsvRank = block_prefix_sum(threadIdx.x, 512, 2, buffer);
+	__syncthreads();
+	printf("%d - %d - %d\n", threadIdx.x, rsvRank, buffer[threadIdx.x]);
+	__syncthreads();
+	if(!threadIdx.x) printf("%d - %d - %d\n", 512, -1, buffer[512]);
 }
 
 } // namespace cugip

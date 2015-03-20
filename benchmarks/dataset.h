@@ -9,10 +9,10 @@ struct Instance
 };
 
 const Instance instances[] = {
-  //{ "/ctu/lazybrush/footman",                    2, "%s/ctu/lazybrush/footman/footman%d.mfi" },
-  { "/ctu/lazybrush/footman",                    8, "%s/ctu/lazybrush/footman/footman%d.mfi" },
-  { "/ctu/lazybrush/hmdman",                     6, "%s/ctu/lazybrush/hmdman/hmdman%d.mfi" },
-  { "/ctu/lazybrush/mangadinner",               10, "%s/ctu/lazybrush/mangadinner/mangadinner%d.mfi" },
+  { "/ctu/lazybrush/footman",                    2, "%s/ctu/lazybrush/footman/footman%d.mfi" },
+  //{ "/ctu/lazybrush/footman",                    8, "%s/ctu/lazybrush/footman/footman%d.mfi" },
+  //{ "/ctu/lazybrush/hmdman",                     6, "%s/ctu/lazybrush/hmdman/hmdman%d.mfi" },
+  //{ "/ctu/lazybrush/mangadinner",               10, "%s/ctu/lazybrush/mangadinner/mangadinner%d.mfi" },
   /*{ "/ctu/lazybrush/mangagirl",                  7, "%s/ctu/lazybrush/mangagirl/mangagirl%d.mfi" },
   { "/ctu/lazybrush/elephant",                   3, "%s/ctu/lazybrush/elephant/elephant%d.mfi" },
   { "/ctu/lazybrush/bird",                       3, "%s/ctu/lazybrush/bird/bird%d.mfi" },

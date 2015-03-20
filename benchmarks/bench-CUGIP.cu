@@ -66,14 +66,14 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 			if (x<w-1) {
 				//different = different || cap_neighbor[MFI::ARC_GE][x+y*w] != cap_neighbor[MFI::ARC_LE][x+y*w];
 				edges[x+y*(w-1)] = cugip::EdgeRecord(x+y*w, (x+1)+y*w);
-				weights[x+y*(w-1)] = cap_neighbor[MFI::ARC_LE][x+y*w];
+				weights[x+y*(w-1)] = cap_neighbor[MFI::ARC_LE][x+1+y*w];
 				weightsBackward[x+y*(w-1)] = cap_neighbor[MFI::ARC_GE][x+y*w];
 				is_zero = cap_neighbor[MFI::ARC_GE][x+y*w] == 0;
 			}
 			if (y<h-1) {
 				//different = different || cap_neighbor[MFI::ARC_EG][x+y*w] != cap_neighbor[MFI::ARC_EL][x+y*w];
 				edges[(w-1)*(h) + x+y*(w-1)] = cugip::EdgeRecord(x+y*w,x+(y+1)*w);
-				weights[(w-1)*(h) + x+y*(w-1)] = cap_neighbor[MFI::ARC_EL][x+y*w];
+				weights[(w-1)*(h) + x+y*(w-1)] = cap_neighbor[MFI::ARC_EL][x+(y+1)*w];
 				weightsBackward[(w-1)*(h) + x+y*(w-1)] = cap_neighbor[MFI::ARC_EG][x+y*w];
 				is_zero = is_zero || cap_neighbor[MFI::ARC_EG][x+y*w] == 0;
 			}
@@ -94,7 +94,7 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 	graph.set_nweights(
 		edges.size(),
 		&(edges[0]),
-		&(weightsBackward[0]),
+		&(weights[0]),
 		&(weightsBackward[0]));
 
 	graph.set_tweights(
