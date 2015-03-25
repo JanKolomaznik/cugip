@@ -145,7 +145,7 @@ Graph<TFlow>::push()
 
 	for (int i = mLevelStarts.size() - 2; i > 0; --i) {
 		int count = mLevelStarts[i] - mLevelStarts[i-1];
-		dim3 gridSize1D((count + 64*blockSize1D.x - 1) / (64*blockSize1D.x), 64);
+		dim3 gridSize1D((count + blockSize1D.x - 1) / (blockSize1D.x), 1);
 		pushKernel<<<gridSize1D, blockSize1D>>>(mGraphData, mVertexQueue.view(), mLevelStarts[i-1], mLevelStarts[i], pushSuccessfulFlag.view());
 	}
 	cudaThreadSynchronize();
@@ -159,8 +159,8 @@ void
 Graph<TFlow>::assign_label_by_distance()
 {
 	//CUGIP_DPRINT("assign_label_by_distance");
-	dim3 blockSize1D( 512 );
-	dim3 gridSize1D((mGraphData.vertexCount() + 64*blockSize1D.x - 1) / (64*blockSize1D.x), 64);
+	dim3 blockSize1D(512, 1, 1);
+	dim3 gridSize1D((mGraphData.vertexCount() + blockSize1D.x - 1) / (blockSize1D.x), 1);
 
 	mVertexQueue.clear();
 	initBFSKernel<<<gridSize1D, blockSize1D>>>(mVertexQueue.view(), mGraphData);
@@ -175,7 +175,7 @@ Graph<TFlow>::assign_label_by_distance()
 	size_t currentLevel = 1;
 	bool finished = lastLevelSize == 0;
 	while (!finished) {
-		dim3 levelGridSize1D(((mLevelStarts[currentLevel] - mLevelStarts[currentLevel - 1]) + 64*blockSize1D.x - 1) / (64*blockSize1D.x), 64);
+		dim3 levelGridSize1D(((mLevelStarts[currentLevel] - mLevelStarts[currentLevel - 1]) + blockSize1D.x - 1) / (blockSize1D.x), 1);
 		CUGIP_CHECK_ERROR_STATE("Before bfsPropagationKernel()");
 		bfsPropagationKernel2<<<levelGridSize1D, blockSize1D>>>(
 				mVertexQueue.view(),
@@ -186,9 +186,10 @@ Graph<TFlow>::assign_label_by_distance()
 		cudaThreadSynchronize();
 		CUGIP_CHECK_ERROR_STATE("After bfsPropagationKernel()");
 		lastLevelSize = mVertexQueue.size();
+		//CUGIP_DPRINT("LastLevelSize " << lastLevelSize);
 		finished = lastLevelSize == mLevelStarts.back();
 		//CUGIP_DPRINT("Level " << (currentLevel + 1) << " size: " << (lastLevelSize - mLevelStarts.back()));
-		//break;
+		//if (currentLevel == 2) break;
 		mLevelStarts.push_back(lastLevelSize);
 		++currentLevel;
 	}
@@ -234,7 +235,7 @@ Graph<TFlow>::push_through_tlinks_from_source()
 	//CUGIP_DPRINT("push_through_tlinks_from_source");
 
 	dim3 blockSize1D( 512 );
-	dim3 gridSize1D((mGraphData.vertexCount() + 64*blockSize1D.x - 1) / (64*blockSize1D.x) , 64 );
+	dim3 gridSize1D((mGraphData.vertexCount() + blockSize1D.x - 1) / (blockSize1D.x) , 1);
 
 	pushThroughTLinksFromSourceKernel<<<gridSize1D, blockSize1D>>>(mGraphData);
 
@@ -249,7 +250,7 @@ Graph<TFlow>::push_through_tlinks_to_sink()
 	//CUGIP_DPRINT("push_through_tlinks_to_sink");
 
 	dim3 blockSize1D( 512 );
-	dim3 gridSize1D((mGraphData.vertexCount() + 64*blockSize1D.x - 1) / (64*blockSize1D.x) , 64 );
+	dim3 gridSize1D((mGraphData.vertexCount() + blockSize1D.x - 1) / (blockSize1D.x) , 1);
 
 	pushThroughTLinksToSinkKernel<<<gridSize1D, blockSize1D>>>(mGraphData, thrust::raw_pointer_cast(&mSinkFlow[0]));
 
@@ -341,7 +342,7 @@ Graph<TFlow>::init_residuals()
 {
 	//CUGIP_DPRINT("init_residuals()");
 	dim3 blockSize1D( 512 );
-	dim3 gridSize1D((mResiduals.size() + 64*blockSize1D.x - 1) / (64*blockSize1D.x), 64);
+	dim3 gridSize1D((mResiduals.size() + blockSize1D.x - 1) / (blockSize1D.x), 1);
 
 	initResidualsKernel<<<gridSize1D, blockSize1D>>>(
 					thrust::raw_pointer_cast(&mEdgeWeightsForward[0]),

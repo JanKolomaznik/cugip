@@ -18,6 +18,23 @@
 #include "mfi.h"
 #include "timer.h"
 
+#include <cuda.h>
+#include <cudaProfiler.h>
+
+class CudaDeleter
+{
+public:
+	CudaDeleter() { }
+	~CudaDeleter()
+	{
+		printf("CudaDeleter...\n");
+		cudaThreadSynchronize();
+		//cudaProfilerStop();
+		cudaDeviceReset();
+		printf("...done\n");
+	}
+};
+static CudaDeleter cleanerUpper;
 
 double t1;
 double t2;

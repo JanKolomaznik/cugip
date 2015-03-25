@@ -240,12 +240,15 @@ bfsPropagationKernel(
 			int secondVertex = aGraph.secondVertex(firstNeighborIndex + i);
 				//printf("%d - %d\n", vertex, secondVertex);
 			int label = aGraph.label(secondVertex);
+			int shouldAppend = 0;
 			TFlow residual = aGraph.residuals(aGraph.connectionIndex(firstNeighborIndex + i)).getResidual(vertex > secondVertex);
 			if (label == INVALID_LABEL && residual > 0.0f) {
 				aGraph.label(secondVertex) = aCurrentLevel; //TODO atomic
 				aVertices.append(secondVertex);
+				shouldAppend = 1;
 				//printf("%d\n", secondVertex);
 			}
+			printf("SV_%d %d -> %d : %d, %f %d\n", aCurrentLevel, vertex, secondVertex, label, residual, shouldAppend);
 			//printf("%d, %d, %d\n", vertex, secondVertex, label);
 		}
 		//printf("%d, %d\n", vertex, neighborCount);
@@ -416,7 +419,7 @@ gatherScan(
 		vertexId = aVertices.get_device(aStartIndex + tid);
 		neighborCount = aGraph.neighborCount(vertexId);
 		index = aGraph.firstNeighborIndex(vertexId);
-	}
+	}//printf("%d index %d\n", aCurrentLevel, aStartIndex + tid);
 	int neighborEnd = index + neighborCount;
 	int rsvRank = block_prefix_sum3(tid, tBlockSize, neighborCount, buffer);
 	__syncthreads();
@@ -435,20 +438,23 @@ gatherScan(
 		int secondVertex = -1;
 		if (tid < min(remain, tBlockSize)) {
 			int firstVertex = vertices[tid];
+
 			secondVertex = aGraph.secondVertex(buffer[tid]);
 			int label = aGraph.label(secondVertex);
 			TFlow residual = aGraph.residuals(aGraph.connectionIndex(buffer[tid])).getResidual(firstVertex > secondVertex);
 			if (label == INVALID_LABEL && residual > 0.0f) {
 				shouldAppend = (INVALID_LABEL == atomicCAS(&(aGraph.label(secondVertex)), INVALID_LABEL, aCurrentLevel)) ? 1 : 0;
 			}
+			//printf("SV_%d %d -> %d : %d, %f %d\n", aCurrentLevel, firstVertex, secondVertex, label, residual, shouldAppend);
 		}
-		ctaProgress += tBlockSize;
 		__syncthreads();
+		ctaProgress += tBlockSize;
 		/*if (shouldAppend) {
-			//printf("%d\n", secondVertex);
-			aVertices.append(secondVertex);
+			//printf("SV %d\n", secondVertex);
+			int lastPos = aVertices.append(secondVertex);
+			//printf("Queue %d\n", lastPos);
 		}*/
-		int queueOffset = block_prefix_sum(tid, tBlockSize, shouldAppend, buffer);
+		int queueOffset = block_prefix_sum3(tid, tBlockSize, shouldAppend, buffer);
 		if (tid == 0) {
 			int totalAdded = buffer[tBlockSize];
 			//printf("Total added %d\n", totalAdded);
@@ -479,7 +485,7 @@ bfsPropagationKernel2(
 	gatherScan<TFlow, 512>(
 		aGraph,
 		aVertices,
-		index,
+		aStart + index,
 		aStart + aCount,
 		threadIdx.x,
 		aCurrentLevel);
