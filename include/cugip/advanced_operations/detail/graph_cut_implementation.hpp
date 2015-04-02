@@ -61,6 +61,12 @@ public:
 		return mSize.retrieve_host();
 	}
 
+	CUGIP_DECL_DEVICE int
+	device_size()
+	{
+		return mSize.retrieve_device();
+	}
+
 	CUGIP_DECL_HOST void
 	clear()
 	{
@@ -114,6 +120,15 @@ public:
 		mBuffer.resize(aSize);
 		mView.mData = thrust::raw_pointer_cast(&(mBuffer[0]));
 	}
+
+	void
+	fill_host(thrust::host_vector<TType> &v)
+	{
+		int s = size();
+		v.resize(s);
+		thrust::copy(mBuffer.begin(), mBuffer.begin() + s, v.begin());
+	}
+
 protected:
 	ParallelQueueView<TType> mView;
 	thrust::device_vector<TType> mBuffer;
@@ -489,6 +504,38 @@ bfsPropagationKernel2(
 		aStart + aCount,
 		threadIdx.x,
 		aCurrentLevel);
+}
+
+template<typename TFlow>
+CUGIP_GLOBAL void
+bfsPropagationKernel3(
+		ParallelQueueView<int> aVertices,
+		int aStart,
+		int aCount,
+		GraphCutData<TFlow> aGraph,
+		int aCurrentLevel,
+		ParallelQueueView<int> aLevelStarts)
+{
+	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
+	int index = blockId * blockDim.x;// + threadIdx.x;
+	do {
+		__syncthreads();
+		gatherScan<TFlow, 512>(
+			aGraph,
+			aVertices,
+			aStart + index,
+			aStart + aCount,
+			threadIdx.x,
+			aCurrentLevel);
+		__syncthreads();
+		int size = aVertices.device_size();
+		aStart += aCount;
+		aCount = size - aStart;
+		if (threadIdx.x == 0) {
+			aLevelStarts.append(size);
+		}
+		++aCurrentLevel;
+	} while (false);
 }
 
 CUGIP_GLOBAL void
