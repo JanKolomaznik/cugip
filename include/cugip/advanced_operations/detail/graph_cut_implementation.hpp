@@ -141,18 +141,21 @@ struct GraphCutData
 	CUGIP_DECL_DEVICE int
 	neighborCount(int aVertexId)
 	{
+		if (aVertexId < 0) printf("neighborCount()\n");
 		return firstNeighborIndex(aVertexId + 1) - firstNeighborIndex(aVertexId);
 	}
 
 	CUGIP_DECL_DEVICE TFlow &
 	excess(int aVertexId)
 	{
+		if (aVertexId < 0) printf("excess()\n");
 		return vertexExcess[aVertexId];
 	}
 
 	CUGIP_DECL_DEVICE int &
 	label(int aVertexId)
 	{
+		if (aVertexId < 0) printf("label()\n");
 		return labels[aVertexId];
 	}
 
@@ -165,36 +168,42 @@ struct GraphCutData
 	CUGIP_DECL_DEVICE int
 	firstNeighborIndex(int aVertexId)
 	{
+		if (aVertexId < 0) printf("firstNeighborIndex()\n");
 		return neighbors[aVertexId];
 	}
 
 	CUGIP_DECL_DEVICE int
 	secondVertex(int aIndex)
 	{
+		if (aIndex < 0) printf("secondVertex()\n");
 		return secondVertices[aIndex];
 	}
 
 	CUGIP_DECL_DEVICE int
 	connectionIndex(int aIndex)
 	{
+		if (aIndex < 0) printf("connectionIndex()\n");
 		return connectionIndices[aIndex];
 	}
 
 	CUGIP_DECL_DEVICE TFlow
 	sourceTLinkCapacity(int aIndex)
 	{
+		if (aIndex < 0) printf("sourceTLinkCapacity()\n");
 		return mSourceTLinks[aIndex];
 	}
 
 	CUGIP_DECL_DEVICE TFlow
 	sinkTLinkCapacity(int aIndex)
 	{
+		if (aIndex < 0) printf("sinkTLinkCapacity()\n");
 		return mSinkTLinks[aIndex];
 	}
 
 	CUGIP_DECL_DEVICE EdgeResidualsRecord<TFlow> &
 	residuals(int aIndex)
 	{
+		if (aIndex < 0) printf("residuals()\n");
 		return mResiduals[aIndex];
 	}
 
@@ -334,6 +343,33 @@ pushKernel(
 }*/
 
 template<typename TFlow>
+CUGIP_DECL_DEVICE void
+pushImplementation(
+		GraphCutData<TFlow> &aGraph,
+		ParallelQueueView<int> &aVertices,
+		int index,
+		device_flag_view &aPushSuccessfulFlag)
+{
+	int vertex = aVertices.get_device(index);
+	if (aGraph.excess(vertex) > 0.0f) {
+		int neighborCount = aGraph.neighborCount(vertex);
+		int firstNeighborIndex = aGraph.firstNeighborIndex(vertex);
+		int label = aGraph.label(vertex);
+		for (int i = 0; i < neighborCount; ++i) {
+			int secondVertex = aGraph.secondVertex(firstNeighborIndex + i);
+			int secondLabel = aGraph.label(secondVertex);
+			if (label > secondLabel) {
+				int connectionIndex = aGraph.connectionIndex(firstNeighborIndex + i);
+				if (tryPullPush(aGraph, vertex, secondVertex, connectionIndex)) {
+					aPushSuccessfulFlag.set_device();
+				}
+			}
+		}
+	}
+}
+
+
+template<typename TFlow>
 CUGIP_GLOBAL void
 pushKernel(
 		GraphCutData<TFlow> aGraph,
@@ -346,6 +382,44 @@ pushKernel(
 	int index = aLevelStart + blockId * blockDim.x + threadIdx.x;
 
 	if (index < aLevelEnd) {
+		pushImplementation(aGraph, aVertices, index, aPushSuccessfulFlag);
+		/*int vertex = aVertices.get_device(index);
+		if (aGraph.excess(vertex) > 0.0f) {
+			int neighborCount = aGraph.neighborCount(vertex);
+			int firstNeighborIndex = aGraph.firstNeighborIndex(vertex);
+			int label = aGraph.label(vertex);
+			for (int i = 0; i < neighborCount; ++i) {
+				int secondVertex = aGraph.secondVertex(firstNeighborIndex + i);
+				int secondLabel = aGraph.label(secondVertex);
+				if (label > secondLabel) {
+					int connectionIndex = aGraph.connectionIndex(firstNeighborIndex + i);
+					if (tryPullPush(aGraph, vertex, secondVertex, connectionIndex)) {
+						aPushSuccessfulFlag.set_device();
+					}
+				}
+			}
+		}*/
+	}
+}
+
+
+template<typename TFlow>
+CUGIP_GLOBAL void
+pushKernel2(
+		GraphCutData<TFlow> aGraph,
+		ParallelQueueView<int> aVertices,
+		int *aLevelStarts,
+		int aLevelCount,
+		device_flag_view aPushSuccessfulFlag)
+{
+	for (int level = 0; level < aLevelCount; ++level) {
+		int index = aLevelStarts[level] + threadIdx.x;
+		if (index < aLevelStarts[level + 1]) {
+			pushImplementation(aGraph, aVertices, index, aPushSuccessfulFlag);
+		}
+	}
+
+	/*if (index < aLevelEnd) {
 		int vertex = aVertices.get_device(index);
 		if (aGraph.excess(vertex) > 0.0f) {
 			int neighborCount = aGraph.neighborCount(vertex);
@@ -362,7 +436,7 @@ pushKernel(
 				}
 			}
 		}
-	}
+	}*/
 }
 
 
@@ -432,6 +506,7 @@ gatherScan(
 	int index = 0;
 	if (aStartIndex + tid < aLevelEnd) {
 		vertexId = aVertices.get_device(aStartIndex + tid);
+		assert(vertexId >= 0);
 		neighborCount = aGraph.neighborCount(vertexId);
 		index = aGraph.firstNeighborIndex(vertexId);
 	}//printf("%d index %d\n", aCurrentLevel, aStartIndex + tid);
@@ -455,6 +530,10 @@ gatherScan(
 			int firstVertex = vertices[tid];
 
 			secondVertex = aGraph.secondVertex(buffer[tid]);
+			/*if (secondVertex < 0) {
+
+				printf("AAAA %d %d %d - %d\n", firstVertex, buffer[tid], aGraph.firstNeighborIndex(firstVertex), aGraph.firstNeighborIndex(firstVertex + 1));
+			}*/
 			int label = aGraph.label(secondVertex);
 			TFlow residual = aGraph.residuals(aGraph.connectionIndex(buffer[tid])).getResidual(firstVertex > secondVertex);
 			if (label == INVALID_LABEL && residual > 0.0f) {
@@ -478,6 +557,10 @@ gatherScan(
 		__syncthreads();
 		//TODO - store in shared buffer and then in global memory
 		if (shouldAppend) {
+			//assert(secondVertex >= 0);
+			/*if (secondVertex < 0) {
+				printf("XXXXXXXXXXXXXXXX\n");
+			}*/
 			aVertices.get_device(currentQueueRunStart + queueOffset) = secondVertex;
 		}
 		__syncthreads();
@@ -518,6 +601,7 @@ bfsPropagationKernel3(
 {
 	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
 	int index = blockId * blockDim.x;// + threadIdx.x;
+	int m = 0;
 	do {
 		__syncthreads();
 		gatherScan<TFlow, 512>(
@@ -535,7 +619,8 @@ bfsPropagationKernel3(
 			aLevelStarts.append(size);
 		}
 		++aCurrentLevel;
-	} while (false);
+		++m;
+	} while (m < 100 && aCount <= 512 && aCount > 0);//(false);
 }
 
 CUGIP_GLOBAL void

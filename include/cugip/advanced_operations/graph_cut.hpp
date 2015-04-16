@@ -142,14 +142,35 @@ template<typename TFlow>
 bool
 Graph<TFlow>::push()
 {
+	thrust::host_vector<int> starts(100);
+	thrust::device_vector<int> device_starts(100);
 	//CUGIP_DPRINT("push()");
 	dim3 blockSize1D(512);
 	device_flag pushSuccessfulFlag;
 
 	for (int i = mLevelStarts.size() - 2; i > 0; --i) {
 		int count = mLevelStarts[i] - mLevelStarts[i-1];
-		dim3 gridSize1D((count + blockSize1D.x - 1) / (blockSize1D.x), 1);
-		pushKernel<<<gridSize1D, blockSize1D>>>(mGraphData, mVertexQueue.view(), mLevelStarts[i-1], mLevelStarts[i], pushSuccessfulFlag.view());
+		if (count <= blockSize1D.x) {
+			while (i > 0 && mLevelStarts[i] - mLevelStarts[i-1]) {
+				assert(false);
+			}
+			device_starts = starts;
+			dim3 gridSize1D(1);
+			pushKernel2<<<gridSize1D, blockSize1D>>>(
+					mGraphData,
+					mVertexQueue.view(),
+					device_starts.data(),
+					device_starts.size(),
+					pushSuccessfulFlag.view());
+		} else {
+			dim3 gridSize1D((count + blockSize1D.x - 1) / (blockSize1D.x), 1);
+			pushKernel<<<gridSize1D, blockSize1D>>>(
+					mGraphData,
+					mVertexQueue.view(),
+					mLevelStarts[i-1],
+					mLevelStarts[i],
+					pushSuccessfulFlag.view());
+		}
 	}
 	cudaThreadSynchronize();
 	CUGIP_CHECK_ERROR_STATE("After push()");
@@ -160,6 +181,7 @@ template<typename TFlow>
 bool
 Graph<TFlow>::bfs_iteration(size_t &aCurrentLevel)
 {
+	size_t level = aCurrentLevel;
 	dim3 blockSize1D(512, 1, 1);
 	int frontierSize = mLevelStarts[aCurrentLevel] - mLevelStarts[aCurrentLevel - 1];
 	dim3 levelGridSize1D(1 + (frontierSize - 1) / (blockSize1D.x), 1, 1);
@@ -174,6 +196,7 @@ Graph<TFlow>::bfs_iteration(size_t &aCurrentLevel)
 			aCurrentLevel + 1,
 			mLevelStartsQueue.view());
 		cudaThreadSynchronize();
+		CUGIP_CHECK_ERROR_STATE("After bfsPropagationKernel3)");
 		thrust::host_vector<int> starts;
 		mLevelStartsQueue.fill_host(starts);
 		int originalStart = mLevelStarts.back();
@@ -187,10 +210,8 @@ Graph<TFlow>::bfs_iteration(size_t &aCurrentLevel)
 			mLevelStarts.push_back(starts[i]);
 		}
 		aCurrentLevel = mLevelStarts.size() - 1;
+		//CUGIP_DPRINT("Level bundle " << (level + 1) << "-" << (aCurrentLevel + 1) << " size: " << (originalStart - mLevelStarts.back()));
 		return (lastStart == originalStart) || (lastStart == -1);
-		/*if (starts.empty() || starts.back() == mLevelStarts.back() || (mLevelStarts.size() > 1) {
-			return true;
-		}*/
 	} else {
 		bfsPropagationKernel2<<<levelGridSize1D, blockSize1D>>>(
 			mVertexQueue.view(),
@@ -200,13 +221,13 @@ Graph<TFlow>::bfs_iteration(size_t &aCurrentLevel)
 			aCurrentLevel + 1);
 		++aCurrentLevel;
 		cudaThreadSynchronize();
-		CUGIP_CHECK_ERROR_STATE("After bfsPropagationKernel()");
+		CUGIP_CHECK_ERROR_STATE("After bfsPropagationKernel2()");
 		int lastLevelSize = mVertexQueue.size();
 		//CUGIP_DPRINT("LastLevelSize " << lastLevelSize);
 		if (lastLevelSize == mLevelStarts.back()) {
 			return true;
 		}
-		//CUGIP_DPRINT("Level " << (currentLevel + 1) << " size: " << (lastLevelSize - mLevelStarts.back()));
+		//CUGIP_DPRINT("Level " << (aCurrentLevel + 1) << " size: " << (lastLevelSize - mLevelStarts.back()));
 		//if (currentLevel == 2) break;
 		mLevelStarts.push_back(lastLevelSize);
 	}
@@ -323,7 +344,7 @@ Graph<TFlow>::set_vertex_count(size_t aCount)
 	mVertexQueue.reserve(aCount);
 	mVertexQueue.clear();
 
-	mLevelStartsQueue.reserve(100);
+	mLevelStartsQueue.reserve(500);
 }
 
 template<typename TFlow>
@@ -353,6 +374,7 @@ Graph<TFlow>::set_nweights(
 		}
 		start += edges[i].size();
 	}
+	neighbors.push_back(neighbors.back());
 
 	mNeighbors = neighbors;
 	mGraphData.neighbors = thrust::raw_pointer_cast(&mNeighbors[0]);

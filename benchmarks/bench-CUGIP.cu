@@ -10,6 +10,7 @@
 //#include <graph.h>
 
 #include <cugip/advanced_operations/graph_cut.hpp>
+#include <cugip/exception.hpp>
 
 #include <vector>
 
@@ -27,20 +28,74 @@ public:
 	CudaDeleter() { }
 	~CudaDeleter()
 	{
+		CUGIP_CHECK_ERROR_STATE("Before CudaDeleter");
 		printf("CudaDeleter...\n");
 		cudaThreadSynchronize();
+		cudaDeviceSynchronize();
 		//cudaProfilerStop();
 		cudaDeviceReset();
 		printf("...done\n");
 	}
 };
-static CudaDeleter cleanerUpper;
+//static CudaDeleter cleanerUpper;
 
 double t1;
 double t2;
 
 #define CLOCK_START()    { timerReset();    t1 = timerGet(); }
 #define CLOCK_STOP(TIME) { t2 = timerGet(); *TIME = t2-t1;   }
+
+void run_test(double* time_init,double* time_maxflow,double* time_output)
+{
+	const int w = 10000;
+	const int h = 1000;
+	std::vector<float> tlinksSource(w*h);
+	std::vector<float> tlinksSink(w*h);
+	std::vector<cugip::EdgeRecord> edges((w-1)*h + (h-1)*w);
+	std::vector<float> weights((w-1)*h + (h-1)*w);
+	std::vector<float> weightsBackward((w-1)*h + (h-1)*w);
+
+	for(int y=0;y<h;y++) {
+		for(int x=0;x<w;x++) {
+			tlinksSource[x+y*w] = (y == 0) ? 100000 : 0;
+			tlinksSink[x+y*w] = (y == h - 1) ? 100000 : 0;
+			if (x<w-1) {
+				edges[x+y*(w-1)] = cugip::EdgeRecord(x+y*w, (x+1)+y*w);
+				weights[x+y*(w-1)] = 50;
+				weightsBackward[x+y*(w-1)] = 50;
+			}
+			if (y<h-1) {
+				edges[(w-1)*(h) + x+y*(w-1)] = cugip::EdgeRecord(x+y*w,x+(y+1)*w);
+				weights[(w-1)*(h) + x+y*(w-1)] = std::abs(y - 50) + 1;
+				weightsBackward[(w-1)*(h) + x+y*(w-1)] = std::abs(y - 50) + 1;
+			}
+		}
+	}
+	CLOCK_START();
+	cugip::Graph<float> graph;
+	graph.set_vertex_count(w*h);
+
+	graph.set_nweights(
+		edges.size(),
+		&(edges[0]),
+		&(weights[0]),
+		&(weightsBackward[0]));
+
+	graph.set_tweights(
+		&(tlinksSource[0]),
+		&(tlinksSink[0])
+		);
+
+	CLOCK_STOP(time_init);
+
+	CLOCK_START();
+	graph.max_flow();
+	CLOCK_STOP(time_maxflow);
+
+	CLOCK_START();
+	CLOCK_STOP(time_output);
+}
+
 
 template<typename type_terminal_cap,typename type_neighbor_cap>
 void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* time_init,double* time_maxflow,double* time_output)
@@ -68,6 +123,7 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 	int source_count = 0;
 	int sink_count = 0;
 	//bool different = false;
+	int lastEdge = 0;
 	for(int y=0;y<h;y++) {
 		for(int x=0;x<w;x++) {
 			if (cap_source[x+y*w] > 0) {
@@ -82,19 +138,22 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 			bool is_zero = false;
 			if (x<w-1) {
 				//different = different || cap_neighbor[MFI::ARC_GE][x+y*w] != cap_neighbor[MFI::ARC_LE][x+y*w];
-				edges[x+y*(w-1)] = cugip::EdgeRecord(x+y*w, (x+1)+y*w);
-				weights[x+y*(w-1)] = cap_neighbor[MFI::ARC_LE][x+1+y*w];
-				weightsBackward[x+y*(w-1)] = cap_neighbor[MFI::ARC_GE][x+y*w];
-				is_zero = cap_neighbor[MFI::ARC_GE][x+y*w] == 0;
+				edges[lastEdge/*x+y*(w-1)*/] = cugip::EdgeRecord(x+y*w, (x+1)+y*w);
+				weights[lastEdge/*x+y*(w-1)*/] = cap_neighbor[MFI::ARC_LE][x+1+y*w];
+				weightsBackward[lastEdge/*x+y*(w-1)*/] = cap_neighbor[MFI::ARC_GE][x+y*w];
+				if (weights[lastEdge] > 0.0f && weightsBackward[lastEdge] > 0.0f) {
+					++lastEdge;
+				}
 			}
 			if (y<h-1) {
 				//different = different || cap_neighbor[MFI::ARC_EG][x+y*w] != cap_neighbor[MFI::ARC_EL][x+y*w];
-				edges[(w-1)*(h) + x+y*(w-1)] = cugip::EdgeRecord(x+y*w,x+(y+1)*w);
-				weights[(w-1)*(h) + x+y*(w-1)] = cap_neighbor[MFI::ARC_EL][x+(y+1)*w];
-				weightsBackward[(w-1)*(h) + x+y*(w-1)] = cap_neighbor[MFI::ARC_EG][x+y*w];
-				is_zero = is_zero || cap_neighbor[MFI::ARC_EG][x+y*w] == 0;
+				edges[lastEdge/*(w-1)*(h) + x+y*(w-1)*/] = cugip::EdgeRecord(x+y*w,x+(y+1)*w);
+				weights[lastEdge/*(w-1)*(h) + x+y*(w-1)*/] = cap_neighbor[MFI::ARC_EL][x+(y+1)*w];
+				weightsBackward[lastEdge/*(w-1)*(h) + x+y*(w-1)*/] = cap_neighbor[MFI::ARC_EG][x+y*w];
+				if (weights[lastEdge] > 0.0f && weightsBackward[lastEdge] > 0.0f) {
+					++lastEdge;
+				}
 			}
-			buffer[x+y*w] = is_zero ? 100 : 0;
 		}
 	}
 	//dump_buffer("zero.raw", &(buffer[0]), w*h);
@@ -108,8 +167,9 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 	graph.set_vertex_count(w*h);
 	//printf("node_count %d\n", w*h);
 
+	printf("Edge count %d %d\n", lastEdge, edges.size());
 	graph.set_nweights(
-		edges.size(),
+		lastEdge,//edges.size(),
 		&(edges[0]),
 		&(weights[0]),
 		&(weightsBackward[0]));
@@ -270,107 +330,119 @@ void run_BK301_3D_26C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double*
 
 int run(const char *dataset_path)
 {
+	CudaDeleter cleanerUpper;
 	cudaDeviceReset();
 	std::cout << cugip::cudaDeviceInfoText();
 
 
-  void (*run_BK301[4][27][3][3])(MFI*,unsigned char*,int*,double*,double*,double*);                                               \
+	void (*run_BK301[4][27][3][3])(MFI*,unsigned char*,int*,double*,double*,double*);
 
-  run_BK301[2][ 4][MFI::TYPE_UINT8 ][MFI::TYPE_UINT8 ] = run_BK301_2D_4C<unsigned char ,unsigned char >;
-  run_BK301[2][ 4][MFI::TYPE_UINT16][MFI::TYPE_UINT8 ] = run_BK301_2D_4C<unsigned short,unsigned char >;
-  run_BK301[2][ 4][MFI::TYPE_UINT32][MFI::TYPE_UINT8 ] = run_BK301_2D_4C<unsigned int,  unsigned char >;
-  run_BK301[2][ 4][MFI::TYPE_UINT8 ][MFI::TYPE_UINT16] = run_BK301_2D_4C<unsigned char ,unsigned short>;
-  run_BK301[2][ 4][MFI::TYPE_UINT16][MFI::TYPE_UINT16] = run_BK301_2D_4C<unsigned short,unsigned short>;
-  run_BK301[2][ 4][MFI::TYPE_UINT32][MFI::TYPE_UINT16] = run_BK301_2D_4C<unsigned int,  unsigned short>;
-  run_BK301[2][ 4][MFI::TYPE_UINT8 ][MFI::TYPE_UINT32] = run_BK301_2D_4C<unsigned char ,unsigned int  >;
-  run_BK301[2][ 4][MFI::TYPE_UINT16][MFI::TYPE_UINT32] = run_BK301_2D_4C<unsigned short,unsigned int  >;
-  run_BK301[2][ 4][MFI::TYPE_UINT32][MFI::TYPE_UINT32] = run_BK301_2D_4C<unsigned int,  unsigned int  >;
-  run_BK301[3][ 6][MFI::TYPE_UINT8 ][MFI::TYPE_UINT8 ] = run_BK301_3D_6C<unsigned char ,unsigned char >;
-  run_BK301[3][ 6][MFI::TYPE_UINT16][MFI::TYPE_UINT8 ] = run_BK301_3D_6C<unsigned short,unsigned char >;
-  run_BK301[3][ 6][MFI::TYPE_UINT32][MFI::TYPE_UINT8 ] = run_BK301_3D_6C<unsigned int,  unsigned char >;
-  run_BK301[3][ 6][MFI::TYPE_UINT8 ][MFI::TYPE_UINT16] = run_BK301_3D_6C<unsigned char ,unsigned short>;
-  run_BK301[3][ 6][MFI::TYPE_UINT16][MFI::TYPE_UINT16] = run_BK301_3D_6C<unsigned short,unsigned short>;
-  run_BK301[3][ 6][MFI::TYPE_UINT32][MFI::TYPE_UINT16] = run_BK301_3D_6C<unsigned int,  unsigned short>;
-  run_BK301[3][ 6][MFI::TYPE_UINT8 ][MFI::TYPE_UINT32] = run_BK301_3D_6C<unsigned char ,unsigned int  >;
-  run_BK301[3][ 6][MFI::TYPE_UINT16][MFI::TYPE_UINT32] = run_BK301_3D_6C<unsigned short,unsigned int  >;
-  run_BK301[3][ 6][MFI::TYPE_UINT32][MFI::TYPE_UINT32] = run_BK301_3D_6C<unsigned int,  unsigned int  >;
-  run_BK301[3][26][MFI::TYPE_UINT8 ][MFI::TYPE_UINT8 ] = run_BK301_3D_26C<unsigned char ,unsigned char >;
-  run_BK301[3][26][MFI::TYPE_UINT16][MFI::TYPE_UINT8 ] = run_BK301_3D_26C<unsigned short,unsigned char >;
-  run_BK301[3][26][MFI::TYPE_UINT32][MFI::TYPE_UINT8 ] = run_BK301_3D_26C<unsigned int,  unsigned char >;
-  run_BK301[3][26][MFI::TYPE_UINT8 ][MFI::TYPE_UINT16] = run_BK301_3D_26C<unsigned char ,unsigned short>;
-  run_BK301[3][26][MFI::TYPE_UINT16][MFI::TYPE_UINT16] = run_BK301_3D_26C<unsigned short,unsigned short>;
-  run_BK301[3][26][MFI::TYPE_UINT32][MFI::TYPE_UINT16] = run_BK301_3D_26C<unsigned int,  unsigned short>;
-  run_BK301[3][26][MFI::TYPE_UINT8 ][MFI::TYPE_UINT32] = run_BK301_3D_26C<unsigned char ,unsigned int  >;
-  run_BK301[3][26][MFI::TYPE_UINT16][MFI::TYPE_UINT32] = run_BK301_3D_26C<unsigned short,unsigned int  >;
-  run_BK301[3][26][MFI::TYPE_UINT32][MFI::TYPE_UINT32] = run_BK301_3D_26C<unsigned int,  unsigned int  >;
+	run_BK301[2][ 4][MFI::TYPE_UINT8 ][MFI::TYPE_UINT8 ] = run_BK301_2D_4C<unsigned char ,unsigned char >;
+	run_BK301[2][ 4][MFI::TYPE_UINT16][MFI::TYPE_UINT8 ] = run_BK301_2D_4C<unsigned short,unsigned char >;
+	run_BK301[2][ 4][MFI::TYPE_UINT32][MFI::TYPE_UINT8 ] = run_BK301_2D_4C<unsigned int,  unsigned char >;
+	run_BK301[2][ 4][MFI::TYPE_UINT8 ][MFI::TYPE_UINT16] = run_BK301_2D_4C<unsigned char ,unsigned short>;
+	run_BK301[2][ 4][MFI::TYPE_UINT16][MFI::TYPE_UINT16] = run_BK301_2D_4C<unsigned short,unsigned short>;
+	run_BK301[2][ 4][MFI::TYPE_UINT32][MFI::TYPE_UINT16] = run_BK301_2D_4C<unsigned int,  unsigned short>;
+	run_BK301[2][ 4][MFI::TYPE_UINT8 ][MFI::TYPE_UINT32] = run_BK301_2D_4C<unsigned char ,unsigned int  >;
+	run_BK301[2][ 4][MFI::TYPE_UINT16][MFI::TYPE_UINT32] = run_BK301_2D_4C<unsigned short,unsigned int  >;
+	run_BK301[2][ 4][MFI::TYPE_UINT32][MFI::TYPE_UINT32] = run_BK301_2D_4C<unsigned int,  unsigned int  >;
+	run_BK301[3][ 6][MFI::TYPE_UINT8 ][MFI::TYPE_UINT8 ] = run_BK301_3D_6C<unsigned char ,unsigned char >;
+	run_BK301[3][ 6][MFI::TYPE_UINT16][MFI::TYPE_UINT8 ] = run_BK301_3D_6C<unsigned short,unsigned char >;
+	run_BK301[3][ 6][MFI::TYPE_UINT32][MFI::TYPE_UINT8 ] = run_BK301_3D_6C<unsigned int,  unsigned char >;
+	run_BK301[3][ 6][MFI::TYPE_UINT8 ][MFI::TYPE_UINT16] = run_BK301_3D_6C<unsigned char ,unsigned short>;
+	run_BK301[3][ 6][MFI::TYPE_UINT16][MFI::TYPE_UINT16] = run_BK301_3D_6C<unsigned short,unsigned short>;
+	run_BK301[3][ 6][MFI::TYPE_UINT32][MFI::TYPE_UINT16] = run_BK301_3D_6C<unsigned int,  unsigned short>;
+	run_BK301[3][ 6][MFI::TYPE_UINT8 ][MFI::TYPE_UINT32] = run_BK301_3D_6C<unsigned char ,unsigned int  >;
+	run_BK301[3][ 6][MFI::TYPE_UINT16][MFI::TYPE_UINT32] = run_BK301_3D_6C<unsigned short,unsigned int  >;
+	run_BK301[3][ 6][MFI::TYPE_UINT32][MFI::TYPE_UINT32] = run_BK301_3D_6C<unsigned int,  unsigned int  >;
+	run_BK301[3][26][MFI::TYPE_UINT8 ][MFI::TYPE_UINT8 ] = run_BK301_3D_26C<unsigned char ,unsigned char >;
+	run_BK301[3][26][MFI::TYPE_UINT16][MFI::TYPE_UINT8 ] = run_BK301_3D_26C<unsigned short,unsigned char >;
+	run_BK301[3][26][MFI::TYPE_UINT32][MFI::TYPE_UINT8 ] = run_BK301_3D_26C<unsigned int,  unsigned char >;
+	run_BK301[3][26][MFI::TYPE_UINT8 ][MFI::TYPE_UINT16] = run_BK301_3D_26C<unsigned char ,unsigned short>;
+	run_BK301[3][26][MFI::TYPE_UINT16][MFI::TYPE_UINT16] = run_BK301_3D_26C<unsigned short,unsigned short>;
+	run_BK301[3][26][MFI::TYPE_UINT32][MFI::TYPE_UINT16] = run_BK301_3D_26C<unsigned int,  unsigned short>;
+	run_BK301[3][26][MFI::TYPE_UINT8 ][MFI::TYPE_UINT32] = run_BK301_3D_26C<unsigned char ,unsigned int  >;
+	run_BK301[3][26][MFI::TYPE_UINT16][MFI::TYPE_UINT32] = run_BK301_3D_26C<unsigned short,unsigned int  >;
+	run_BK301[3][26][MFI::TYPE_UINT32][MFI::TYPE_UINT32] = run_BK301_3D_26C<unsigned int,  unsigned int  >;
 
-//  const char* dataset_path = argc==2 ? argv[1] : "./dataset";
+	//  const char* dataset_path = argc==2 ? argv[1] : "./dataset";
 
-  int num_instances = (sizeof(instances)/sizeof(Instance));
+	int num_instances = (sizeof(instances)/sizeof(Instance));
+	//num_instances = 0;
 
-  printf("instance                            time-init  time-maxflow  time-output  total\n");
+	printf("instance                            time-init  time-maxflow  time-output  total\n");
 
-  for(int i=0;i<num_instances;i++)
-  {
-    double sum_time_init = 0.0;
-    double sum_time_maxflow = 0.0;
-    double sum_time_output = 0.0;
+	{
+		double sum_time_init = 0.0;
+		double sum_time_maxflow = 0.0;
+		double sum_time_output = 0.0;
 
-    for(int j=/*0*/1;j<instances[i].count;j++)
-    {
-      char filename[1024];
+		run_test(&sum_time_init, &sum_time_maxflow, &sum_time_output);
+		double sum_time_total = sum_time_init + sum_time_maxflow + sum_time_output;
+		printf("%-38s % 6.0f        % 6.0f       % 6.0f % 6.0f\n",
+		       "TEST",sum_time_init,sum_time_maxflow,sum_time_output,sum_time_total);
+	}
+	for(int i=0;i<num_instances;i++)
+	{
+		double sum_time_init = 0.0;
+		double sum_time_maxflow = 0.0;
+		double sum_time_output = 0.0;
 
-      if (instances[i].count==1)
-      {
-	sprintf(filename,instances[i].filename,dataset_path);
-      }
-      else
-      {
-	sprintf(filename,instances[i].filename,dataset_path,j);
-      }
+		for(int j=/*0*/1;j<instances[i].count;j++)
+		{
+			char filename[1024];
 
-      MFI* mfi = mfi_read(filename);
+			if (instances[i].count==1)
+			{
+				sprintf(filename,instances[i].filename,dataset_path);
+			}
+			else
+			{
+				sprintf(filename,instances[i].filename,dataset_path,j);
+			}
 
-      if (!mfi)
-      {
-	printf("FAILED to read instance %s\n",filename);
-	return 1;
-      }
+			MFI* mfi = mfi_read(filename);
 
-      unsigned char* label = (unsigned char*)malloc(mfi->width*mfi->height*mfi->depth);
+			if (!mfi)
+			{
+				printf("FAILED to read instance %s\n",filename);
+				return 1;
+			}
 
-      int maxflow = -1;
+			unsigned char* label = (unsigned char*)malloc(mfi->width*mfi->height*mfi->depth);
 
-      double time_init;
-      double time_maxflow;
-      double time_output;
+			int maxflow = -1;
 
-      run_BK301[mfi->dimension]
-	       [mfi->connectivity]
-	       [mfi->type_terminal_cap]
-	       [mfi->type_neighbor_cap](mfi,label,&maxflow,&time_init,&time_maxflow,&time_output);
+			double time_init;
+			double time_maxflow;
+			double time_output;
 
-      sum_time_init    += time_init;
-      sum_time_maxflow += time_maxflow;
-      sum_time_output  += time_output;
-	printf("Flow: %d - %d\n", maxflow, (int)(mfi->maxflow));
-      /*if (maxflow != mfi->maxflow)
+			run_BK301[mfi->dimension]
+					[mfi->connectivity]
+					[mfi->type_terminal_cap]
+					[mfi->type_neighbor_cap](mfi,label,&maxflow,&time_init,&time_maxflow,&time_output);
+
+			sum_time_init    += time_init;
+			sum_time_maxflow += time_maxflow;
+			sum_time_output  += time_output;
+			printf("Flow: %d - %d\n", maxflow, (int)(mfi->maxflow));
+			/*if (maxflow != mfi->maxflow)
       {
 	printf("INVALID maxflow value returned for instance %s\n",filename);
 	return 1;
       }*/
 
-      free(label);
+			free(label);
 
-      mfi_free(mfi);
-    }
+			mfi_free(mfi);
+		}
 
-    double sum_time_total = sum_time_init + sum_time_maxflow + sum_time_output;
+		double sum_time_total = sum_time_init + sum_time_maxflow + sum_time_output;
 
-    printf("%-38s % 6.0f        % 6.0f       % 6.0f % 6.0f\n",
-	   instances[i].name,sum_time_init,sum_time_maxflow,sum_time_output,sum_time_total);
-  }
+		printf("%-38s % 6.0f        % 6.0f       % 6.0f % 6.0f\n",
+		       instances[i].name,sum_time_init,sum_time_maxflow,sum_time_output,sum_time_total);
+	}
 
-  return 0;
+	return 0;
 }
 

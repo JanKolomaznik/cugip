@@ -182,7 +182,7 @@ print_error_enums() {
 {\
 	cudaError_t err = __VA_ARGS__ ;\
 	if( cudaSuccess != err ) {\
-		std::string msg = boost::str(boost::format("%1%:%2%: %3% (%4%) %5%") % __FILE__ % __LINE__ % aErrorMessage % get_error_enum_name(err) % cudaGetErrorString(err));\
+		std::string msg = boost::str(boost::format("%1%:%2%: %3% (%4%) %5%") % __FILE__ % __LINE__ % aErrorMessage % cugip::get_error_enum_name(err) % cudaGetErrorString(err));\
 		D_PRINT( msg ); \
 		CUGIP_THROW(std::runtime_error(msg));\
 	}\
