@@ -47,7 +47,7 @@ double t2;
 
 void run_test(double* time_init,double* time_maxflow,double* time_output)
 {
-	const int w = 10000;
+	const int w = 1000;
 	const int h = 1000;
 	std::vector<float> tlinksSource(w*h);
 	std::vector<float> tlinksSink(w*h);
@@ -372,7 +372,7 @@ int run(const char *dataset_path)
 
 	printf("instance                            time-init  time-maxflow  time-output  total\n");
 
-	{
+	/*{
 		double sum_time_init = 0.0;
 		double sum_time_maxflow = 0.0;
 		double sum_time_output = 0.0;
@@ -381,7 +381,7 @@ int run(const char *dataset_path)
 		double sum_time_total = sum_time_init + sum_time_maxflow + sum_time_output;
 		printf("%-38s % 6.0f        % 6.0f       % 6.0f % 6.0f\n",
 		       "TEST",sum_time_init,sum_time_maxflow,sum_time_output,sum_time_total);
-	}
+	}*/
 	for(int i=0;i<num_instances;i++)
 	{
 		double sum_time_init = 0.0;

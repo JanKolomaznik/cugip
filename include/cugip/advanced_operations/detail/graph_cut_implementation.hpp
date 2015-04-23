@@ -148,7 +148,7 @@ struct GraphCutData
 	CUGIP_DECL_DEVICE TFlow &
 	excess(int aVertexId)
 	{
-		if (aVertexId < 0) printf("excess()\n");
+		//if (aVertexId < 0) printf("excess()\n");
 		return vertexExcess[aVertexId];
 	}
 
@@ -382,6 +382,7 @@ pushKernel(
 	int index = aLevelStart + blockId * blockDim.x + threadIdx.x;
 
 	if (index < aLevelEnd) {
+		//if (threadIdx.x == 0 && blockId == 0) printf("bbbb %d\n", index);
 		pushImplementation(aGraph, aVertices, index, aPushSuccessfulFlag);
 		/*int vertex = aVertices.get_device(index);
 		if (aGraph.excess(vertex) > 0.0f) {
@@ -412,11 +413,13 @@ pushKernel2(
 		int aLevelCount,
 		device_flag_view aPushSuccessfulFlag)
 {
-	for (int level = 0; level < aLevelCount; ++level) {
-		int index = aLevelStarts[level] + threadIdx.x;
-		if (index < aLevelStarts[level + 1]) {
+	for (int level = 0; level < aLevelCount - 1; ++level) {
+		int index = aLevelStarts[level + 1] + threadIdx.x;
+		if (index < aLevelStarts[level]) {
+			//if (threadIdx.x == 0) printf("aaaa %d\n", index);
 			pushImplementation(aGraph, aVertices, index, aPushSuccessfulFlag);
 		}
+		__syncthreads();
 	}
 
 	/*if (index < aLevelEnd) {

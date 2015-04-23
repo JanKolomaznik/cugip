@@ -142,8 +142,10 @@ template<typename TFlow>
 bool
 Graph<TFlow>::push()
 {
-	thrust::host_vector<int> starts(100);
-	thrust::device_vector<int> device_starts(100);
+	thrust::host_vector<int> starts;
+	starts.reserve(1000);
+	thrust::device_vector<int> device_starts;
+	device_starts.reserve(1000);
 	//CUGIP_DPRINT("push()");
 	dim3 blockSize1D(512);
 	device_flag pushSuccessfulFlag;
@@ -151,18 +153,25 @@ Graph<TFlow>::push()
 	for (int i = mLevelStarts.size() - 2; i > 0; --i) {
 		int count = mLevelStarts[i] - mLevelStarts[i-1];
 		if (count <= blockSize1D.x) {
-			while (i > 0 && mLevelStarts[i] - mLevelStarts[i-1]) {
-				assert(false);
+			starts.push_back(mLevelStarts[i]);
+			while (i > 0 && (mLevelStarts[i] - mLevelStarts[i-1]) <= blockSize1D.x) {
+				starts.push_back(mLevelStarts[i-1]);
+				//CUGIP_DPRINT(i << " - " << mLevelStarts[i-1]);
+				--i;
 			}
+			++i;
+			//CUGIP_DPRINT("-------------------------------");
 			device_starts = starts;
 			dim3 gridSize1D(1);
 			pushKernel2<<<gridSize1D, blockSize1D>>>(
 					mGraphData,
 					mVertexQueue.view(),
-					device_starts.data(),
+					thrust::raw_pointer_cast(device_starts.data()),
 					device_starts.size(),
 					pushSuccessfulFlag.view());
+
 		} else {
+			//CUGIP_DPRINT()
 			dim3 gridSize1D((count + blockSize1D.x - 1) / (blockSize1D.x), 1);
 			pushKernel<<<gridSize1D, blockSize1D>>>(
 					mGraphData,
@@ -173,6 +182,7 @@ Graph<TFlow>::push()
 		}
 	}
 	cudaThreadSynchronize();
+	//CUGIP_DPRINT("-------------------------------");
 	CUGIP_CHECK_ERROR_STATE("After push()");
 	return pushSuccessfulFlag.check_host();
 }
