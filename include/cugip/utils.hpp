@@ -194,40 +194,9 @@ atomicFloatCAS(float *address, float old, float val)
  **/
 template<typename TType>
 CUGIP_DECL_DEVICE const TType &
-block_prefix_sum(int aTid, int blockSize, const TType &aCurrent, TType *aSharedBuffer) {
-	TType sum = aCurrent;
-	aSharedBuffer[aTid+1] = sum;
-	if (aTid == 0) {
-		aSharedBuffer[0] = 0;
-	}
-	__syncthreads();
-	for(int offset = 1; offset < blockSize; offset <<= 1) {
-		if(aTid >= offset) {
-			sum += aSharedBuffer[aTid - offset + 1];
-		}
-
-		// wait until every thread has updated its partial sum
-		__syncthreads();
-
-		// write my partial sum
-		aSharedBuffer[aTid + 1] = sum;
-
-		// wait until every thread has written its partial sum
-		__syncthreads();
-	}
-	/*__syncthreads();
-	if (aTid == 0) {
-		aSharedBuffer[0] = 0;
-	}
-	__syncthreads();*/
-	return aSharedBuffer[aTid];
-}
-
-
-
-template<typename TType>
-CUGIP_DECL_DEVICE TType
-block_prefix_sum2(int aTid, int blockSize, const TType &aCurrent, TType *aSharedBuffer) {
+block_prefix_sum_in(int aTid, int blockSize, const TType &aCurrent, TType *aSharedBuffer)
+{
+#if __CUDA_ARCH__ >= 300
 	__shared__ TType temp[32];
 	TType temp1, temp2;
 	//int tid = threadIdx.x;
@@ -256,12 +225,67 @@ block_prefix_sum2(int aTid, int blockSize, const TType &aCurrent, TType *aShared
 		aSharedBuffer[blockSize] = temp1;
 	}
 	return temp1;
+#else
+	TType sum = aCurrent;
+	aSharedBuffer[aTid] = sum;
+	if (aTid == 0) {
+		aSharedBuffer[0] = 0;
+	}
+	__syncthreads();
+	for(int offset = 1; offset < blockSize; offset <<= 1) {
+		if(aTid >= offset) {
+			sum += aSharedBuffer[aTid - offset];
+		}
+
+		// wait until every thread has updated its partial sum
+		__syncthreads();
+
+		// write my partial sum
+		aSharedBuffer[aTid] = sum;
+
+		// wait until every thread has written its partial sum
+		__syncthreads();
+	}
+	return aSharedBuffer[aTid];
+#endif
 }
+
+/*
 
 template<typename TType>
 CUGIP_DECL_DEVICE TType
-block_prefix_sum3(int aTid, int blockSize, const TType &aCurrent, TType *aSharedBuffer) {
-	return block_prefix_sum2<TType>(aTid, blockSize, aCurrent, aSharedBuffer) - aCurrent;
+block_prefix_sum2(int aTid, int blockSize, const TType &aCurrent, TType *aSharedBuffer) {
+
+}*/
+
+template<typename TType>
+CUGIP_DECL_DEVICE TType
+block_prefix_sum_ex(int aTid, int blockSize, const TType &aCurrent, TType *aSharedBuffer) {
+	return block_prefix_sum_in<TType>(aTid, blockSize, aCurrent, aSharedBuffer) - aCurrent;
+
+	/* Excluded
+	TType sum = aCurrent;
+	aSharedBuffer[aTid+1] = sum;
+	if (aTid == 0) {
+		aSharedBuffer[0] = 0;
+	}
+	__syncthreads();
+	for(int offset = 1; offset < blockSize; offset <<= 1) {
+		if(aTid >= offset) {
+			sum += aSharedBuffer[aTid - offset + 1];
+		}
+
+		// wait until every thread has updated its partial sum
+		__syncthreads();
+
+		// write my partial sum
+		aSharedBuffer[aTid + 1] = sum;
+
+		// wait until every thread has written its partial sum
+		__syncthreads();
+	}
+	return aSharedBuffer[aTid];*/
+
 }
 
 }//namespace cugip

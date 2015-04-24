@@ -77,6 +77,9 @@ public:
 	CUGIP_DECL_DEVICE TType &
 	get_device(int aIndex)
 	{
+		/*assert(aIndex >= 0);
+		assert(aIndex < *mSize);*/
+		if( aIndex >= *mSize) printf("ERRRROR %d - %d\n", aIndex, *mSize);
 		return mData[aIndex];
 	}
 
@@ -514,7 +517,7 @@ gatherScan(
 		index = aGraph.firstNeighborIndex(vertexId);
 	}//printf("%d index %d\n", aCurrentLevel, aStartIndex + tid);
 	int neighborEnd = index + neighborCount;
-	int rsvRank = block_prefix_sum3(tid, tBlockSize, neighborCount, buffer);
+	int rsvRank = block_prefix_sum_ex(tid, tBlockSize, neighborCount, buffer);
 	__syncthreads();
 	int total = buffer[tBlockSize];
 	int ctaProgress = 0;
@@ -551,7 +554,7 @@ gatherScan(
 			int lastPos = aVertices.append(secondVertex);
 			//printf("Queue %d\n", lastPos);
 		}*/
-		int queueOffset = block_prefix_sum3(tid, tBlockSize, shouldAppend, buffer);
+		int queueOffset = block_prefix_sum_ex(tid, tBlockSize, shouldAppend, buffer);
 		if (tid == 0) {
 			int totalAdded = buffer[tBlockSize];
 			//printf("Total added %d\n", totalAdded);
@@ -626,16 +629,7 @@ bfsPropagationKernel3(
 	} while (m < 100 && aCount <= 512 && aCount > 0);//(false);
 }
 
-CUGIP_GLOBAL void
-testBlockScan()
-{
-	__shared__ int buffer[512+1];
-	int rsvRank = block_prefix_sum3(threadIdx.x, 512, 2, buffer);
-	__syncthreads();
-	printf("%d - %d - %d\n", threadIdx.x, rsvRank, buffer[threadIdx.x]);
-	__syncthreads();
-	if(!threadIdx.x) printf("%d - %d - %d\n", 512, -1, buffer[512]);
-}
+
 
 } // namespace cugip
 
