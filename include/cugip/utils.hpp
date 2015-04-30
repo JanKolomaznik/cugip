@@ -189,14 +189,22 @@ atomicFloatCAS(float *address, float old, float val)
 	return __int_as_float(atomicCAS((int *)address, tmp0, i_val));
 }
 
+
+template<typename TType>
+struct ScanResult {
+	TType current;
+	TType total;
+};
+
 /**
  * \param aSharedBuffer Buffer of block size length in shared memory
  **/
 template<typename TType>
-CUGIP_DECL_DEVICE const TType &
+CUGIP_DECL_DEVICE //const TType &
+ScanResult<TType>
 block_prefix_sum_in(int aTid, int blockSize, const TType &aCurrent, TType *aSharedBuffer)
 {
-#if __CUDA_ARCH__ >= 300
+//#if __CUDA_ARCH__ >= 300
 	__shared__ TType temp[32];
 	TType temp1, temp2;
 	//int tid = threadIdx.x;
@@ -204,6 +212,7 @@ block_prefix_sum_in(int aTid, int blockSize, const TType &aCurrent, TType *aShar
 	for (int d=1; d<32; d<<=1) {
 		temp2 = __shfl_up(temp1,d);
 		if (aTid%32 >= d) temp1 += temp2;
+		__syncthreads();
 	}
 	if (aTid%32 == 31) temp[aTid/32] = temp1;
 	__syncthreads();
@@ -221,11 +230,16 @@ block_prefix_sum_in(int aTid, int blockSize, const TType &aCurrent, TType *aShar
 	__syncthreads();
 
 	if (aTid >= 32) temp1 += temp[aTid/32 - 1];
+	__syncthreads();
 	if (aTid == blockSize -1) {
 		aSharedBuffer[blockSize] = temp1;
+		temp[0] = temp1;
+		//printf("Total ss %d\n", temp1);
 	}
-	return temp1;
-#else
+	__syncthreads();
+	//return temp1;
+	return ScanResult<TType>{ temp1, temp[0] };
+/*#else
 	TType sum = aCurrent;
 	aSharedBuffer[aTid] = sum;
 	if (aTid == 0) {
@@ -247,21 +261,15 @@ block_prefix_sum_in(int aTid, int blockSize, const TType &aCurrent, TType *aShar
 		__syncthreads();
 	}
 	return aSharedBuffer[aTid];
-#endif
+#endif*/
 }
 
-/*
-
 template<typename TType>
-CUGIP_DECL_DEVICE TType
-block_prefix_sum2(int aTid, int blockSize, const TType &aCurrent, TType *aSharedBuffer) {
-
-}*/
-
-template<typename TType>
-CUGIP_DECL_DEVICE TType
+CUGIP_DECL_DEVICE //TType
+ScanResult<TType>
 block_prefix_sum_ex(int aTid, int blockSize, const TType &aCurrent, TType *aSharedBuffer) {
-	return block_prefix_sum_in<TType>(aTid, blockSize, aCurrent, aSharedBuffer) - aCurrent;
+	ScanResult<TType> res = block_prefix_sum_in<TType>(aTid, blockSize, aCurrent, aSharedBuffer);
+	return ScanResult<TType>{ res.current - aCurrent, res.total };
 
 	/* Excluded
 	TType sum = aCurrent;

@@ -79,7 +79,7 @@ public:
 	{
 		/*assert(aIndex >= 0);
 		assert(aIndex < *mSize);*/
-		if( aIndex >= *mSize) printf("ERRRROR %d - %d\n", aIndex, *mSize);
+		//if( aIndex >= mSize.retrieve_device()) printf("ERRRROR %d - %d\n", aIndex, mSize.retrieve_device());
 		return mData[aIndex];
 	}
 
@@ -351,6 +351,7 @@ pushImplementation(
 		GraphCutData<TFlow> &aGraph,
 		ParallelQueueView<int> &aVertices,
 		int index,
+		int aLevelEnd,
 		device_flag_view &aPushSuccessfulFlag)
 {
 	int vertex = aVertices.get_device(index);
@@ -371,6 +372,53 @@ pushImplementation(
 	}
 }
 
+/*
+template<typename TFlow>
+CUGIP_DECL_DEVICE void
+pushImplementation(
+		GraphCutData<TFlow> &aGraph,
+		ParallelQueueView<int> &aVertices,
+		int index,
+		int aLevelEnd,
+		device_flag_view &aPushSuccessfulFlag)
+{
+	__shared__ int buffer[513];
+	__shared__ int vertices[512];
+	int vertex = aVertices.get_device(index);
+
+	int shouldProcess = (index < aLevelEnd && aGraph.excess(vertex) > 0.0f) ? 1 : 0;
+	__syncthreads();
+	auto offset = block_prefix_sum_ex(threadIdx.x, 512, shouldProcess, buffer);
+	__syncthreads();
+	//int total = buffer[512];
+	__syncthreads();
+	if (shouldProcess) {
+		//if (offset.current > 511) printf("aaa %d - %d\n", offset.current, offset.total);
+		vertices[offset.current] = vertex;
+	}
+	__syncthreads();
+	//printf("%d %d - %d - %d/%d\n", blockIdx.x, threadIdx.x, shouldProcess, offset.current, offset.total);
+	if (threadIdx.x < offset.total) {
+		//assert(offset.total <= 512);
+		vertex = vertices[threadIdx.x];
+	//if (aGraph.excess(vertex) > 0.0f) {
+		int neighborCount = aGraph.neighborCount(vertex);
+		int firstNeighborIndex = aGraph.firstNeighborIndex(vertex);
+		int label = aGraph.label(vertex);
+		for (int i = 0; i < neighborCount; ++i) {
+			int secondVertex = aGraph.secondVertex(firstNeighborIndex + i);
+			int secondLabel = aGraph.label(secondVertex);
+			if (label > secondLabel) {
+				int connectionIndex = aGraph.connectionIndex(firstNeighborIndex + i);
+				if (tryPullPush(aGraph, vertex, secondVertex, connectionIndex)) {
+					aPushSuccessfulFlag.set_device();
+				}
+			}
+		}
+	}
+	__syncthreads();
+}*/
+
 
 template<typename TFlow>
 CUGIP_GLOBAL void
@@ -385,24 +433,7 @@ pushKernel(
 	int index = aLevelStart + blockId * blockDim.x + threadIdx.x;
 
 	if (index < aLevelEnd) {
-		//if (threadIdx.x == 0 && blockId == 0) printf("bbbb %d\n", index);
-		pushImplementation(aGraph, aVertices, index, aPushSuccessfulFlag);
-		/*int vertex = aVertices.get_device(index);
-		if (aGraph.excess(vertex) > 0.0f) {
-			int neighborCount = aGraph.neighborCount(vertex);
-			int firstNeighborIndex = aGraph.firstNeighborIndex(vertex);
-			int label = aGraph.label(vertex);
-			for (int i = 0; i < neighborCount; ++i) {
-				int secondVertex = aGraph.secondVertex(firstNeighborIndex + i);
-				int secondLabel = aGraph.label(secondVertex);
-				if (label > secondLabel) {
-					int connectionIndex = aGraph.connectionIndex(firstNeighborIndex + i);
-					if (tryPullPush(aGraph, vertex, secondVertex, connectionIndex)) {
-						aPushSuccessfulFlag.set_device();
-					}
-				}
-			}
-		}*/
+		pushImplementation(aGraph, aVertices, index, aLevelEnd, aPushSuccessfulFlag);
 	}
 }
 
@@ -420,7 +451,7 @@ pushKernel2(
 		int index = aLevelStarts[level + 1] + threadIdx.x;
 		if (index < aLevelStarts[level]) {
 			//if (threadIdx.x == 0) printf("aaaa %d\n", index);
-			pushImplementation(aGraph, aVertices, index, aPushSuccessfulFlag);
+			pushImplementation(aGraph, aVertices, index, aLevelStarts[level], aPushSuccessfulFlag);
 		}
 		__syncthreads();
 	}
@@ -517,9 +548,12 @@ gatherScan(
 		index = aGraph.firstNeighborIndex(vertexId);
 	}//printf("%d index %d\n", aCurrentLevel, aStartIndex + tid);
 	int neighborEnd = index + neighborCount;
-	int rsvRank = block_prefix_sum_ex(tid, tBlockSize, neighborCount, buffer);
+	ScanResult<int> prefix_sum = block_prefix_sum_ex<int>(tid, tBlockSize, neighborCount, buffer);
+	//int rsvRank = block_prefix_sum_ex(tid, tBlockSize, neighborCount, buffer);
+	int rsvRank = prefix_sum.current;
+	int total = prefix_sum.total;
 	__syncthreads();
-	int total = buffer[tBlockSize];
+	//int total = buffer[tBlockSize];
 	int ctaProgress = 0;
 	int remain = 0;
 	while ((remain = total - ctaProgress) > 0) {
@@ -536,41 +570,26 @@ gatherScan(
 			int firstVertex = vertices[tid];
 
 			secondVertex = aGraph.secondVertex(buffer[tid]);
-			/*if (secondVertex < 0) {
-
-				printf("AAAA %d %d %d - %d\n", firstVertex, buffer[tid], aGraph.firstNeighborIndex(firstVertex), aGraph.firstNeighborIndex(firstVertex + 1));
-			}*/
 			int label = aGraph.label(secondVertex);
 			TFlow residual = aGraph.residuals(aGraph.connectionIndex(buffer[tid])).getResidual(firstVertex > secondVertex);
 			if (label == INVALID_LABEL && residual > 0.0f) {
 				shouldAppend = (INVALID_LABEL == atomicCAS(&(aGraph.label(secondVertex)), INVALID_LABEL, aCurrentLevel)) ? 1 : 0;
 			}
-			//printf("SV_%d %d -> %d : %d, %f %d\n", aCurrentLevel, firstVertex, secondVertex, label, residual, shouldAppend);
 		}
 		__syncthreads();
 		ctaProgress += tBlockSize;
-		/*if (shouldAppend) {
-			//printf("SV %d\n", secondVertex);
-			int lastPos = aVertices.append(secondVertex);
-			//printf("Queue %d\n", lastPos);
-		}*/
-		int queueOffset = block_prefix_sum_ex(tid, tBlockSize, shouldAppend, buffer);
+		//int queueOffset = block_prefix_sum_ex(tid, tBlockSize, shouldAppend, buffer);
+		ScanResult<int> queueOffset = block_prefix_sum_ex<int>(tid, tBlockSize, shouldAppend, buffer);
+		__syncthreads();
 		if (tid == 0) {
-			int totalAdded = buffer[tBlockSize];
-			//printf("Total added %d\n", totalAdded);
-			currentQueueRunStart = aVertices.allocate(totalAdded);
+			currentQueueRunStart = aVertices.allocate(queueOffset.total);
 		}
 		__syncthreads();
 		//TODO - store in shared buffer and then in global memory
 		if (shouldAppend) {
-			//assert(secondVertex >= 0);
-			/*if (secondVertex < 0) {
-				printf("XXXXXXXXXXXXXXXX\n");
-			}*/
-			aVertices.get_device(currentQueueRunStart + queueOffset) = secondVertex;
+			aVertices.get_device(currentQueueRunStart + queueOffset.current) = secondVertex;
 		}
 		__syncthreads();
-		//break;
 	}
 }
 

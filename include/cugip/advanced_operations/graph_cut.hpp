@@ -14,6 +14,8 @@
 
 
 #include <boost/filesystem.hpp>
+#include <boost/timer/timer.hpp>
+
 #include <fstream>
 
 #include <cugip/advanced_operations/detail/graph_cut_implementation.hpp>
@@ -180,6 +182,8 @@ Graph<TFlow>::push()
 					mLevelStarts[i],
 					pushSuccessfulFlag.view());
 		}
+	cudaThreadSynchronize();
+	//CUGIP_DPRINT("-------------------------------");
 	}
 	cudaThreadSynchronize();
 	//CUGIP_DPRINT("-------------------------------");
@@ -270,6 +274,7 @@ Graph<TFlow>::assign_label_by_distance()
 	}
 
 	cudaThreadSynchronize();
+	CUGIP_DPRINT("Active vertex count = " << mLevelStarts.back());
 	CUGIP_CHECK_ERROR_STATE("After assign_label_by_distance()");
 }
 
@@ -278,8 +283,8 @@ template<typename TFlow>
 TFlow
 Graph<TFlow>::max_flow()
 {
-	/*testBlockScan<<<1, 512>>>();
-	return -1.0f;*/
+	boost::timer::cpu_timer timer;
+	timer.start();
 	//CUGIP_DPRINT("MAX FLOW");
 	init_residuals();
 	push_through_tlinks_from_source();
@@ -287,14 +292,20 @@ Graph<TFlow>::max_flow()
 	//debug_print();
 	cudaThreadSynchronize();
 	CUGIP_CHECK_ERROR_STATE("After max_flow init");
-
+	timer.stop();
+	std::cout << timer.format() << "\n";
 	bool done = false;
 	size_t iteration = 0;
 	while(!done) {
-		//CUGIP_DPRINT("**iteration " << iteration);
+		timer.start();
 		assign_label_by_distance();
 		//debug_print();
 		done = !push();
+		//if (iteration >10) break;
+	//push_through_tlinks_to_sink();
+		//CUGIP_DPRINT("**iteration " << iteration << "; flow = " << thrust::reduce(mSinkFlow.begin(), mSinkFlow.end()));
+		timer.stop();
+		CUGIP_DPRINT("**iteration " << iteration << ": " << timer.format());
 		++iteration;
 	}
 	push_through_tlinks_to_sink();
@@ -353,6 +364,7 @@ Graph<TFlow>::set_vertex_count(size_t aCount)
 
 	mVertexQueue.reserve(aCount);
 	mVertexQueue.clear();
+	CUGIP_DPRINT("Vertex queue size: " << aCount);
 
 	mLevelStartsQueue.reserve(500);
 }
