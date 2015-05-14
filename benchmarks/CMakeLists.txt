@@ -19,6 +19,11 @@ SET(CUGIP_HEADERS
 	../include/cugip/detail/include.hpp
 	../include/cugip/device_flag.hpp
 	../include/cugip/advanced_operations/detail/graph_cut_implementation.hpp
+	../include/cugip/advanced_operations/detail/graph_cut_dynpar.hpp
+	../include/cugip/advanced_operations/detail/graph_cut_data.hpp
+	../include/cugip/advanced_operations/detail/graph_cut_defines.hpp
+	../include/cugip/advanced_operations/detail/graph_cut_relabeling.hpp
+	../include/cugip/advanced_operations/detail/graph_cut_push.hpp
 	../include/cugip/advanced_operations/nonlocal_means.hpp
 	../include/cugip/advanced_operations/graph_to_graphml.hpp
 	../include/cugip/advanced_operations/graph_cut.hpp
@@ -30,6 +35,7 @@ SET(CUGIP_HEADERS
 	../include/cugip/access_utils.hpp
 	../include/cugip/copy.hpp
 	../include/cugip/functors.hpp
+	../include/cugip/parallel_queue.hpp
 	../include/cugip/meta_algorithm.hpp
 	../include/cugip/gil_utils.hpp
 	../include/cugip/math.hpp
@@ -57,6 +63,6 @@ SET(CUGIP_HEADERS
 	../include/cugip/scan.hpp
 )
 
-CUDA_ADD_EXECUTABLE(${PROJECT_NAME} bench-CUGIP.cpp bench-CUGIP.cu mfi.cpp timer.cpp ${CUGIP_HEADERS})
+CUDA_ADD_EXECUTABLE(${PROJECT_NAME} bench-CUGIP.cpp bench-CUGIP.cu mfi.cpp timer.cpp dataset.h ${CUGIP_HEADERS})
 TARGET_LINK_LIBRARIES(${PROJECT_NAME} ${Boost_LIBRARIES})
 

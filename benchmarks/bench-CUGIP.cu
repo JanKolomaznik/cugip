@@ -100,6 +100,7 @@ void run_test(double* time_init,double* time_maxflow,double* time_output)
 template<typename type_terminal_cap,typename type_neighbor_cap>
 void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* time_init,double* time_maxflow,double* time_output)
 {
+	printf("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbba\n");
 	const int w = mfi->width;
 	const int h = mfi->height;
 	//printf("width %d, height %d\n", w, h);
@@ -110,19 +111,14 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 					       (type_neighbor_cap*)(mfi->cap_neighbor[1]),
 					       (type_neighbor_cap*)(mfi->cap_neighbor[2]),
 					       (type_neighbor_cap*)(mfi->cap_neighbor[3]) };
-	std::vector<int> buffer(w*h);
-	//typedef Graph<int,int,int> GraphType;
 	std::vector<float> tlinksSource(w*h);
 	std::vector<float> tlinksSink(w*h);
 	std::vector<cugip::EdgeRecord> edges((w-1)*h + (h-1)*w);
 	std::vector<float> weights((w-1)*h + (h-1)*w);
 	std::vector<float> weightsBackward((w-1)*h + (h-1)*w);
-	/*edges.reserve((w-1)*(h-1));
-	weights.reserve((w-1)*(h-1));*/
 
 	int source_count = 0;
 	int sink_count = 0;
-	//bool different = false;
 	int lastEdge = 0;
 	for(int y=0;y<h;y++) {
 		for(int x=0;x<w;x++) {
@@ -134,10 +130,7 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 			}
 			tlinksSource[x+y*w] = cap_source[x+y*w];
 			tlinksSink[x+y*w] = cap_sink[x+y*w];
-			//graph->add_tweights(x+y*w,cap_source[x+y*w],cap_sink[x+y*w]);
-			bool is_zero = false;
 			if (x<w-1) {
-				//different = different || cap_neighbor[MFI::ARC_GE][x+y*w] != cap_neighbor[MFI::ARC_LE][x+y*w];
 				edges[lastEdge/*x+y*(w-1)*/] = cugip::EdgeRecord(x+y*w, (x+1)+y*w);
 				weights[lastEdge/*x+y*(w-1)*/] = cap_neighbor[MFI::ARC_LE][x+1+y*w];
 				weightsBackward[lastEdge/*x+y*(w-1)*/] = cap_neighbor[MFI::ARC_GE][x+y*w];
@@ -146,7 +139,6 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 				}
 			}
 			if (y<h-1) {
-				//different = different || cap_neighbor[MFI::ARC_EG][x+y*w] != cap_neighbor[MFI::ARC_EL][x+y*w];
 				edges[lastEdge/*(w-1)*(h) + x+y*(w-1)*/] = cugip::EdgeRecord(x+y*w,x+(y+1)*w);
 				weights[lastEdge/*(w-1)*(h) + x+y*(w-1)*/] = cap_neighbor[MFI::ARC_EL][x+(y+1)*w];
 				weightsBackward[lastEdge/*(w-1)*(h) + x+y*(w-1)*/] = cap_neighbor[MFI::ARC_EG][x+y*w];
@@ -156,16 +148,9 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 			}
 		}
 	}
-	//dump_buffer("zero.raw", &(buffer[0]), w*h);
-
-	//printf("source_count = %d\nsink_count = %d\n", source_count, sink_count);
-/*	if (different) {
-		printf("AAAAAAAAAAAAAA DIFFERENT\n\n");
-	}*/
 	CLOCK_START();
 	cugip::Graph<float> graph;
 	graph.set_vertex_count(w*h);
-	//printf("node_count %d\n", w*h);
 
 	printf("Edge count %d %d\n", lastEdge, edges.size());
 	graph.set_nweights(
@@ -180,15 +165,10 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 		);
 
 
-	//GraphType* graph = new GraphType(w*h,w*h*2);
-
-	//graph->add_node(w*h);
-
 	CLOCK_STOP(time_init);
 
 	CLOCK_START();
 	*out_maxflow = graph.max_flow();
-	//*out_maxflow = graph->maxflow();
 	CLOCK_STOP(time_maxflow);
 
 	CLOCK_START();
@@ -201,6 +181,101 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 template<typename type_terminal_cap,typename type_neighbor_cap>
 void run_BK301_3D_6C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* time_init,double* time_maxflow,double* time_output)
 {
+	printf("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n");
+	const int w = mfi->width;
+	const int h = mfi->height;
+	const int d = mfi->depth;
+
+	const type_terminal_cap* cap_source = (type_terminal_cap*)mfi->cap_source;
+	const type_terminal_cap* cap_sink   = (type_terminal_cap*)mfi->cap_sink;
+
+	const type_neighbor_cap* cap_neighbor[6] = { (type_neighbor_cap*)(mfi->cap_neighbor[0]),
+					       (type_neighbor_cap*)(mfi->cap_neighbor[1]),
+					       (type_neighbor_cap*)(mfi->cap_neighbor[2]),
+					       (type_neighbor_cap*)(mfi->cap_neighbor[3]),
+					       (type_neighbor_cap*)(mfi->cap_neighbor[4]),
+					       (type_neighbor_cap*)(mfi->cap_neighbor[5]) };
+
+	const int num_nodes = w*h*d;
+	const int num_edges = (w-1)*(h*d) + (h-1)*(w*d) + (d-1)*(w*h);
+
+	std::vector<float> tlinksSource(num_nodes);
+	std::vector<float> tlinksSink(num_nodes);
+	std::vector<cugip::EdgeRecord> edges(num_edges);
+	std::vector<float> weights(num_edges);
+	std::vector<float> weightsBackward(num_edges);
+
+	int source_count = 0;
+	int sink_count = 0;
+	int lastEdge = 0;
+	for(int z=0;z<d;z++) {
+		for(int y=0;y<h;y++) {
+			for(int x=0;x<w;x++) {
+				int vertex = x+y*w+z*(w*h);
+				if (cap_source[vertex] > 0) {
+					++source_count;
+				}
+				if (cap_sink[vertex] > 0) {
+					++sink_count;
+				}
+				tlinksSource[vertex] = cap_source[vertex];
+				tlinksSink[vertex] = cap_sink[vertex];
+				if (x<w-1) {
+					edges[lastEdge/*x+y*(w-1)*/] = cugip::EdgeRecord(vertex, vertex + 1);
+					weights[lastEdge/*x+y*(w-1)*/] = cap_neighbor[MFI::ARC_LEE][vertex + 1];
+					weightsBackward[lastEdge/*x+y*(w-1)*/] = cap_neighbor[MFI::ARC_GEE][vertex];
+					if (weights[lastEdge] > 0.0f && weightsBackward[lastEdge] > 0.0f) {
+						++lastEdge;
+					}
+				}
+				if (y<h-1) {
+					edges[lastEdge/*(w-1)*(h) + x+y*(w-1)*/] = cugip::EdgeRecord(vertex,vertex + w);
+					weights[lastEdge/*(w-1)*(h) + x+y*(w-1)*/] = cap_neighbor[MFI::ARC_ELE][vertex + w];
+					weightsBackward[lastEdge/*(w-1)*(h) + x+y*(w-1)*/] = cap_neighbor[MFI::ARC_EGE][vertex];
+					if (weights[lastEdge] > 0.0f && weightsBackward[lastEdge] > 0.0f) {
+						++lastEdge;
+					}
+				}
+				if (z<h-1) {
+					edges[lastEdge/*(w-1)*(h) + x+y*(w-1)*/] = cugip::EdgeRecord(vertex, vertex + h*w);
+					weights[lastEdge/*(w-1)*(h) + x+y*(w-1)*/] = cap_neighbor[MFI::ARC_EEL][vertex + h*w];
+					weightsBackward[lastEdge/*(w-1)*(h) + x+y*(w-1)*/] = cap_neighbor[MFI::ARC_EEG][vertex];
+					if (weights[lastEdge] > 0.0f && weightsBackward[lastEdge] > 0.0f) {
+						++lastEdge;
+					}
+				}
+    //if (z<d-1) graph->add_edge(x+y*w+z*(w*h),x+y*w+(z+1)*(w*h),cap_neighbor[MFI::ARC_EEG][x+y*w+z*(w*h)],cap_neighbor[MFI::ARC_EEL][x+y*w+(z+1)*(w*h)]);
+			}
+		}
+	}
+	CLOCK_START();
+	cugip::Graph<float> graph;
+	graph.set_vertex_count(num_nodes);
+
+	printf("Edge count %d %d\n", lastEdge, edges.size());
+	graph.set_nweights(
+		lastEdge,//edges.size(),
+		&(edges[0]),
+		&(weights[0]),
+		&(weightsBackward[0]));
+
+	graph.set_tweights(
+		&(tlinksSource[0]),
+		&(tlinksSink[0])
+		);
+
+
+	CLOCK_STOP(time_init);
+
+	CLOCK_START();
+	*out_maxflow = graph.max_flow();
+	CLOCK_STOP(time_maxflow);
+
+	CLOCK_START();
+	//for(int xy=0;xy<w*h;xy++) out_label[xy] = graph->what_segment(xy);
+
+	//delete graph;
+	CLOCK_STOP(time_output);
   /*const int w = mfi->width;
   const int h = mfi->height;
   const int d = mfi->depth;
@@ -251,6 +326,7 @@ void run_BK301_3D_6C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 template<typename type_terminal_cap,typename type_neighbor_cap>
 void run_BK301_3D_26C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* time_init,double* time_maxflow,double* time_output)
 {
+	printf("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxa\n");
   /*const int w = mfi->width;
   const int h = mfi->height;
   const int d = mfi->depth;
@@ -388,7 +464,7 @@ int run(const char *dataset_path)
 		double sum_time_maxflow = 0.0;
 		double sum_time_output = 0.0;
 
-		for(int j=/*0*/1;j<instances[i].count;j++)
+		for(int j=0;j<instances[i].count;j++)
 		{
 			char filename[1024];
 
