@@ -94,7 +94,7 @@ Graph<TFlow>::bfs_iteration(size_t &aCurrentLevel)
 */
 
 
-template<typename TFlow>
+template<typename TFlow, typename TPolicy>
 CUGIP_GLOBAL void
 initBFSKernel(ParallelQueueView<int> aVertices, GraphCutData<TFlow> aGraph)
 {
@@ -102,7 +102,7 @@ initBFSKernel(ParallelQueueView<int> aVertices, GraphCutData<TFlow> aGraph)
 	int index = blockId * blockDim.x + threadIdx.x;
 
 	if (index < aGraph.vertexCount()) {
-		int label = INVALID_LABEL;
+		int label = TPolicy::INVALID_LABEL;
 			//printf("checking %d - %d\n", index, aGraph.vertexCount());
 		if (aGraph.sinkTLinkCapacity(index) > 0.0) {
 			label = 1;
@@ -113,7 +113,7 @@ initBFSKernel(ParallelQueueView<int> aVertices, GraphCutData<TFlow> aGraph)
 	}
 }
 
-template<typename TFlow>
+template<typename TFlow, typename TPolicy>
 CUGIP_GLOBAL void
 bfsPropagationKernel(
 		ParallelQueueView<int> aVertices,
@@ -136,7 +136,7 @@ bfsPropagationKernel(
 			int label = aGraph.label(secondVertex);
 			int shouldAppend = 0;
 			TFlow residual = aGraph.residuals(aGraph.connectionIndex(firstNeighborIndex + i)).getResidual(vertex > secondVertex);
-			if (label == INVALID_LABEL && residual > 0.0f) {
+			if (label == TPolicy::INVALID_LABEL && residual > 0.0f) {
 				aGraph.label(secondVertex) = aCurrentLevel; //TODO atomic
 				aVertices.append(secondVertex);
 				shouldAppend = 1;
@@ -152,7 +152,7 @@ bfsPropagationKernel(
 
 
 
-template<typename TFlow, int tBlockSize>
+template<typename TFlow, int tBlockSize, typename TPolicy>
 CUGIP_DECL_DEVICE void
 gatherScan(
 	GraphCutData<TFlow> &aGraph,
@@ -201,8 +201,8 @@ gatherScan(
 			secondVertex = aGraph.secondVertex(buffer[tid]);
 			int label = aGraph.label(secondVertex);
 			TFlow residual = aGraph.residuals(aGraph.connectionIndex(buffer[tid])).getResidual(firstVertex > secondVertex);
-			if (label == INVALID_LABEL && residual > 0.0f) {
-				shouldAppend = (INVALID_LABEL == atomicCAS(&(aGraph.label(secondVertex)), INVALID_LABEL, aCurrentLevel)) ? 1 : 0;
+			if (label == TPolicy::INVALID_LABEL && residual > 0.0f) {
+				shouldAppend = (TPolicy::INVALID_LABEL == atomicCAS(&(aGraph.label(secondVertex)), TPolicy::INVALID_LABEL, aCurrentLevel)) ? 1 : 0;
 			}
 		}
 		__syncthreads();
@@ -281,11 +281,34 @@ template<typename TGraphData, typename TPolicy>
 struct Relabel
 {
 	static void
-	compute(TGraphData &aGraph)
+	compute(
+		TGraphData &aGraph,
+		ParallelQueueView<int> &aVertexQueue,
+		std::vector<int> &aLevelStarts)
 	{
+		dim3 blockSize1D(512, 1, 1);
+		dim3 gridSize1D((aGraph.vertexCount() + blockSize1D.x - 1) / (blockSize1D.x), 1);
 
+		aVertexQueue.clear();
+		initBFSKernel<<<gridSize1D, blockSize1D>>>(aVertexQueue, aGraph);
+
+		cudaThreadSynchronize();
+		CUGIP_CHECK_ERROR_STATE("After initBFSKernel()");
+		int lastLevelSize = aVertexQueue.size();
+		//CUGIP_DPRINT("Level 1 size: " << lastLevelSize);
+		aLevelStarts.clear();
+		aLevelStarts.push_back(0);
+		aLevelStarts.push_back(lastLevelSize);
+		size_t currentLevel = 1;
+		bool finished = lastLevelSize == 0;
+		while (!finished) {
+			finished = bfs_iteration(currentLevel);
+		}
+
+		cudaThreadSynchronize();
+		CUGIP_DPRINT("Active vertex count = " << aLevelStarts.back());
+		CUGIP_CHECK_ERROR_STATE("After assign_label_by_distance()");
 	}
-
 };
 
 } // namespace cugip

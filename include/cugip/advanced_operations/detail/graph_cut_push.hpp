@@ -288,7 +288,10 @@ template<typename TGraphData, typename TPolicy>
 struct Push
 {
 	static bool
-	compute(TGraphData &aGraph)
+	compute(
+		TGraphData &aGraph,
+		ParallelQueueView<int> &aVertexQueue,
+		std::vector<int> &aLevelStarts)
 	{
 		return false;
 	}

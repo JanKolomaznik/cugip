@@ -19,7 +19,7 @@
 #include "graph_cut_push.hpp"
 #include "graph_cut_relabeling.hpp"
 
-#define INVALID_LABEL (1 << 30)
+//#define INVALID_LABEL (1 << 30)
 
 namespace cugip {
 
@@ -47,7 +47,10 @@ template<typename TGraphData, typename TPolicy>
 struct MinCut
 {
 	static float
-	compute(TGraphData &aGraph)
+	compute(
+		TGraphData &aGraph,
+		ParallelQueueView<int> &aVertexQueue,
+		std::vector<int> &aLevelStarts)
 	{
 		//boost::timer::cpu_timer timer;
 		//timer.start();
@@ -63,10 +66,10 @@ struct MinCut
 		size_t iteration = 0;
 		while(!done) {
 			//timer.start();
-			Relabel<TGraphData, typename TPolicy::RelabelPolicy>::compute(aGraph);
+			Relabel<TGraphData, typename TPolicy::RelabelPolicy>::compute(aGraph, aVertexQueue, aLevelStarts);
 			//assign_label_by_distance();
 
-			done = !Push<TGraphData, typename TPolicy::PushPolicy>::compute(aGraph);
+			done = !Push<TGraphData, typename TPolicy::PushPolicy>::compute(aGraph, aVertexQueue, aLevelStarts);
 			//done = !push();
 			//timer.stop();
 			//CUGIP_DPRINT("**iteration " << iteration << ": " << timer.format(9, "%w"));
@@ -130,7 +133,10 @@ public:
 	run()
 	{
 		init_residuals();
-		return MinCut<GraphCutData<Flow>, GraphCutPolicy>::compute(mGraphData);
+		return MinCut<GraphCutData<Flow>, GraphCutPolicy>::compute(
+						mGraphData,
+						mVertexQueue.view(),
+						mLevelStarts);
 	}
 
 	void
@@ -155,6 +161,8 @@ public:
 protected:
 	TGraph *mGraph;
 	GraphCutData<Flow> mGraphData;
+	ParallelQueue<int> mVertexQueue;
+	std::vector<int> mLevelStarts;
 };
 
 
