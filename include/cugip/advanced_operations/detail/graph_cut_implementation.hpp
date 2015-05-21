@@ -39,7 +39,11 @@ initResidualsKernel(TFlow *aWeightsForward, TFlow *aWeightsBackward, EdgeResidua
 
 struct GraphCutPolicy
 {
-	struct RelabelPolicy {};
+	struct RelabelPolicy {
+		enum {
+			INVALID_LABEL = 1 << 31
+		};
+	};
 	struct PushPolicy {};
 };
 
@@ -88,8 +92,8 @@ struct MinCut
 
 		pushThroughTLinksFromSourceKernel<<<gridSize1D, blockSize1D>>>(aGraph);
 
-		cudaThreadSynchronize();
 		CUGIP_CHECK_ERROR_STATE("After pushThroughTLinksFromSourceKernel");
+		CUGIP_CHECK_RESULT(cudaThreadSynchronize());
 	}
 
 	static void
@@ -102,15 +106,17 @@ struct MinCut
 
 		pushThroughTLinksToSinkKernel<<<gridSize1D, blockSize1D>>>(aGraph);
 
-		cudaThreadSynchronize();
 		CUGIP_CHECK_ERROR_STATE("After push_through_tlinks_to_sink");
+		CUGIP_CHECK_RESULT(cudaThreadSynchronize());
 	}
 
 	static float
 	computeFlowThroughSinkFrontier(TGraphData &aGraph)
 	{
 		push_through_tlinks_to_sink(aGraph);
-		return thrust::reduce(aGraph.mSinkFlow, aGraph.mSinkFlow + aGraph.vertexCount());
+		return thrust::reduce(
+				thrust::device_pointer_cast(aGraph.mSinkFlow),
+				thrust::device_pointer_cast(aGraph.mSinkFlow + aGraph.vertexCount()));
 	}
 };
 
@@ -127,11 +133,41 @@ public:
 	setGraph(TGraph &aGraph)
 	{
 		mGraph = &aGraph;
+		mGraphData.vertexExcess = thrust::raw_pointer_cast(aGraph.mExcess.data()); // n
+		mGraphData.labels = thrust::raw_pointer_cast(aGraph.mLabels.data());; // n
+		mGraphData.mSourceTLinks = thrust::raw_pointer_cast(aGraph.mSourceTLinks.data());// n
+		mGraphData.mSinkTLinks = thrust::raw_pointer_cast(aGraph.mSinkTLinks.data());// n
+
+	mGraphData.neighbors = thrust::raw_pointer_cast(aGraph.mNeighbors.data());
+	mGraphData.secondVertices = thrust::raw_pointer_cast(aGraph.mSecondVertices.data());
+	mGraphData.connectionIndices = thrust::raw_pointer_cast(aGraph.mEdges.data());
+	mGraphData.mResiduals = thrust::raw_pointer_cast(aGraph.mResiduals.data());
+	mGraphData.mSinkFlow = thrust::raw_pointer_cast(aGraph.mSinkFlow.data());
+		mGraphData.mVertexCount = aGraph.mLabels.size();
+		mGraphData.mEdgeCount = aGraph.mResiduals.size();
+		//mGraphData.labels
+		//mGraphData.neighbors
+		//mGraphData.mSourceTLinks
+		//mGraphData.mSinkTLinks
+		//mGraphData.secondVertices
+		//mGraphData.connectionIndices
+		//mGraphData.mResiduals
+		//mGraphData.mSinkFlow
+		mVertexQueue.reserve(mGraphData.mVertexCount);
 	}
 
 	Flow
 	run()
 	{
+		CUGIP_ASSERT(mGraphData.connectionIndices != nullptr);
+		CUGIP_ASSERT(mGraphData.labels != nullptr);
+		CUGIP_ASSERT(mGraphData.mResiduals != nullptr);
+		CUGIP_ASSERT(mGraphData.mSinkFlow != nullptr);
+		CUGIP_ASSERT(mGraphData.mSinkTLinks != nullptr);
+		CUGIP_ASSERT(mGraphData.mSourceTLinks != nullptr);
+		CUGIP_ASSERT(mGraphData.neighbors != nullptr);
+		CUGIP_ASSERT(mGraphData.secondVertices != nullptr);
+		CUGIP_ASSERT(mGraphData.vertexExcess != nullptr);
 		init_residuals();
 		return MinCut<GraphCutData<Flow>, GraphCutPolicy>::compute(
 						mGraphData,
@@ -153,8 +189,8 @@ public:
 				mGraphData.mEdgeCount
 				);
 
-		cudaThreadSynchronize();
 		CUGIP_CHECK_ERROR_STATE("After init_residuals()");
+		CUGIP_CHECK_RESULT(cudaThreadSynchronize());
 	}
 
 
