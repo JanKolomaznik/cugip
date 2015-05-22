@@ -56,27 +56,28 @@ struct MinCut
 		ParallelQueueView<int> &aVertexQueue,
 		std::vector<int> &aLevelStarts)
 	{
-		//boost::timer::cpu_timer timer;
-		//timer.start();
+		boost::timer::cpu_timer timer;
+		timer.start();
 		//CUGIP_DPRINT("MAX FLOW");
 		//init_residuals(aGraph);
 		push_through_tlinks_from_source(aGraph);
 
 		//debug_print();
 		CUGIP_CHECK_ERROR_STATE("After max_flow init");
-		//timer.stop();
+		timer.stop();
 		//std::cout << timer.format(9, "%w") << "\n";
 		bool done = false;
 		size_t iteration = 0;
 		while(!done) {
-			//timer.start();
+			timer.start();
 			Relabel<TGraphData, typename TPolicy::RelabelPolicy>::compute(aGraph, aVertexQueue, aLevelStarts);
 			//assign_label_by_distance();
 
 			done = !Push<TGraphData, typename TPolicy::PushPolicy>::compute(aGraph, aVertexQueue, aLevelStarts);
 			//done = !push();
-			//timer.stop();
-			//CUGIP_DPRINT("**iteration " << iteration << ": " << timer.format(9, "%w"));
+			timer.stop();
+			CUGIP_DPRINT("**iteration " << iteration << ": " << timer.format(9, "%w"));
+			CUGIP_DPRINT("Flow: " << computeFlowThroughSinkFrontier(aGraph));
 			++iteration;
 		}
 		return computeFlowThroughSinkFrontier(aGraph);

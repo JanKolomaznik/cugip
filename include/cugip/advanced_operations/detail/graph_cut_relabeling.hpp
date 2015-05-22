@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cub/block/block_scan.cuh>
+
 namespace cugip {
 
 /*
@@ -103,6 +105,9 @@ gatherScan(
 	int tid,
 	int aCurrentLevel)
 {
+	typedef cub::BlockScan<int, tBlockSize> BlockScan;
+	__shared__ typename BlockScan::TempStorage temp_storage;
+
 	__shared__ int buffer[tBlockSize+1];
 	__shared__ int vertices[tBlockSize+1];
 	//__shared__ int storeIndices[tBlockSize];
@@ -118,10 +123,13 @@ gatherScan(
 		index = aGraph.firstNeighborIndex(vertexId);
 	}//printf("%d index %d\n", aCurrentLevel, aStartIndex + tid);
 	int neighborEnd = index + neighborCount;
-	ScanResult<int> prefix_sum = block_prefix_sum_ex<int>(tid, tBlockSize, neighborCount, buffer);
+	int rsvRank = 0;
+	int total = 0;
+	BlockScan(temp_storage).ExclusiveSum(neighborCount, rsvRank, total);
+	//ScanResult<int> prefix_sum = block_prefix_sum_ex<int>(tid, tBlockSize, neighborCount, buffer);
 	//int rsvRank = block_prefix_sum_ex(tid, tBlockSize, neighborCount, buffer);
-	int rsvRank = prefix_sum.current;
-	int total = prefix_sum.total;
+	//int rsvRank = prefix_sum.current;
+	//int total = prefix_sum.total;
 	__syncthreads();
 	//int total = buffer[tBlockSize];
 	int ctaProgress = 0;
@@ -148,16 +156,20 @@ gatherScan(
 		}
 		__syncthreads();
 		ctaProgress += tBlockSize;
+
+		int totalOffset = 0;
+		int itemOffset = 0;
+		BlockScan(temp_storage).ExclusiveSum(shouldAppend, itemOffset, totalOffset);
 		//int queueOffset = block_prefix_sum_ex(tid, tBlockSize, shouldAppend, buffer);
-		ScanResult<int> queueOffset = block_prefix_sum_ex<int>(tid, tBlockSize, shouldAppend, buffer);
+		//ScanResult<int> queueOffset = block_prefix_sum_ex<int>(tid, tBlockSize, shouldAppend, buffer);
 		__syncthreads();
 		if (tid == 0) {
-			currentQueueRunStart = aVertices.allocate(queueOffset.total);
+			currentQueueRunStart = aVertices.allocate(/*queueOffset.total*/totalOffset);
 		}
 		__syncthreads();
 		//TODO - store in shared buffer and then in global memory
 		if (shouldAppend) {
-			aVertices.get_device(currentQueueRunStart + queueOffset.current) = secondVertex;
+			aVertices.get_device(currentQueueRunStart + itemOffset/*queueOffset.current*/) = secondVertex;
 		}
 		__syncthreads();
 	}
