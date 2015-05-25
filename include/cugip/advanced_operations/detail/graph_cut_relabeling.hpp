@@ -95,7 +95,7 @@ bfsPropagationKernel(
 
 
 
-template<typename TGraph, int tBlockSize, typename TPolicy>
+template<typename TGraph, typename TPolicy>
 CUGIP_DECL_DEVICE void
 gatherScan(
 	TGraph &aGraph,
@@ -105,11 +105,11 @@ gatherScan(
 	int tid,
 	int aCurrentLevel)
 {
-	typedef cub::BlockScan<int, tBlockSize> BlockScan;
+	typedef cub::BlockScan<int, TPolicy::BLOCK_SIZE> BlockScan;
 	__shared__ typename BlockScan::TempStorage temp_storage;
 
-	__shared__ int buffer[tBlockSize+1];
-	__shared__ int vertices[tBlockSize+1];
+	__shared__ int buffer[TPolicy::BLOCK_SIZE+1];
+	__shared__ int vertices[TPolicy::BLOCK_SIZE+1];
 	//__shared__ int storeIndices[tBlockSize];
 	__shared__ int currentQueueRunStart;
 	int vertexId = -1;
@@ -135,7 +135,7 @@ gatherScan(
 	int ctaProgress = 0;
 	int remain = 0;
 	while ((remain = total - ctaProgress) > 0) {
-		while ((rsvRank < ctaProgress + tBlockSize) && index < neighborEnd) {
+		while ((rsvRank < ctaProgress + TPolicy::BLOCK_SIZE) && index < neighborEnd) {
 			buffer[rsvRank - ctaProgress] = index;
 			vertices[rsvRank - ctaProgress] = vertexId;
 			++rsvRank;
@@ -144,7 +144,7 @@ gatherScan(
 		__syncthreads();
 		int shouldAppend = 0;
 		int secondVertex = -1;
-		if (tid < min(remain, tBlockSize)) {
+		if (tid < min<int>(remain, TPolicy::BLOCK_SIZE)) {
 			int firstVertex = vertices[tid];
 
 			secondVertex = aGraph.secondVertex(buffer[tid]);
@@ -155,7 +155,7 @@ gatherScan(
 			}
 		}
 		__syncthreads();
-		ctaProgress += tBlockSize;
+		ctaProgress += TPolicy::BLOCK_SIZE;
 
 		int totalOffset = 0;
 		int itemOffset = 0;
@@ -187,7 +187,7 @@ bfsPropagationKernel2(
 	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
 	int index = blockId * blockDim.x;// + threadIdx.x;
 
-	gatherScan<TGraph, 512, TPolicy>(
+	gatherScan<TGraph, TPolicy>(
 		aGraph,
 		aVertices,
 		aStart + index,
@@ -267,7 +267,7 @@ struct Relabel
 	bfs_iteration(TGraphData &aGraph, size_t &aCurrentLevel, std::vector<int> &aLevelStarts, ParallelQueueView<int> &aVertexQueue)
 	{
 		size_t level = aCurrentLevel;
-		dim3 blockSize1D(512, 1, 1);
+		dim3 blockSize1D(TPolicy::BLOCK_SIZE, 1, 1);
 		int frontierSize = aLevelStarts[aCurrentLevel] - aLevelStarts[aCurrentLevel - 1];
 		dim3 levelGridSize1D(1 + (frontierSize - 1) / (blockSize1D.x), 1, 1);
 		CUGIP_CHECK_ERROR_STATE("Before bfsPropagationKernel()");

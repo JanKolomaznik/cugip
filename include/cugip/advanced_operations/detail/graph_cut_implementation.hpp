@@ -41,7 +41,11 @@ struct GraphCutPolicy
 {
 	struct RelabelPolicy {
 		enum {
-			INVALID_LABEL = 1 << 31
+			INVALID_LABEL = 1 << 31,
+			BLOCK_SIZE = 512
+		};
+		struct SharedMemoryData {
+			//cub::BlockScan<int, BLOCK_SIZE> temp_storage;
 		};
 	};
 	struct PushPolicy {};
@@ -76,8 +80,9 @@ struct MinCut
 			done = !Push<TGraphData, typename TPolicy::PushPolicy>::compute(aGraph, aVertexQueue, aLevelStarts);
 			//done = !push();
 			timer.stop();
-			CUGIP_DPRINT("**iteration " << iteration << ": " << timer.format(9, "%w"));
-			CUGIP_DPRINT("Flow: " << computeFlowThroughSinkFrontier(aGraph));
+			//CUGIP_DPRINT("**iteration " << iteration << ": " << timer.format(9, "%w"));
+			//CUGIP_DPRINT("Flow: " << computeFlowThroughSinkFrontier(aGraph));
+			//if (iteration == 35) break;
 			++iteration;
 		}
 		return computeFlowThroughSinkFrontier(aGraph);

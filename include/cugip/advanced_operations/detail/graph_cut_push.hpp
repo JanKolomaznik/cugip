@@ -303,7 +303,7 @@ struct Push
 
 		for (int i = aLevelStarts.size() - 2; i > 0; --i) {
 			int count = aLevelStarts[i] - aLevelStarts[i-1];
-			if (count <= blockSize1D.x) {
+			/*if (count <= blockSize1D.x) {
 				starts.push_back(aLevelStarts[i]);
 				while (i > 0 && (aLevelStarts[i] - aLevelStarts[i-1]) <= blockSize1D.x) {
 					starts.push_back(aLevelStarts[i-1]);
@@ -321,7 +321,7 @@ struct Push
 						device_starts.size(),
 						pushSuccessfulFlag.view());
 
-			} else {
+			} else */{
 				//CUGIP_DPRINT()
 				dim3 gridSize1D((count + blockSize1D.x - 1) / (blockSize1D.x), 1);
 				pushKernel<<<gridSize1D, blockSize1D>>>(

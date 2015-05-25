@@ -10,7 +10,7 @@ struct Instance
 
 const Instance instances[] = {
   //{ "/uwo/segment/adhead.n6c10",                 1, "%s/uwo/segmentation/adhead/adhead.n6c10.mfi" },
-  { "/ctu/lazybrush/footman",                    2, "%s/ctu/lazybrush/footman/footman%d.mfi" },
+  { "/ctu/lazybrush/footman",                    3, "%s/ctu/lazybrush/footman/footman%d.mfi" },
   //{ "/ctu/lazybrush/footman",                    8, "%s/ctu/lazybrush/footman/footman%d.mfi" },
   //{ "/ctu/lazybrush/hmdman",                     6, "%s/ctu/lazybrush/hmdman/hmdman%d.mfi" },
   ////{ "/ctu/lazybrush/mangadinner",               10, "%s/ctu/lazybrush/mangadinner/mangadinner%d.mfi" },

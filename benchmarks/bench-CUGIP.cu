@@ -464,7 +464,7 @@ int run(const char *dataset_path)
 		double sum_time_maxflow = 0.0;
 		double sum_time_output = 0.0;
 
-		for(int j=0;j<instances[i].count;j++)
+		for(int j=/*0*/1;j<instances[i].count;j++)
 		{
 			char filename[1024];
 
