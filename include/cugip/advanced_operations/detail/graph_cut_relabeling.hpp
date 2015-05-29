@@ -93,7 +93,93 @@ bfsPropagationKernel(
 	}
 }
 
+struct Tile {
+	int vertexId;
+	int listStart;
+	int listLength;
 
+	CUGIP_DECL_DEVICE void
+	load(TGraph &aGraph, int aOffset, int aCount);
+
+	CUGIP_DECL_DEVICE void
+	getAdjacencyList(TGraph &aGraph)
+	{
+		if (vertexId >= 0) {
+			listStart = aGraph.firstNeighborIndex(vertexId);
+			listLength = aGraph.firstNeighborIndex(vertexId + 1) - listStart;
+		}
+	}
+};
+
+struct WorkLimits
+{
+	CUGIP_DECL_DEVICE
+	WorkLimits()
+	{
+		assert(false);
+	}
+	int elements;
+	int offset;
+	int guardedOffset;
+	int guardedElements;
+};
+
+struct TileProcessor
+{
+	CUGIP_DECL_DEVICE
+	TileProcessor()
+	{}
+
+	/*void
+	processTile(int offset);*/
+
+	CUGIP_DECL_DEVICE void
+	processTile(int aOffset, int aCount)
+	{
+		typedef cub::BlockScan<int, TPolicy::BLOCK_SIZE> BlockScan;
+		__shared__ typename BlockScan::TempStorage temp_storage;
+
+		Tile tile;
+		tile.load(aOffset, aCount);
+
+		tile.getAdjacencyList(mGraph);
+
+		int total = 0;
+		int current = 0;
+		BlockScan(temp_storage).ExclusiveSum(tile.listLength, current, total);
+		__syncthreads();
+
+		int progress = 0;
+		while (progress < total) {
+
+			progress += TPolicy::BLOCK_SIZE;
+			__syncthreads();
+		}
+	}
+};
+
+template<typename TPolicy>
+CUGIP_DECL_DEVICE void
+sweepPass()
+{
+	WorkLimits workLimits;
+
+	if (workLimits.elements == 0) {
+		return;
+	}
+
+	typename TPolicy::TileProcessor tileProcessor;
+	while (workLimits.offset < workLimits.guardedOffset) {
+		tileProcessor.ProcessTile(workLimits.offset);
+		workLimits.offset += TPolicy::TILE_SIZE;
+	}
+
+	if (workLimits.guardedElements) {
+		tileProcessor.ProcessTile(
+				workLimits.guardedOffset,
+				workLimits.guardedElements);
+	}
+}
 
 template<typename TGraph, typename TPolicy>
 CUGIP_DECL_DEVICE void
@@ -102,7 +188,6 @@ gatherScan(
 	ParallelQueueView<int> aVertices,
 	int aStartIndex,
 	int aLevelEnd,
-	int tid,
 	int aCurrentLevel)
 {
 	typedef cub::BlockScan<int, TPolicy::BLOCK_SIZE> BlockScan;
@@ -112,22 +197,24 @@ gatherScan(
 	__shared__ int vertices[TPolicy::BLOCK_SIZE+1];
 	//__shared__ int storeIndices[tBlockSize];
 	__shared__ int currentQueueRunStart;
-	int vertexId = -1;
-	int neighborCount = 0;
+	Tile tile;
+	tile.vertexId = -1;
+	tile.listLength = 0;
 	// neighbor starting index (r)
-	int index = 0;
-	if (aStartIndex + tid < aLevelEnd) {
-		vertexId = aVertices.get_device(aStartIndex + tid);
+	tile.listStart = 0;
+	tile.fill()
+	if (aStartIndex + threadIdx.x < aLevelEnd) {
+		vertexId = aVertices.get_device(aStartIndex + threadIdx.x);
 		assert(vertexId >= 0);
 		neighborCount = aGraph.neighborCount(vertexId);
 		index = aGraph.firstNeighborIndex(vertexId);
-	}//printf("%d index %d\n", aCurrentLevel, aStartIndex + tid);
+	}//printf("%d index %d\n", aCurrentLevel, aStartIndex + threadIdx.x);
 	int neighborEnd = index + neighborCount;
 	int rsvRank = 0;
 	int total = 0;
 	BlockScan(temp_storage).ExclusiveSum(neighborCount, rsvRank, total);
-	//ScanResult<int> prefix_sum = block_prefix_sum_ex<int>(tid, tBlockSize, neighborCount, buffer);
-	//int rsvRank = block_prefix_sum_ex(tid, tBlockSize, neighborCount, buffer);
+	//ScanResult<int> prefix_sum = block_prefix_sum_ex<int>(threadIdx.x, tBlockSize, neighborCount, buffer);
+	//int rsvRank = block_prefix_sum_ex(threadIdx.x, tBlockSize, neighborCount, buffer);
 	//int rsvRank = prefix_sum.current;
 	//int total = prefix_sum.total;
 	__syncthreads();
@@ -144,12 +231,12 @@ gatherScan(
 		__syncthreads();
 		int shouldAppend = 0;
 		int secondVertex = -1;
-		if (tid < min<int>(remain, TPolicy::BLOCK_SIZE)) {
-			int firstVertex = vertices[tid];
+		if (threadIdx.x < min<int>(remain, TPolicy::BLOCK_SIZE)) {
+			int firstVertex = vertices[threadIdx.x];
 
-			secondVertex = aGraph.secondVertex(buffer[tid]);
+			secondVertex = aGraph.secondVertex(buffer[threadIdx.x]);
 			int label = aGraph.label(secondVertex);
-			auto residual = aGraph.residuals(aGraph.connectionIndex(buffer[tid])).getResidual(firstVertex > secondVertex);
+			auto residual = aGraph.residuals(aGraph.connectionIndex(buffer[threadIdx.x])).getResidual(firstVertex > secondVertex);
 			if (label == TPolicy::INVALID_LABEL && residual > 0.0f) {
 				shouldAppend = (TPolicy::INVALID_LABEL == atomicCAS(&(aGraph.label(secondVertex)), TPolicy::INVALID_LABEL, aCurrentLevel)) ? 1 : 0;
 			}
@@ -160,10 +247,10 @@ gatherScan(
 		int totalOffset = 0;
 		int itemOffset = 0;
 		BlockScan(temp_storage).ExclusiveSum(shouldAppend, itemOffset, totalOffset);
-		//int queueOffset = block_prefix_sum_ex(tid, tBlockSize, shouldAppend, buffer);
-		//ScanResult<int> queueOffset = block_prefix_sum_ex<int>(tid, tBlockSize, shouldAppend, buffer);
+		//int queueOffset = block_prefix_sum_ex(threadIdx.x, tBlockSize, shouldAppend, buffer);
+		//ScanResult<int> queueOffset = block_prefix_sum_ex<int>(threadIdx.x, tBlockSize, shouldAppend, buffer);
 		__syncthreads();
-		if (tid == 0) {
+		if (threadIdx.x == 0) {
 			currentQueueRunStart = aVertices.allocate(/*queueOffset.total*/totalOffset);
 		}
 		__syncthreads();
@@ -192,7 +279,6 @@ bfsPropagationKernel2(
 		aVertices,
 		aStart + index,
 		aStart + aCount,
-		threadIdx.x,
 		aCurrentLevel);
 }
 
@@ -216,7 +302,6 @@ bfsPropagationKernel3(
 			aVertices,
 			aStart + index,
 			aStart + aCount,
-			threadIdx.x,
 			aCurrentLevel);
 		__syncthreads();
 		int size = aVertices.device_size();
