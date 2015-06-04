@@ -98,8 +98,14 @@ struct Tile {
 	int listStart;
 	int listLength;
 
+	int listProgress;
+	int progress;
+
 	CUGIP_DECL_DEVICE void
-	load(TGraph &aGraph, int aOffset, int aCount);
+	load(TGraph &aGraph, int aOffset, int aCount)
+	{
+		assert(false);
+	}
 
 	CUGIP_DECL_DEVICE void
 	getAdjacencyList(TGraph &aGraph)
@@ -107,6 +113,17 @@ struct Tile {
 		if (vertexId >= 0) {
 			listStart = aGraph.firstNeighborIndex(vertexId);
 			listLength = aGraph.firstNeighborIndex(vertexId + 1) - listStart;
+		}
+	}
+
+	CUGIP_DECL_DEVICE void
+	expand(TileProcessor &aProcessor)
+	{
+		int scratchOffset = listStart + listProgress - progress; // ??
+		while (listProgress < listLength && scratchOffset < TileProcessor::OFFSET_ELEMENTS) {
+			aProcessor.offsetScratch[scratchOffset] = listStart + listProgress;
+			++listProgress;
+			++scratchOffset;
 		}
 	}
 };
@@ -140,7 +157,7 @@ struct TileProcessor
 		__shared__ typename BlockScan::TempStorage temp_storage;
 
 		Tile tile;
-		tile.load(aOffset, aCount);
+		tile.load(mGraph, aOffset, aCount);
 
 		tile.getAdjacencyList(mGraph);
 
@@ -149,8 +166,19 @@ struct TileProcessor
 		BlockScan(temp_storage).ExclusiveSum(tile.listLength, current, total);
 		__syncthreads();
 
-		int progress = 0;
+		tile.progress = 0;
 		while (progress < total) {
+			tile.expand(*this);
+			__syncthreads();
+
+			int scratchRemainder = min<int>(TPolicy::BLOCK_SIZE, total - tile.progress);
+			for (int scratchOffset = 0; scratchOffset < scratchRemainder; scratchOffset += TPolicy::THREADS) {
+				int neighborId = -1;
+
+				if (scratchOffset + threadIdx.x < scratchRemainder) {
+					neighbor_id = mGraph.
+				}
+			}
 
 			progress += TPolicy::BLOCK_SIZE;
 			__syncthreads();
