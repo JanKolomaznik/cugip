@@ -93,6 +93,7 @@ bfsPropagationKernel(
 	}
 }
 
+template<typename TGraph>
 struct Tile {
 	int vertexId;
 	int listStart;
@@ -115,37 +116,119 @@ struct Tile {
 			listLength = aGraph.firstNeighborIndex(vertexId + 1) - listStart;
 		}
 	}
-
-	CUGIP_DECL_DEVICE void
-	expand(TileProcessor &aProcessor)
-	{
-		int scratchOffset = listStart + listProgress - progress; // ??
-		while (listProgress < listLength && scratchOffset < TileProcessor::OFFSET_ELEMENTS) {
-			aProcessor.offsetScratch[scratchOffset] = listStart + listProgress;
-			++listProgress;
-			++scratchOffset;
-		}
-	}
 };
 
 struct WorkLimits
 {
-	CUGIP_DECL_DEVICE
+	/*CUGIP_DECL_DEVICE
 	WorkLimits()
 	{
 		assert(false);
-	}
+	}*/
 	int elements;
 	int offset;
 	int guardedOffset;
 	int guardedElements;
+	int outOfBounds;
 };
 
+struct WorkDistribution
+{
+	int start;
+	int count;
+	int gridSize;
+
+	int totalGrains;
+	int grainsPerBlock;
+	int extraGrains;
+
+	WorkDistribution(int aStart, int aCount, int aGridSize, int aScheduleGranularity)
+		: start(aStart)
+		, count(aCount)
+		, gridSize(aGridSize)
+	{
+		totalGrains = (count + aScheduleGranularity -1) / aScheduleGranularity;
+		grainsPerBlock = totalGrains / gridSize;
+		extraGrains = totalGrains - (grainsPerBlock * gridSize);
+	}
+
+	template<int tTileSize, int tScheduleGranularity>
+	CUGIP_DECL_DEVICE WorkLimits
+	getWorkLimits() const
+	{
+		// TODO TILE_SIZE ?
+		WorkLimits workLimits;
+
+		if (blockIdx.x < extraGrains) {
+			// This CTA gets grains_per_cta+1 grains
+			workLimits.elements = (grainsPerBlock + 1) * tScheduleGranularity;
+			workLimits.offset = start + workLimits.elements * blockIdx.x;
+		} else if (blockIdx.x < totalGrains) {
+			// This CTA gets grains_per_cta grains
+			workLimits.elements = grainsPerBlock * tScheduleGranularity;
+			workLimits.offset = start + (workLimits.elements * blockIdx.x) + (extraGrains * tScheduleGranularity);
+		} else {
+			// This CTA gets no work (problem small enough that some CTAs don't even a single grain)
+			workLimits.elements = 0;
+			workLimits.offset = 0;
+		}
+
+		// The offset at which this CTA is out-of-bounds
+		workLimits.outOfBounds = workLimits.offset + workLimits.elements;
+
+		// Correct for the case where the last CTA having work has rounded its last grain up past the end
+		if (/*workLimits.last_block = */workLimits.outOfBounds >= count) {
+			workLimits.outOfBounds = start + count;
+			workLimits.elements = count - workLimits.offset - start;
+		}
+
+		// The number of extra guarded-load elements to process afterward (always
+		// less than a full tile)
+		workLimits.guardedElements = workLimits.elements & (tTileSize - 1);
+
+		// The tile-aligned limit for full-tile processing
+		workLimits.guardedOffset = workLimits.outOfBounds - workLimits.guardedElements;
+
+
+		/*int threadCount = blockDim.x * gridDim.x;
+		//int blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
+		//int index = blockId * blockDim.x;
+
+		int itemsPerThread = (count + threadCount - 1) / threadCount;
+		int itemsPerBlock = itemsPerThread * blockDim.x;
+		int relativeOffset = blockIdx.x * itemsPerBlock;
+
+		workLimits.offset = start + relativeOffset;
+		if ((relativeOffset + itemsPerBlock) <= count) {
+			workLimits.guardedOffset = start + relativeOffset + itemsPerBlock;
+			workLimits.elements = itemsPerBlock;
+		} else {
+			workLimits.elements = count % itemsPerThread;
+			workLimits.guardedElements = workLimits.elements % blockDim.x;
+			workLimits.guardedOffset = start + workLimits.elements - workLimits.guardedElements;
+		}*/
+		return workLimits;
+	}
+};
+
+template<typename TGraph, typename TPolicy>
 struct TileProcessor
 {
+	TGraph &mGraph;
+	ParallelQueueView<int> mVertices;
+	// shared memory temporary buffer
+	int *offsetScratch;
+
 	CUGIP_DECL_DEVICE
-	TileProcessor()
-	{}
+	TileProcessor(
+		TGraph &aGraph,
+		ParallelQueueView<int> &aVertices
+	)
+		: mGraph(aGraph)
+		, mVertices(aVertices)
+	{
+		assert(false && "offsetScratch not initialized");
+	}
 
 	/*void
 	processTile(int offset);*/
@@ -153,10 +236,10 @@ struct TileProcessor
 	CUGIP_DECL_DEVICE void
 	processTile(int aOffset, int aCount)
 	{
-		typedef cub::BlockScan<int, TPolicy::BLOCK_SIZE> BlockScan;
+		typedef cub::BlockScan<int, TPolicy::THREADS> BlockScan;
 		__shared__ typename BlockScan::TempStorage temp_storage;
 
-		Tile tile;
+		Tile<TGraph> tile;
 		tile.load(mGraph, aOffset, aCount);
 
 		tile.getAdjacencyList(mGraph);
@@ -167,48 +250,114 @@ struct TileProcessor
 		__syncthreads();
 
 		tile.progress = 0;
-		while (progress < total) {
-			tile.expand(*this);
+		while (tile.progress < total) {
+			expand(tile);
 			__syncthreads();
 
-			int scratchRemainder = min<int>(TPolicy::BLOCK_SIZE, total - tile.progress);
+			int scratchRemainder = min<int>(TPolicy::SCRATCH_ELEMENTS, total - tile.progress);
 			for (int scratchOffset = 0; scratchOffset < scratchRemainder; scratchOffset += TPolicy::THREADS) {
 				int neighborId = -1;
-
+				int shouldAdd = 0;
 				if (scratchOffset + threadIdx.x < scratchRemainder) {
-					neighbor_id = mGraph.
+					neighborId = cullNeighbors(scratchOffset + threadIdx.x);
+					shouldAdd = neighborId != -1 ? 1 : 0;
+				}
+
+				int newQueueOffset = 0;
+				int totalItems = 0;
+				BlockScan(temp_storage).ExclusiveSum(shouldAdd, newQueueOffset, totalItems);
+				int currentQueueRunStart = mVertices.allocate(totalItems);
+				if (neighborId != -1) {
+					mVertices.get_device(currentQueueRunStart + newQueueOffset) = neighborId;
 				}
 			}
 
-			progress += TPolicy::BLOCK_SIZE;
+			tile.progress += TPolicy::THREADS;
 			__syncthreads();
+		}
+	}
+
+	CUGIP_DECL_DEVICE int
+	cullNeighbors(int scratchIndex) {
+		int neighborId = mGraph.secondVertex(offsetScratch[scratchIndex]);
+		int connectionId = mGraph.connectionIndex(offsetScratch[scratchIndex]);
+		auto residuals = mGraph.residuals(connectionId);
+
+		return neighborId;
+	}
+
+	CUGIP_DECL_DEVICE void
+	expand(Tile<TGraph> &aTile)
+	{
+		int scratchOffset = aTile.listStart + aTile.listProgress - aTile.progress; // ??
+		while (aTile.listProgress < aTile.listLength && scratchOffset < TPolicy::SCRATCH_ELEMENTS) {
+			offsetScratch[scratchOffset] = aTile.listStart + aTile.listProgress;
+			++aTile.listProgress;
+			++scratchOffset;
 		}
 	}
 };
 
-template<typename TPolicy>
-CUGIP_DECL_DEVICE void
-sweepPass()
+template<typename TGraph, typename TPolicy>
+struct SweepPass
 {
-	WorkLimits workLimits;
+	static CUGIP_DECL_DEVICE void
+	invoke(
+		TGraph &aGraph,
+		ParallelQueueView<int> &aVertices,
+		const WorkDistribution &aWorkDistribution,
+		int aCurrentLevel)
+	{
+		WorkLimits workLimits = aWorkDistribution.template getWorkLimits<TPolicy::TILE_SIZE, TPolicy::SCHEDULE_GRANULARITY>();
 
-	if (workLimits.elements == 0) {
-		return;
-	}
+		if (workLimits.elements == 0) {
+			return;
+		}
 
-	typename TPolicy::TileProcessor tileProcessor;
-	while (workLimits.offset < workLimits.guardedOffset) {
-		tileProcessor.ProcessTile(workLimits.offset);
-		workLimits.offset += TPolicy::TILE_SIZE;
-	}
+		TileProcessor<TGraph, TPolicy> tileProcessor(aGraph, aVertices);
+		while (workLimits.offset < workLimits.guardedOffset) {
+			tileProcessor.processTile(
+					workLimits.offset,
+					TPolicy::TILE_SIZE);
+			workLimits.offset += TPolicy::TILE_SIZE;
+		}
 
-	if (workLimits.guardedElements) {
-		tileProcessor.ProcessTile(
-				workLimits.guardedOffset,
-				workLimits.guardedElements);
+		if (workLimits.guardedElements) {
+			tileProcessor.processTile(
+					workLimits.guardedOffset,
+					workLimits.guardedElements);
+		}
 	}
+};
+
+
+template<typename TGraph, typename TPolicy>
+CUGIP_GLOBAL void
+bfsPropagationKernel_b40c(
+		ParallelQueueView<int> aVertices,
+		WorkDistribution aWorkDistribution,
+		TGraph aGraph,
+		int aCurrentLevel)
+{
+	/*uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
+	int index = blockId * blockDim.x;// + threadIdx.x;*/
+
+	/*if (threadIdx.x == 0) {
+
+	}*/
+	/*gatherScan<TGraph, TPolicy>(
+		aGraph,
+		aVertices,
+		aStart + index,
+		aStart + aCount,
+		aCurrentLevel);*/
+	SweepPass<TGraph, TPolicy>::invoke(
+			aGraph,
+			aVertices,
+			aWorkDistribution,
+			aCurrentLevel);
 }
-
+#if 0
 template<typename TGraph, typename TPolicy>
 CUGIP_DECL_DEVICE void
 gatherScan(
@@ -218,24 +367,24 @@ gatherScan(
 	int aLevelEnd,
 	int aCurrentLevel)
 {
-	typedef cub::BlockScan<int, TPolicy::BLOCK_SIZE> BlockScan;
+	typedef cub::BlockScan<int, TPolicy::THREADS> BlockScan;
 	__shared__ typename BlockScan::TempStorage temp_storage;
 
-	__shared__ int buffer[TPolicy::BLOCK_SIZE+1];
-	__shared__ int vertices[TPolicy::BLOCK_SIZE+1];
+	__shared__ int buffer[TPolicy::THREADS+1];
+	__shared__ int vertices[TPolicy::THREADS+1];
 	//__shared__ int storeIndices[tBlockSize];
 	__shared__ int currentQueueRunStart;
-	Tile tile;
+	Tile<TGraph> tile;
 	tile.vertexId = -1;
 	tile.listLength = 0;
 	// neighbor starting index (r)
 	tile.listStart = 0;
-	tile.fill()
+	tile.fill();
 	if (aStartIndex + threadIdx.x < aLevelEnd) {
-		vertexId = aVertices.get_device(aStartIndex + threadIdx.x);
-		assert(vertexId >= 0);
-		neighborCount = aGraph.neighborCount(vertexId);
-		index = aGraph.firstNeighborIndex(vertexId);
+		tile.vertexId = aVertices.get_device(aStartIndex + threadIdx.x);
+		assert(tile.vertexId >= 0);
+		neighborCount = aGraph.neighborCount(tile.vertexId);
+		index = aGraph.firstNeighborIndex(tile.vertexId);
 	}//printf("%d index %d\n", aCurrentLevel, aStartIndex + threadIdx.x);
 	int neighborEnd = index + neighborCount;
 	int rsvRank = 0;
@@ -250,7 +399,7 @@ gatherScan(
 	int ctaProgress = 0;
 	int remain = 0;
 	while ((remain = total - ctaProgress) > 0) {
-		while ((rsvRank < ctaProgress + TPolicy::BLOCK_SIZE) && index < neighborEnd) {
+		while ((rsvRank < ctaProgress + TPolicy::THREADS) && index < neighborEnd) {
 			buffer[rsvRank - ctaProgress] = index;
 			vertices[rsvRank - ctaProgress] = vertexId;
 			++rsvRank;
@@ -259,7 +408,7 @@ gatherScan(
 		__syncthreads();
 		int shouldAppend = 0;
 		int secondVertex = -1;
-		if (threadIdx.x < min<int>(remain, TPolicy::BLOCK_SIZE)) {
+		if (threadIdx.x < min<int>(remain, TPolicy::THREADS)) {
 			int firstVertex = vertices[threadIdx.x];
 
 			secondVertex = aGraph.secondVertex(buffer[threadIdx.x]);
@@ -270,7 +419,7 @@ gatherScan(
 			}
 		}
 		__syncthreads();
-		ctaProgress += TPolicy::BLOCK_SIZE;
+		ctaProgress += TPolicy::THREADS;
 
 		int totalOffset = 0;
 		int itemOffset = 0;
@@ -342,6 +491,7 @@ bfsPropagationKernel3(
 		++m;
 	} while (m < 100 && aCount <= 512 && aCount > 0);//(false);
 }
+#endif
 
 template<typename TGraphData, typename TPolicy>
 struct Relabel
@@ -375,12 +525,12 @@ struct Relabel
 		//CUGIP_DPRINT("Active vertex count = " << aLevelStarts.back());
 		CUGIP_CHECK_ERROR_STATE("After assign_label_by_distance()");
 	}
-
+#if 0
 	static bool
-	bfs_iteration(TGraphData &aGraph, size_t &aCurrentLevel, std::vector<int> &aLevelStarts, ParallelQueueView<int> &aVertexQueue)
+	bfs_iteration2(TGraphData &aGraph, size_t &aCurrentLevel, std::vector<int> &aLevelStarts, ParallelQueueView<int> &aVertexQueue)
 	{
 		size_t level = aCurrentLevel;
-		dim3 blockSize1D(TPolicy::BLOCK_SIZE, 1, 1);
+		dim3 blockSize1D(TPolicy::THREADS, 1, 1);
 		int frontierSize = aLevelStarts[aCurrentLevel] - aLevelStarts[aCurrentLevel - 1];
 		dim3 levelGridSize1D(1 + (frontierSize - 1) / (blockSize1D.x), 1, 1);
 		CUGIP_CHECK_ERROR_STATE("Before bfsPropagationKernel()");
@@ -430,6 +580,34 @@ struct Relabel
 			aLevelStarts.push_back(lastLevelSize);
 		}
 
+		return false;
+	}
+#endif
+	static bool
+	bfs_iteration(TGraphData &aGraph, size_t &aCurrentLevel, std::vector<int> &aLevelStarts, ParallelQueueView<int> &aVertexQueue)
+	{
+		//size_t level = aCurrentLevel;
+		dim3 blockSize1D(TPolicy::THREADS, 1, 1);
+		int frontierSize = aLevelStarts[aCurrentLevel] - aLevelStarts[aCurrentLevel - 1];
+		dim3 levelGridSize1D(1 + (frontierSize - 1) / (blockSize1D.x), 1, 1);
+		CUGIP_CHECK_ERROR_STATE("Before bfsPropagationKernel_b40c()");
+
+		bfsPropagationKernel_b40c<TGraphData, TPolicy><<<levelGridSize1D, blockSize1D>>>(
+			aVertexQueue,
+			WorkDistribution(aLevelStarts[aCurrentLevel - 1], frontierSize, levelGridSize1D.x, TPolicy::SCHEDULE_GRANULARITY),
+			aGraph,
+			aCurrentLevel + 1);
+		++aCurrentLevel;
+		cudaThreadSynchronize();
+		CUGIP_CHECK_ERROR_STATE("After bfsPropagationKernel_b40c()");
+		int lastLevelSize = aVertexQueue.size();
+		//CUGIP_DPRINT("LastLevelSize " << lastLevelSize);
+		if (lastLevelSize == aLevelStarts.back()) {
+			return true;
+		}
+		//CUGIP_DPRINT("Level " << (aCurrentLevel + 1) << " size: " << (lastLevelSize - aLevelStarts.back()));
+		//if (currentLevel == 2) break;
+		aLevelStarts.push_back(lastLevelSize);
 		return false;
 	}
 

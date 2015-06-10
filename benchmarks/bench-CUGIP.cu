@@ -152,7 +152,7 @@ void run_BK301_2D_4C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 	cugip::Graph<float> graph;
 	graph.set_vertex_count(w*h);
 
-	printf("Edge count %d %d\n", lastEdge, edges.size());
+	printf("Edge count %d %d\n", int(lastEdge), int(edges.size()));
 	graph.set_nweights(
 		lastEdge,//edges.size(),
 		&(edges[0]),
@@ -252,7 +252,7 @@ void run_BK301_3D_6C(MFI* mfi,unsigned char* out_label,int* out_maxflow,double* 
 	cugip::Graph<float> graph;
 	graph.set_vertex_count(num_nodes);
 
-	printf("Edge count %d %d\n", lastEdge, edges.size());
+	printf("Edge count %d %d\n", int(lastEdge), int(edges.size()));
 	graph.set_nweights(
 		lastEdge,//edges.size(),
 		&(edges[0]),

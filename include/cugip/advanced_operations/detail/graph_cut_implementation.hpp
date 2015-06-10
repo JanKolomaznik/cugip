@@ -42,7 +42,10 @@ struct GraphCutPolicy
 	struct RelabelPolicy {
 		enum {
 			INVALID_LABEL = 1 << 31,
-			BLOCK_SIZE = 512
+			THREADS = 512,
+			SCRATCH_ELEMENTS = THREADS,
+			TILE_SIZE = THREADS,
+			SCHEDULE_GRANULARITY = 64
 		};
 		struct SharedMemoryData {
 			//cub::BlockScan<int, BLOCK_SIZE> temp_storage;
