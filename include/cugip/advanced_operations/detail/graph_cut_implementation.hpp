@@ -49,6 +49,7 @@ struct GraphCutPolicy
 		};
 		struct SharedMemoryData {
 			//cub::BlockScan<int, BLOCK_SIZE> temp_storage;
+			int offsetScratch[SCRATCH_ELEMENTS];
 		};
 	};
 	struct PushPolicy {};

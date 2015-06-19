@@ -103,9 +103,11 @@ struct Tile {
 	int progress;
 
 	CUGIP_DECL_DEVICE void
-	load(TGraph &aGraph, int aOffset, int aCount)
+	load(const ParallelQueueView<int> &aVertices, int aOffset, int aCount)
 	{
-		assert(false);
+		if (threadIdx.x < aCount) {
+			vertexId = aVertices.get_device(aOffset + threadIdx.x);
+		}
 	}
 
 	CUGIP_DECL_DEVICE void
@@ -114,6 +116,9 @@ struct Tile {
 		if (vertexId >= 0) {
 			listStart = aGraph.firstNeighborIndex(vertexId);
 			listLength = aGraph.firstNeighborIndex(vertexId + 1) - listStart;
+		} else {
+			listStart = 0;
+			listLength = 0;
 		}
 	}
 };
@@ -222,12 +227,14 @@ struct TileProcessor
 	CUGIP_DECL_DEVICE
 	TileProcessor(
 		TGraph &aGraph,
-		ParallelQueueView<int> &aVertices
+		ParallelQueueView<int> &aVertices,
+		int *aOffsetScratch
 	)
 		: mGraph(aGraph)
 		, mVertices(aVertices)
+		, offsetScratch(aOffsetScratch)
 	{
-		assert(false && "offsetScratch not initialized");
+		//assert(false && "offsetScratch not initialized");
 	}
 
 	/*void
@@ -240,7 +247,7 @@ struct TileProcessor
 		__shared__ typename BlockScan::TempStorage temp_storage;
 
 		Tile<TGraph> tile;
-		tile.load(mGraph, aOffset, aCount);
+		tile.load(mVertices, aOffset, aCount);
 
 		tile.getAdjacencyList(mGraph);
 
@@ -280,9 +287,19 @@ struct TileProcessor
 	CUGIP_DECL_DEVICE int
 	cullNeighbors(int scratchIndex) {
 		int neighborId = mGraph.secondVertex(offsetScratch[scratchIndex]);
-		int connectionId = mGraph.connectionIndex(offsetScratch[scratchIndex]);
+		int label = mGraph.label(neighborId);
+		int connectionId = mGraph.connectionIndex(neighborId);
 		auto residuals = mGraph.residuals(connectionId);
-
+		//TODO residuals
+		if (label == TPolicy::INVALID_LABEL && residual > 0.0f) {
+			aGraph.label(neighborId) = aCurrentLevel;
+			/*if (!(TPolicy::INVALID_LABEL == atomicCAS(&(aGraph.label(secondVertex)), TPolicy::INVALID_LABEL, aCurrentLevel))) {
+			//TODO
+			neighborId = -1;
+			}*/
+		} else {
+			neighborId = -1;
+		}
 		return neighborId;
 	}
 
@@ -308,13 +325,15 @@ struct SweepPass
 		const WorkDistribution &aWorkDistribution,
 		int aCurrentLevel)
 	{
+		__shared__ typename TPolicy::SharedMemoryData sharedMemoryData;
+
 		WorkLimits workLimits = aWorkDistribution.template getWorkLimits<TPolicy::TILE_SIZE, TPolicy::SCHEDULE_GRANULARITY>();
 
 		if (workLimits.elements == 0) {
 			return;
 		}
 
-		TileProcessor<TGraph, TPolicy> tileProcessor(aGraph, aVertices);
+		TileProcessor<TGraph, TPolicy> tileProcessor(aGraph, aVertices, sharedMemoryData.offsetScratch);
 		while (workLimits.offset < workLimits.guardedOffset) {
 			tileProcessor.processTile(
 					workLimits.offset,
