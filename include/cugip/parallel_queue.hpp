@@ -64,6 +64,12 @@ public:
 		return mData[aIndex];
 	}
 
+	CUGIP_DECL_DEVICE TType &
+	get_device(int aIndex) const
+	{
+		return mData[aIndex];
+	}
+
 	TType *mData;
 	device_ptr<int> mSize;
 };

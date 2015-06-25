@@ -223,16 +223,19 @@ struct TileProcessor
 	ParallelQueueView<int> mVertices;
 	// shared memory temporary buffer
 	int *offsetScratch;
+	int mCurrentLevel;
 
 	CUGIP_DECL_DEVICE
 	TileProcessor(
 		TGraph &aGraph,
 		ParallelQueueView<int> &aVertices,
-		int *aOffsetScratch
+		int *aOffsetScratch,
+		int currentLevel
 	)
 		: mGraph(aGraph)
 		, mVertices(aVertices)
 		, offsetScratch(aOffsetScratch)
+		, mCurrentLevel(currentLevel)
 	{
 		//assert(false && "offsetScratch not initialized");
 	}
@@ -289,10 +292,12 @@ struct TileProcessor
 		int neighborId = mGraph.secondVertex(offsetScratch[scratchIndex]);
 		int label = mGraph.label(neighborId);
 		int connectionId = mGraph.connectionIndex(neighborId);
+		bool connectionSide = mGraph.connectionSide(neighborId);
 		auto residuals = mGraph.residuals(connectionId);
+		auto residual = residuals.getResidual(connectionSide);
 		//TODO residuals
 		if (label == TPolicy::INVALID_LABEL && residual > 0.0f) {
-			aGraph.label(neighborId) = aCurrentLevel;
+			mGraph.label(neighborId) = mCurrentLevel;
 			/*if (!(TPolicy::INVALID_LABEL == atomicCAS(&(aGraph.label(secondVertex)), TPolicy::INVALID_LABEL, aCurrentLevel))) {
 			//TODO
 			neighborId = -1;
@@ -333,7 +338,7 @@ struct SweepPass
 			return;
 		}
 
-		TileProcessor<TGraph, TPolicy> tileProcessor(aGraph, aVertices, sharedMemoryData.offsetScratch);
+		TileProcessor<TGraph, TPolicy> tileProcessor(aGraph, aVertices, sharedMemoryData.offsetScratch, aCurrentLevel);
 		while (workLimits.offset < workLimits.guardedOffset) {
 			tileProcessor.processTile(
 					workLimits.offset,

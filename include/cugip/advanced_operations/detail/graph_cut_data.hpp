@@ -3,6 +3,11 @@
 
 namespace cugip {
 
+enum {
+	CONNECTION_VERTEX = 1 << 31,
+	CONNECTION_INDEX_MASK = ~CONNECTION_VERTEX
+};
+
 template<typename TFlow>
 struct EdgeResidualsRecord
 {
@@ -68,7 +73,14 @@ struct GraphCutData
 	connectionIndex(int aIndex)
 	{
 		if (aIndex < 0) printf("connectionIndex()\n");
-		return connectionIndices[aIndex];
+		return CONNECTION_INDEX_MASK & connectionIndices[aIndex];
+	}
+
+	CUGIP_DECL_DEVICE bool
+	connectionSide(int aIndex)
+	{
+		if (aIndex < 0) printf("connectionSide()\n");
+		return CONNECTION_VERTEX & connectionIndices[aIndex];
 	}
 
 	CUGIP_DECL_DEVICE TFlow

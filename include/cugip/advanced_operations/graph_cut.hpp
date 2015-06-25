@@ -231,8 +231,10 @@ Graph<TFlow>::set_nweights(
 	for (size_t i = 0; i < edges.size(); ++i) {
 		neighbors[i] = start;
 		for (size_t j = 0; j < edges[i].size(); ++j) {
+			bool connectionSide = i < edges[i][j].second;
+
 			secondVertices[start + j] = edges[i][j].second;
-			edgeIndex[start + j] = edges[i][j].first;
+			edgeIndex[start + j] = connectionSide ? CONNECTION_VERTEX | edges[i][j].first : edges[i][j].first;
 		}
 		start += edges[i].size();
 	}
