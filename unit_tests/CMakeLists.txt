@@ -15,6 +15,6 @@ SET(CUDA_NVCC_FLAGS "--std=c++11 -gencode arch=compute_30,code=sm_30 --use_fast_
 
 FIND_PACKAGE(CUDA)
 
-CUDA_ADD_EXECUTABLE(test_suite utils_test.cu )
+CUDA_ADD_EXECUTABLE(test_suite utils_test.cu graph_cut_test.cu)
 TARGET_LINK_LIBRARIES(test_suite ${Boost_LIBRARIES} ${ITK_LIBRARIES})
 

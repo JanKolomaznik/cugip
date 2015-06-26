@@ -130,6 +130,27 @@ struct MinCut
 	}
 };
 
+
+template<typename TFlow>
+void
+graphCutDataFromGraph(
+	Graph<TFlow> &aGraph,
+	GraphCutData<Flow> &aGraphData)
+{
+		aGraphData.vertexExcess = thrust::raw_pointer_cast(aGraph.mExcess.data()); // n
+		aGraphData.labels = thrust::raw_pointer_cast(aGraph.mLabels.data());; // n
+		aGraphData.mSourceTLinks = thrust::raw_pointer_cast(aGraph.mSourceTLinks.data());// n
+		aGraphData.mSinkTLinks = thrust::raw_pointer_cast(aGraph.mSinkTLinks.data());// n
+
+		aGraphData.neighbors = thrust::raw_pointer_cast(aGraph.mNeighbors.data());
+		aGraphData.secondVertices = thrust::raw_pointer_cast(aGraph.mSecondVertices.data());
+		aGraphData.connectionIndices = thrust::raw_pointer_cast(aGraph.mEdges.data());
+		aGraphData.mResiduals = thrust::raw_pointer_cast(aGraph.mResiduals.data());
+		aGraphData.mSinkFlow = thrust::raw_pointer_cast(aGraph.mSinkFlow.data());
+		aGraphData.mVertexCount = aGraph.mLabels.size();
+		aGraphData.mEdgeCount = aGraph.mResiduals.size();
+}
+
 template<typename TGraph>
 class MinimalGraphCutComputation
 {
@@ -143,16 +164,17 @@ public:
 	setGraph(TGraph &aGraph)
 	{
 		mGraph = &aGraph;
+		graphCutDataFromGraph(mGraph, mGraphData);
 		mGraphData.vertexExcess = thrust::raw_pointer_cast(aGraph.mExcess.data()); // n
 		mGraphData.labels = thrust::raw_pointer_cast(aGraph.mLabels.data());; // n
 		mGraphData.mSourceTLinks = thrust::raw_pointer_cast(aGraph.mSourceTLinks.data());// n
 		mGraphData.mSinkTLinks = thrust::raw_pointer_cast(aGraph.mSinkTLinks.data());// n
 
-	mGraphData.neighbors = thrust::raw_pointer_cast(aGraph.mNeighbors.data());
-	mGraphData.secondVertices = thrust::raw_pointer_cast(aGraph.mSecondVertices.data());
-	mGraphData.connectionIndices = thrust::raw_pointer_cast(aGraph.mEdges.data());
-	mGraphData.mResiduals = thrust::raw_pointer_cast(aGraph.mResiduals.data());
-	mGraphData.mSinkFlow = thrust::raw_pointer_cast(aGraph.mSinkFlow.data());
+		mGraphData.neighbors = thrust::raw_pointer_cast(aGraph.mNeighbors.data());
+		mGraphData.secondVertices = thrust::raw_pointer_cast(aGraph.mSecondVertices.data());
+		mGraphData.connectionIndices = thrust::raw_pointer_cast(aGraph.mEdges.data());
+		mGraphData.mResiduals = thrust::raw_pointer_cast(aGraph.mResiduals.data());
+		mGraphData.mSinkFlow = thrust::raw_pointer_cast(aGraph.mSinkFlow.data());
 		mGraphData.mVertexCount = aGraph.mLabels.size();
 		mGraphData.mEdgeCount = aGraph.mResiduals.size();
 		//mGraphData.labels
