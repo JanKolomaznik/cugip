@@ -117,7 +117,8 @@ tryPullPush(GraphCutData<TFlow> &aGraph, int aFrom, int aTo, int aConnectionInde
 	EdgeResidualsRecord<TFlow> &edge = aGraph.residuals(aConnectionIndex);
 	TFlow residual = edge.getResidual(aFrom < aTo);
 	TFlow flow = tryPull(aGraph, aFrom, aTo, residual);
-	if (flow > 0) {
+	if (flow > 0.0f) {
+		printf("try pull push %d %d -> %d %d %f\n", aGraph.label(aFrom), aFrom, aGraph.label(aTo), aTo, flow);
 		atomicAdd(&(aGraph.excess(aTo)), flow);
 		edge.getResidual(aFrom < aTo) -= flow;
 		edge.getResidual(aFrom > aTo) += flow;
@@ -169,9 +170,10 @@ pushImplementation(
 		for (int i = 0; i < neighborCount; ++i) {
 			int secondVertex = aGraph.secondVertex(firstNeighborIndex + i);
 			int secondLabel = aGraph.label(secondVertex);
-			if (label > secondLabel) {
+			if (label > secondLabel && secondLabel >= 0) {
 				int connectionIndex = aGraph.connectionIndex(firstNeighborIndex + i);
 				if (tryPullPush(aGraph, vertex, secondVertex, connectionIndex)) {
+					//printf("proc %d %d -> %d %d\n", vertex, label, secondVertex, secondLabel);
 					aPushSuccessfulFlag.set_device();
 				}
 			}
@@ -322,7 +324,7 @@ struct Push
 						pushSuccessfulFlag.view());
 
 			} else */{
-				//CUGIP_DPRINT()
+				//CUGIP_DFORMAT("level %1%", i-1);
 				dim3 gridSize1D((count + blockSize1D.x - 1) / (blockSize1D.x), 1);
 				pushKernel<<<gridSize1D, blockSize1D>>>(
 						aGraph,

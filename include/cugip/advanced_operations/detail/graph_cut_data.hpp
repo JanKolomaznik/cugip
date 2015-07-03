@@ -100,7 +100,9 @@ struct GraphCutData
 	CUGIP_DECL_DEVICE EdgeResidualsRecord<TFlow> &
 	residuals(int aIndex)
 	{
-		if (aIndex < 0) printf("residuals()\n");
+		if (aIndex < 0 || aIndex >= mEdgeCount) {printf("residuals() %d %d\n", aIndex, mEdgeCount); return mResiduals[0]; }
+		assert(aIndex >= 0);
+		assert(aIndex < mEdgeCount);
 		return mResiduals[aIndex];
 	}
 

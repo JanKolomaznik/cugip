@@ -5,13 +5,22 @@
 
 #include <map>
 
+namespace detail {
+
+/// ends recursion
+inline void formatHelper(boost::format &aFormat) {}
+
+/// Static recursion for format filling
+template <typename T, typename... TArgs>
+void formatHelper(boost::format &aFormat, T &&aValue, TArgs &&...aArgs) {
+	aFormat % aValue;
+	formatHelper(aFormat, std::forward<TArgs>(aArgs)...);
+}
+
+}  // detail
+
 namespace cugip {
 
-//TODO - provide assertion
-//#define CUGIP_ASSERT_RESULT( ... ) \
-//	CUGIP_CHECK_RESULT_MSG( "Assertion failure!", __VA_ARGS__ )
-
-//#define CUGIP_ASSERT(x) assert(x)
 
 #define CUGIP_STORE_ENUM_IN_MAP(MAP, ENUM)\
 	MAP[ENUM] = #ENUM;
@@ -23,6 +32,19 @@ namespace cugip {
 	do { \
 		std::cout << __VA_ARGS__ << std::endl; \
 	} while (false);
+
+/**
+ * Logging with boost::format syntax.
+ * CUGIP_DFORMAT("Format string arg1 = %1%; arg2 = %2%", 1, "two");
+ **/
+#define CUGIP_DFORMAT(format_string, ...) \
+	do { \
+		boost::format format(format_string); \
+		::detail::formatHelper(format, ##__VA_ARGS__); \
+		std::cout << __FILE__ << ":" << __LINE__ << ":"; \
+		std::cout << format << std::endl; \
+		std::cout.flush(); \
+	} while (0)
 
 inline std::map<cudaError_t, std::string>
 generate_error_enum_names()

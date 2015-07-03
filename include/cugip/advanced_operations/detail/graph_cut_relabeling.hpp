@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cub/block/block_scan.cuh>
+#include <cugip/parallel_queue.hpp>
+#include <cugip/advanced_operations/detail/graph_cut_data.hpp>
 
 namespace cugip {
 
@@ -43,16 +45,32 @@ initBFSKernel(ParallelQueueView<int> aVertices, TGraph aGraph)
 {
 	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
 	int index = blockId * blockDim.x + threadIdx.x;
+	typedef cub::BlockScan<int, TPolicy::THREADS> BlockScan;
+	__shared__ typename BlockScan::TempStorage temp_storage;
+	__shared__ int allocated_list_start;
 
+	int label = TPolicy::INVALID_LABEL;
 	if (index < aGraph.vertexCount()) {
-		int label = TPolicy::INVALID_LABEL;
 			//printf("checking %d - %d\n", index, aGraph.vertexCount());
 		if (aGraph.sinkTLinkCapacity(index) > 0.0) {
 			label = 1;
-			aVertices.append(index);
+			//aVertices.append(index);
 			//printf("adding %d\n", index);
 		}
 		aGraph.label(index) = label;
+	}
+	__syncthreads();
+	int total = 0;
+	int current = 0;
+	BlockScan(temp_storage).ExclusiveSum(label != TPolicy::INVALID_LABEL ? 1 : 0, current, total);
+	if (threadIdx.x == 0 && total > 0) {
+		//printf("Allocating %d\n", total);
+		allocated_list_start = aVertices.allocate(total);
+	}
+	__syncthreads();
+	if (label != TPolicy::INVALID_LABEL) {
+		//printf("adding %d\n", index);
+		aVertices.get_device(allocated_list_start + current) = index;
 	}
 }
 
@@ -102,12 +120,20 @@ struct Tile {
 	int listProgress;
 	int progress;
 
+	int totalCount;
+	int prefixSum;
+
 	CUGIP_DECL_DEVICE void
 	load(const ParallelQueueView<int> &aVertices, int aOffset, int aCount)
 	{
 		if (threadIdx.x < aCount) {
 			vertexId = aVertices.get_device(aOffset + threadIdx.x);
+			//printf("vid %d\n", vertexId);
+		} else {
+			vertexId = -1;
 		}
+		progress = 0;
+		listProgress = 0;
 	}
 
 	CUGIP_DECL_DEVICE void
@@ -116,12 +142,28 @@ struct Tile {
 		if (vertexId >= 0) {
 			listStart = aGraph.firstNeighborIndex(vertexId);
 			listLength = aGraph.firstNeighborIndex(vertexId + 1) - listStart;
+
+			//printf("vid %d: %d %d\n", vertexId, listStart, listLength);
 		} else {
 			listStart = 0;
 			listLength = 0;
 		}
 	}
 };
+
+template<typename TGraph>
+CUGIP_DECL_DEVICE void
+printTile(const Tile<TGraph> &aTile)
+{
+	printf("TID: %d; vertexId: %d; listStart: %d; listLength: %d; listProgress %d; progress %d\n",
+		int(threadIdx.x),
+		aTile.vertexId,
+		aTile.listStart,
+		aTile.listLength,
+		aTile.listProgress,
+		aTile.progress);
+}
+
 
 struct WorkLimits
 {
@@ -136,6 +178,20 @@ struct WorkLimits
 	int guardedElements;
 	int outOfBounds;
 };
+
+
+inline CUGIP_DECL_DEVICE void
+printWorkLimits(const WorkLimits &aLimits)
+{
+	printf("TID: %d; elements: %d; offset: %d; guardedOffset: %d; guardedElements %d; outOfBounds %d\n",
+		int(threadIdx.x),
+		aLimits.elements,
+		aLimits.offset,
+		aLimits.guardedOffset,
+		aLimits.guardedElements,
+		aLimits.outOfBounds);
+}
+
 
 struct WorkDistribution
 {
@@ -155,6 +211,19 @@ struct WorkDistribution
 		totalGrains = (count + aScheduleGranularity -1) / aScheduleGranularity;
 		grainsPerBlock = totalGrains / gridSize;
 		extraGrains = totalGrains - (grainsPerBlock * gridSize);
+		/*CUGIP_DFORMAT(
+			"WorkDistribution: \n\tstart: %1%"
+			"\n\tcount:%2%"
+			"\n\tgridSize: %3%"
+			"\n\ttotalGrains: %4%"
+			"\n\tgrainsPerBlock: %5%"
+			"\n\textraGrains: %6%",
+			start,
+			count,
+			gridSize,
+			totalGrains,
+			grainsPerBlock,
+			extraGrains);*/
 	}
 
 	template<int tTileSize, int tScheduleGranularity>
@@ -248,23 +317,34 @@ struct TileProcessor
 	{
 		typedef cub::BlockScan<int, TPolicy::THREADS> BlockScan;
 		__shared__ typename BlockScan::TempStorage temp_storage;
+		__shared__ int currentQueueRunStart;
 
-		Tile<TGraph> tile;
+		Tile<TGraph> tile = { 0 };
 		tile.load(mVertices, aOffset, aCount);
 
 		tile.getAdjacencyList(mGraph);
 
-		int total = 0;
-		int current = 0;
-		BlockScan(temp_storage).ExclusiveSum(tile.listLength, current, total);
-		__syncthreads();
+		/*__syncthreads();
+		printTile(tile);
+		__syncthreads();*/
+
+		//int total = 0;
+		//int current = 0;
+		tile.totalCount = 0;
+		tile.prefixSum = 0;
+		//BlockScan(temp_storage).ExclusiveSum(tile.listLength, current, total);
+		BlockScan(temp_storage).ExclusiveSum(tile.listLength, tile.prefixSum, tile.totalCount);
+
+		/*__syncthreads();
+		printf("TID: %d, len: %d total: %d current: %d\n", int(threadIdx.x), tile.listLength, total, current);
+		__syncthreads();*/
 
 		tile.progress = 0;
-		while (tile.progress < total) {
+		while (tile.progress < tile.totalCount) {
 			expand(tile);
 			__syncthreads();
 
-			int scratchRemainder = min<int>(TPolicy::SCRATCH_ELEMENTS, total - tile.progress);
+			int scratchRemainder = min<int>(TPolicy::SCRATCH_ELEMENTS, tile.totalCount - tile.progress);
 			for (int scratchOffset = 0; scratchOffset < scratchRemainder; scratchOffset += TPolicy::THREADS) {
 				int neighborId = -1;
 				int shouldAdd = 0;
@@ -276,7 +356,11 @@ struct TileProcessor
 				int newQueueOffset = 0;
 				int totalItems = 0;
 				BlockScan(temp_storage).ExclusiveSum(shouldAdd, newQueueOffset, totalItems);
-				int currentQueueRunStart = mVertices.allocate(totalItems);
+				//TODO - nema to delat jen jedno vlakno?
+				if (threadIdx.x == 0) {
+					currentQueueRunStart = mVertices.allocate(totalItems);
+				}
+				__syncthreads();
 				if (neighborId != -1) {
 					mVertices.get_device(currentQueueRunStart + newQueueOffset) = neighborId;
 				}
@@ -289,19 +373,31 @@ struct TileProcessor
 
 	CUGIP_DECL_DEVICE int
 	cullNeighbors(int scratchIndex) {
+		//assert(scratchIndex >= 0);
+		//assert(scratchIndex < TPolicy::SCRATCH_ELEMENTS);
+		//assert(offsetScratch[scratchIndex] >= 0);
 		int neighborId = mGraph.secondVertex(offsetScratch[scratchIndex]);
+		//printf("-- %d %d %d\n", neighborId, scratchIndex, offsetScratch[scratchIndex]);
 		int label = mGraph.label(neighborId);
-		int connectionId = mGraph.connectionIndex(neighborId);
-		bool connectionSide = mGraph.connectionSide(neighborId);
+		int connectionId = mGraph.connectionIndex(offsetScratch[scratchIndex]);
+		//int connectionId = mGraph.connectionIndex(neighborId);
+		//if (connectionId < 0 || connectionId >= mGraph.mEdgeCount) {printf("before residuals %d %d - %d\n", connectionId, neighborId, label); }
+		bool connectionSide = !mGraph.connectionSide(offsetScratch[scratchIndex]);
 		auto residuals = mGraph.residuals(connectionId);
 		auto residual = residuals.getResidual(connectionSide);
+		/*printf("TID: %d; neighborId: %d, label %d, cid: %d, cside: %d, %f\n",
+				int(threadIdx.x),
+				neighborId,
+				label,
+				connectionId,
+				int(connectionSide),
+				residuals.residuals[1]);*/
 		//TODO residuals
 		if (label == TPolicy::INVALID_LABEL && residual > 0.0f) {
-			mGraph.label(neighborId) = mCurrentLevel;
-			/*if (!(TPolicy::INVALID_LABEL == atomicCAS(&(aGraph.label(secondVertex)), TPolicy::INVALID_LABEL, aCurrentLevel))) {
-			//TODO
-			neighborId = -1;
-			}*/
+			//mGraph.label(neighborId) = mCurrentLevel;
+			if (!(TPolicy::INVALID_LABEL == atomicCAS(&(mGraph.label(neighborId)), TPolicy::INVALID_LABEL, mCurrentLevel))) {
+				neighborId = -1;
+			}
 		} else {
 			neighborId = -1;
 		}
@@ -311,9 +407,14 @@ struct TileProcessor
 	CUGIP_DECL_DEVICE void
 	expand(Tile<TGraph> &aTile)
 	{
-		int scratchOffset = aTile.listStart + aTile.listProgress - aTile.progress; // ??
+		int scratchOffset = aTile.prefixSum + aTile.listProgress - aTile.progress; // ??
 		while (aTile.listProgress < aTile.listLength && scratchOffset < TPolicy::SCRATCH_ELEMENTS) {
 			offsetScratch[scratchOffset] = aTile.listStart + aTile.listProgress;
+			/*printf("TID: %d; scratchOffset: %d; %d + %d\n",
+				int(threadIdx.x),
+				scratchOffset,
+				aTile.listStart,
+				aTile.listProgress);*/
 			++aTile.listProgress;
 			++scratchOffset;
 		}
@@ -333,7 +434,9 @@ struct SweepPass
 		__shared__ typename TPolicy::SharedMemoryData sharedMemoryData;
 
 		WorkLimits workLimits = aWorkDistribution.template getWorkLimits<TPolicy::TILE_SIZE, TPolicy::SCHEDULE_GRANULARITY>();
-
+		/*__syncthreads();
+		printWorkLimits(workLimits);
+		__syncthreads();*/
 		if (workLimits.elements == 0) {
 			return;
 		}
@@ -543,9 +646,27 @@ struct Relabel
 		bool finished = lastLevelSize == 0;
 		while (!finished) {
 			finished = bfs_iteration(aGraph, currentLevel, aLevelStarts, aVertexQueue);
+			//break;
 		}
 
 		CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+
+		/*thrust::device_vector<int> dev_tmp(
+					thrust::device_ptr<int>(aVertexQueue.mData),
+					thrust::device_ptr<int>(aVertexQueue.mData + aLevelStarts.back()));
+		thrust::host_vector<int> tmp = dev_tmp;
+		int lower = 0;
+		for (int i = 0; i < aLevelStarts.size(); ++i) {
+			for (int j = lower; j < aLevelStarts[i]; ++j) {
+				std::cout << tmp[j] << "; ";
+			}
+			std::cout << std::endl << "------------------------------------" << std::endl;
+			lower = aLevelStarts[i];
+		}*/
+		/*thrust::copy(
+			)),
+			tmp.begin(),
+			tmp.end());*/
 		//CUGIP_DPRINT("Active vertex count = " << aLevelStarts.back());
 		CUGIP_CHECK_ERROR_STATE("After assign_label_by_distance()");
 	}

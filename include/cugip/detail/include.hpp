@@ -18,6 +18,7 @@
 #ifndef NDEBUG
 	#define D_PRINT( ARG )	\
 		DOUT << "+++ " << ARG << std::endl; DOUT.flush();
+
 #else
 	#define D_PRINT( ARG )
 #endif

@@ -55,6 +55,27 @@ struct GraphCutPolicy
 	struct PushPolicy {};
 };
 
+template<typename TGraph, typename TGraphCutData>
+void
+graphCutDataFromGraph(
+	TGraph &aGraph,
+	TGraphCutData &aGraphData)
+{
+		aGraphData.vertexExcess = thrust::raw_pointer_cast(aGraph.mExcess.data()); // n
+		aGraphData.labels = thrust::raw_pointer_cast(aGraph.mLabels.data());; // n
+		aGraphData.mSourceTLinks = thrust::raw_pointer_cast(aGraph.mSourceTLinks.data());// n
+		aGraphData.mSinkTLinks = thrust::raw_pointer_cast(aGraph.mSinkTLinks.data());// n
+
+		aGraphData.neighbors = thrust::raw_pointer_cast(aGraph.mNeighbors.data());
+		aGraphData.secondVertices = thrust::raw_pointer_cast(aGraph.mSecondVertices.data());
+		aGraphData.connectionIndices = thrust::raw_pointer_cast(aGraph.mEdges.data());
+		aGraphData.mResiduals = thrust::raw_pointer_cast(aGraph.mResiduals.data());
+		aGraphData.mSinkFlow = thrust::raw_pointer_cast(aGraph.mSinkFlow.data());
+		aGraphData.mVertexCount = aGraph.mLabels.size();
+		aGraphData.mEdgeCount = aGraph.mResiduals.size();
+}
+
+
 template<typename TGraphData, typename TPolicy>
 struct MinCut
 {
@@ -78,15 +99,19 @@ struct MinCut
 		size_t iteration = 0;
 		while(!done) {
 			timer.start();
+			CUGIP_DPRINT("Relabel");
 			Relabel<TGraphData, typename TPolicy::RelabelPolicy>::compute(aGraph, aVertexQueue, aLevelStarts);
 			//assign_label_by_distance();
 
+			//break;
+			CUGIP_DPRINT("Push");
 			done = !Push<TGraphData, typename TPolicy::PushPolicy>::compute(aGraph, aVertexQueue, aLevelStarts);
 			//done = !push();
 			timer.stop();
 			//CUGIP_DPRINT("**iteration " << iteration << ": " << timer.format(9, "%w"));
-			//CUGIP_DPRINT("Flow: " << computeFlowThroughSinkFrontier(aGraph));
+			CUGIP_DPRINT("Flow: " << computeFlowThroughSinkFrontier(aGraph));
 			//if (iteration == 35) break;
+			CUGIP_DPRINT("Queue size = " << aVertexQueue.size());
 			++iteration;
 		}
 		return computeFlowThroughSinkFrontier(aGraph);
@@ -131,26 +156,6 @@ struct MinCut
 };
 
 
-template<typename TFlow>
-void
-graphCutDataFromGraph(
-	Graph<TFlow> &aGraph,
-	GraphCutData<Flow> &aGraphData)
-{
-		aGraphData.vertexExcess = thrust::raw_pointer_cast(aGraph.mExcess.data()); // n
-		aGraphData.labels = thrust::raw_pointer_cast(aGraph.mLabels.data());; // n
-		aGraphData.mSourceTLinks = thrust::raw_pointer_cast(aGraph.mSourceTLinks.data());// n
-		aGraphData.mSinkTLinks = thrust::raw_pointer_cast(aGraph.mSinkTLinks.data());// n
-
-		aGraphData.neighbors = thrust::raw_pointer_cast(aGraph.mNeighbors.data());
-		aGraphData.secondVertices = thrust::raw_pointer_cast(aGraph.mSecondVertices.data());
-		aGraphData.connectionIndices = thrust::raw_pointer_cast(aGraph.mEdges.data());
-		aGraphData.mResiduals = thrust::raw_pointer_cast(aGraph.mResiduals.data());
-		aGraphData.mSinkFlow = thrust::raw_pointer_cast(aGraph.mSinkFlow.data());
-		aGraphData.mVertexCount = aGraph.mLabels.size();
-		aGraphData.mEdgeCount = aGraph.mResiduals.size();
-}
-
 template<typename TGraph>
 class MinimalGraphCutComputation
 {
@@ -164,7 +169,7 @@ public:
 	setGraph(TGraph &aGraph)
 	{
 		mGraph = &aGraph;
-		graphCutDataFromGraph(mGraph, mGraphData);
+		graphCutDataFromGraph(aGraph, mGraphData);
 		mGraphData.vertexExcess = thrust::raw_pointer_cast(aGraph.mExcess.data()); // n
 		mGraphData.labels = thrust::raw_pointer_cast(aGraph.mLabels.data());; // n
 		mGraphData.mSourceTLinks = thrust::raw_pointer_cast(aGraph.mSourceTLinks.data());// n

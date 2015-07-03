@@ -119,7 +119,9 @@ public:
 		thrust::copy(mBuffer.begin(), mBuffer.begin() + s, v.begin());
 	}
 
-protected:
+//protected:
+	ParallelQueue(const ParallelQueue &);
+
 	ParallelQueueView<TType> mView;
 	thrust::device_vector<TType> mBuffer;
 	device_memory_1d_owner<int> mSizePointer;

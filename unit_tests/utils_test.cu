@@ -7,7 +7,7 @@
 #include <thrust/device_vector.h>
 #include <thrust/reduce.h>
 
-CUGIP_GLOBAL void
+/*CUGIP_GLOBAL void
 testBlockScanIn(int *output)
 {
 	__shared__ int buffer[512 + 1];
@@ -59,4 +59,4 @@ BOOST_AUTO_TEST_CASE(blockScanEx)
 
 	int result = thrust::reduce(buffer.begin(), buffer.end(), 0, thrust::plus<int>());
 	BOOST_CHECK_EQUAL(result, 0);
-}
+}*/

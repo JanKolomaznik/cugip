@@ -1,4 +1,4 @@
-#define BOOST_TEST_MODULE UtilsTest
+#define BOOST_TEST_MODULE GraphCutTest
 #include <boost/test/unit_test.hpp>
 
 #include <cuda.h>
@@ -6,40 +6,83 @@
 #include <cugip/utils.hpp>
 #include <cugip/advanced_operations/detail/graph_cut_relabeling.hpp>
 #include <cugip/advanced_operations/graph_cut.hpp>
+#include <cugip/parallel_queue.hpp>
 #include <thrust/device_vector.h>
 #include <thrust/reduce.h>
 
-CUGIP_GLOBAL void
-testBlockScanIn(int *output)
-{
-	__shared__ int buffer[512 + 1];
 
-	auto sum = cugip::block_prefix_sum_in<int>(threadIdx.x, 512, threadIdx.x, buffer);
-	if (threadIdx.x == 0) {
-		printf("Total %d\n", sum.total);
+void
+fillLayeredGraph(cugip::Graph<float> &aGraph, int aLayerCount, int aLayerSize, int aNeighborCount)
+{
+	using namespace cugip;
+	aGraph.set_vertex_count(aLayerCount * aLayerSize);
+
+	std::vector<EdgeRecord> edges((aLayerCount - 1) * aLayerSize * aNeighborCount);
+
+	int edgeIdx = 0;
+	std::vector<float> weights(edges.size());
+	for (int layer = 1; layer < aLayerCount; ++layer) {
+		float weight = (layer == aLayerCount / 2) ? 1.0f : 20.0f;
+		for (int i = 0; i < aLayerSize; ++i) {
+			for (int j = 0; j < aNeighborCount; ++j) {
+				int firstVertex = (layer - 1) * aLayerSize + i;
+				int secondVertex = layer * aLayerSize + ((i + j) % aLayerSize);
+				edges[edgeIdx] = EdgeRecord(firstVertex, secondVertex);
+				weights[edgeIdx] = weight;
+				//std::cout << i << "; " << secondVertex << "\n";
+				++edgeIdx;
+			}
+		}
 	}
-	__syncthreads();
-	buffer[threadIdx.x] = - 1;
-	output[threadIdx.x] = sum.current - (threadIdx.x + 1) * threadIdx.x / 2;
+
+	std::vector<float> tweightsSource(aLayerCount * aLayerSize);
+	std::vector<float> tweightsSink(aLayerCount * aLayerSize);
+	std::fill(begin(tweightsSource), begin(tweightsSource) + aLayerSize, 100000.0f);
+	std::fill(end(tweightsSink) - aLayerSize, end(tweightsSink), 100000.0f);
+
+	aGraph.set_nweights(
+			edges.size(),
+			edges.data(),
+			weights.data(),
+			weights.data());
+	aGraph.set_tweights(
+			tweightsSource.data(),
+			tweightsSink.data());
 }
 
 
-
-CUGIP_GLOBAL void
-testBlockScanEx(int *output)
+void
+fillTwoLayerGraph(cugip::Graph<float> &aGraph, int aVertexCount, int aLayerSize, int aNeighborCount)
 {
-	__shared__ int buffer[512 + 1];
+	using namespace cugip;
+	aGraph.set_vertex_count(aVertexCount);
 
-	auto sum = cugip::block_prefix_sum_ex<int>(threadIdx.x, 512, threadIdx.x, buffer);
-	if (threadIdx.x == 0) {
-		printf("Total %d\n", sum.total);
+	std::vector<EdgeRecord> edges(aLayerSize * aNeighborCount);
+
+
+	int edgeIdx = 0;
+	for (int i = 0; i < aLayerSize; ++i) {
+		for (int j = 0; j < aNeighborCount; ++j) {
+			int secondVertex = aLayerSize + ((i + j) % aLayerSize);
+			edges[edgeIdx++] = EdgeRecord(i, secondVertex);
+			//std::cout << i << "; " << secondVertex << "\n";
+		}
 	}
-	__syncthreads();
-	buffer[threadIdx.x] = - 1;
-	output[threadIdx.x] = sum.current - (threadIdx.x + 1) * threadIdx.x / 2 + threadIdx.x;
+	std::vector<float> weights(edges.size());
+	std::vector<float> tweights(aVertexCount);
+	std::fill(begin(weights), end(weights), 1.0f);
+	std::fill(begin(tweights), begin(tweights) + aLayerSize, 100000.0f);
+	aGraph.set_nweights(
+			edges.size(),
+			edges.data(),
+			weights.data(),
+			weights.data());
+	aGraph.set_tweights(
+			tweights.data(),
+			tweights.data());
 }
 
-BOOST_AUTO_TEST_CASE(bfsPropagation)
+/*BOOST_AUTO_TEST_CASE(bfsPropagation)
 {
 	using namespace cugip;
 	typedef GraphCutPolicy::RelabelPolicy Policy;
@@ -47,50 +90,67 @@ BOOST_AUTO_TEST_CASE(bfsPropagation)
 	static const int cVertexCount = 1024;
 	static const int cLayerSize = cVertexCount >> 1;
 	static const int cNeighborCount = 16;
-	graph.set_vertex_count(cVertexCount);
 
-	std::vector<EdgeRecord> edges(cLayerSize * cNeighborCount);
+	fillTwoLayerGraph(graph, cVertexCount, cLayerSize, cNeighborCount);
 
-
-	int edgeIdx = 0;
-	for (int i = 0; i < cLayerSize; ++i) {
-		for (int j = 0; j < cNeighborCount; ++j) {
-			int secondVertex = cLayerSize + ((i + j) % cLayerSize);
-			edges[edgeIdx] = EdgeRecord(i, secondVertex);
-		}
-	}
-	std::vector<float> weights(edges.size());
-	std::vector<float> tweights(cVertexCount);
-	std::fill(begin(weights), end(weights), 1.0f);
-	std::fill(begin(tweights), end(tweights), 1.0f);
-	graph.set_nweights(
-			edges.size(),
-			edges.data(),
-			weights.data(),
-			weights.data());
-	graph.set_tweights(
-			tweights.data(),
-			tweights.data());
-
-	GraphCutData<flow> graphCutData;
+	GraphCutData<float> graphCutData;
 	graphCutDataFromGraph(graph, graphCutData);
 
+	ParallelQueue<int> queue;
+	queue.reserve(cVertexCount * cNeighborCount);
+	queue.clear();
+	CUGIP_DPRINT("AAAAAAAAAA");
+
 	dim3 blockSize1D(Policy::THREADS, 1, 1);
-	int frontierSize = cLayerSize;
+	dim3 graphGridSize1D(1 + (cVertexCount - 1) / (blockSize1D.x), 1, 1);
+	try {
+	initResidualsKernel<<<graphGridSize1D, blockSize1D>>>(
+			thrust::raw_pointer_cast(graph.mEdgeWeightsForward.data()),
+			thrust::raw_pointer_cast(graph.mEdgeWeightsBackward.data()),
+			thrust::raw_pointer_cast(graphCutData.mResiduals),
+			graphCutData.mEdgeCount);
+	CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+
+	initBFSKernel<GraphCutData<float>, Policy><<<graphGridSize1D, blockSize1D>>>(
+			queue.view(),
+			graphCutData);
+	CUGIP_CHECK_ERROR_STATE("After initBFSKernel");
+	CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+	BOOST_CHECK_EQUAL(queue.size(), cLayerSize);
+
+	CUGIP_DPRINT("queue size " << queue.size());
+	CUGIP_DPRINT("BBBBBBBBBB");
+	int frontierSize = queue.size();
 	dim3 levelGridSize1D(1 + (frontierSize - 1) / (blockSize1D.x), 1, 1);
+	bfsPropagationKernel_b40c<GraphCutData<float>, Policy><<<levelGridSize1D, blockSize1D>>>(
+			queue.view(),
+			WorkDistribution(0, frontierSize, levelGridSize1D.x, Policy::SCHEDULE_GRANULARITY),
+			graphCutData,
+			1);
+	CUGIP_CHECK_ERROR_STATE("After bfsPropagationKernel_b40c");
+	CUGIP_CHECK_RESULT(cudaThreadSynchronize());
 
-	bfsPropagationKernel_b40c<TGraphData, Policy><<<levelGridSize1D, blockSize1D>>>(
-			aVertexQueue,
-			WorkDistribution(aLevelStarts[aCurrentLevel - 1], frontierSize, levelGridSize1D.x, TPolicy::SCHEDULE_GRANULARITY),
-			aGraph,
-			aCurrentLevel + 1);
+	thrust::host_vector<int> tmp = queue.mBuffer;
+	for (int i = cLayerSize; i < queue.size(); ++i) {
+		std::cout << tmp[i] << "; ";
+	}
+	std::cout << "\n";
+	} catch (...) {
+		CUGIP_DPRINT("QQQQQQQQQQQQQ");
+	}
 
-	/*thrust::device_vector<int> buffer(512);
+	CUGIP_DPRINT("queue size " << queue.size());
+}*/
 
-	testBlockScanIn<<<1, 512>>>(thrust::raw_pointer_cast(buffer.data()));
-	cudaThreadSynchronize();
 
-	int result = thrust::reduce(buffer.begin(), buffer.end(), 0, thrust::plus<int>());
-	BOOST_CHECK_EQUAL(result, 0);*/
+BOOST_AUTO_TEST_CASE(MinCutLayeredGraph)
+{
+	using namespace cugip;
+
+	Graph<float> graph;
+	//fillLayeredGraph(graph, 100, 1024, 8);
+	fillLayeredGraph(graph, 4, 100, 1);
+
+	float flow = graph.max_flow();
+	CUGIP_DPRINT("Computed flow " << flow);
 }
-

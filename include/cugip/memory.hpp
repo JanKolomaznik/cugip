@@ -547,8 +547,8 @@ struct device_memory_1d_owner: public device_memory_1d<TType>
 	~device_memory_1d_owner()
 	{
 		if (this->mData) {
-			//CUGIP_DPRINT("Releasing memory at: " << this->mData);
-			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
+			CUGIP_DPRINT("Releasing memory at: " << this->mData);
+		//	CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
 		}
 	}
 };

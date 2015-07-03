@@ -234,11 +234,13 @@ Graph<TFlow>::set_nweights(
 			bool connectionSide = i < edges[i][j].second;
 
 			secondVertices[start + j] = edges[i][j].second;
-			edgeIndex[start + j] = connectionSide ? CONNECTION_VERTEX | edges[i][j].first : edges[i][j].first;
+			edgeIndex[start + j] = connectionSide ? /*CONNECTION_VERTEX | */edges[i][j].first : edges[i][j].first;
 		}
 		start += edges[i].size();
 	}
 	neighbors.push_back(neighbors.back());
+	//std::copy(begin(neighbors), end(neighbors), std::ostream_iterator<int>(std::cout, " "));
+	//std::copy(begin(edgeIndex), end(edgeIndex), std::ostream_iterator<int>(std::cout, " "));
 
 	mNeighbors = neighbors;
 	mGraphData.neighbors = thrust::raw_pointer_cast(&mNeighbors[0]);
@@ -254,6 +256,7 @@ Graph<TFlow>::set_nweights(
 
 	mResiduals.resize(aEdgeCount);
 	mGraphData.mResiduals = thrust::raw_pointer_cast(&mResiduals[0]);
+	//throw 3;
 }
 
 template<typename TFlow>
