@@ -97,6 +97,7 @@ struct MinCut
 		//std::cout << timer.format(9, "%w") << "\n";
 		bool done = false;
 		size_t iteration = 0;
+		float flow = -1.0f;
 		while(!done) {
 			timer.start();
 			CUGIP_DPRINT("Relabel");
@@ -108,10 +109,16 @@ struct MinCut
 			done = !Push<TGraphData, typename TPolicy::PushPolicy>::compute(aGraph, aVertexQueue, aLevelStarts);
 			//done = !push();
 			timer.stop();
+			/*float flow2 = computeFlowThroughSinkFrontier(aGraph);
+			CUGIP_DPRINT("Flow: " << flow2);
+			if (flow == flow2 && !done) {
+				throw 3;
+			}
+			flow = flow2;*/
 			//CUGIP_DPRINT("**iteration " << iteration << ": " << timer.format(9, "%w"));
-			CUGIP_DPRINT("Flow: " << computeFlowThroughSinkFrontier(aGraph));
+			//CUGIP_DPRINT("Flow: " << computeFlowThroughSinkFrontier(aGraph));
 			//if (iteration == 35) break;
-			CUGIP_DPRINT("Queue size = " << aVertexQueue.size());
+			//CUGIP_DPRINT("Queue size = " << aVertexQueue.size());
 			++iteration;
 		}
 		return computeFlowThroughSinkFrontier(aGraph);
@@ -120,7 +127,7 @@ struct MinCut
 	static void
 	push_through_tlinks_from_source(TGraphData &aGraph)
 	{
-		//CUGIP_DPRINT("push_through_tlinks_from_source");
+		CUGIP_DPRINT("push_through_tlinks_from_source");
 
 		dim3 blockSize1D( 512 );
 		dim3 gridSize1D((aGraph.vertexCount() + blockSize1D.x - 1) / (blockSize1D.x) , 1);

@@ -14,6 +14,7 @@ pushThroughTLinksFromSourceKernel(GraphCutData<TFlow> aGraph)
 
 	if (index < aGraph.vertexCount()) {
 		float capacity = aGraph.sourceTLinkCapacity(index);
+		//printf("psss %d -> %f\n", index, capacity);
 		if (capacity > 0.0) {
 			aGraph.excess(index) += capacity;
 		}
@@ -118,7 +119,7 @@ tryPullPush(GraphCutData<TFlow> &aGraph, int aFrom, int aTo, int aConnectionInde
 	TFlow residual = edge.getResidual(aFrom < aTo);
 	TFlow flow = tryPull(aGraph, aFrom, aTo, residual);
 	if (flow > 0.0f) {
-		printf("try pull push %d %d -> %d %d %f\n", aGraph.label(aFrom), aFrom, aGraph.label(aTo), aTo, flow);
+		//printf("try pull push %d %d -> %d %d %f\n", aGraph.label(aFrom), aFrom, aGraph.label(aTo), aTo, flow);
 		atomicAdd(&(aGraph.excess(aTo)), flow);
 		edge.getResidual(aFrom < aTo) -= flow;
 		edge.getResidual(aFrom > aTo) += flow;
@@ -163,6 +164,7 @@ pushImplementation(
 		device_flag_view &aPushSuccessfulFlag)
 {
 	int vertex = aVertices.get_device(index);
+	//printf("p %d - %f\n", vertex, aGraph.excess(vertex));
 	if (aGraph.excess(vertex) > 0.0f) {
 		int neighborCount = aGraph.neighborCount(vertex);
 		int firstNeighborIndex = aGraph.firstNeighborIndex(vertex);
@@ -173,7 +175,7 @@ pushImplementation(
 			if (label > secondLabel && secondLabel >= 0) {
 				int connectionIndex = aGraph.connectionIndex(firstNeighborIndex + i);
 				if (tryPullPush(aGraph, vertex, secondVertex, connectionIndex)) {
-					//printf("proc %d %d -> %d %d\n", vertex, label, secondVertex, secondLabel);
+					printf("proc %d %d -> %d %d\n", vertex, label, secondVertex, secondLabel);
 					aPushSuccessfulFlag.set_device();
 				}
 			}
@@ -303,7 +305,7 @@ struct Push
 		dim3 blockSize1D(512);
 		device_flag pushSuccessfulFlag;
 
-		for (int i = aLevelStarts.size() - 2; i > 0; --i) {
+		for (int i = aLevelStarts.size() - 1; i > 0; --i) {
 			int count = aLevelStarts[i] - aLevelStarts[i-1];
 			/*if (count <= blockSize1D.x) {
 				starts.push_back(aLevelStarts[i]);

@@ -234,11 +234,12 @@ Graph<TFlow>::set_nweights(
 			bool connectionSide = i < edges[i][j].second;
 
 			secondVertices[start + j] = edges[i][j].second;
-			edgeIndex[start + j] = connectionSide ? /*CONNECTION_VERTEX | */edges[i][j].first : edges[i][j].first;
+			edgeIndex[start + j] = connectionSide ? CONNECTION_VERTEX | edges[i][j].first : edges[i][j].first;
 		}
 		start += edges[i].size();
 	}
-	neighbors.push_back(neighbors.back());
+	neighbors.push_back(start);
+	//neighbors.push_back(neighbors.back());
 	//std::copy(begin(neighbors), end(neighbors), std::ostream_iterator<int>(std::cout, " "));
 	//std::copy(begin(edgeIndex), end(edgeIndex), std::ostream_iterator<int>(std::cout, " "));
 
@@ -286,5 +287,3 @@ Graph<TFlow>::debug_print()
 }
 
 } //namespace cugip
-
-

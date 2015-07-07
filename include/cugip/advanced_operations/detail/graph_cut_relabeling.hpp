@@ -3,6 +3,7 @@
 #include <cub/block/block_scan.cuh>
 #include <cugip/parallel_queue.hpp>
 #include <cugip/advanced_operations/detail/graph_cut_data.hpp>
+#include <algorithm>
 
 namespace cugip {
 
@@ -103,7 +104,7 @@ bfsPropagationKernel(
 				shouldAppend = 1;
 				//printf("%d\n", secondVertex);
 			}
-			printf("SV_%d %d -> %d : %d, %f %d\n", aCurrentLevel, vertex, secondVertex, label, residual, shouldAppend);
+			//printf("SV_%d %d -> %d : %d, %f %d\n", aCurrentLevel, vertex, secondVertex, label, residual, shouldAppend);
 			//printf("%d, %d, %d\n", vertex, secondVertex, label);
 		}
 		//printf("%d, %d\n", vertex, neighborCount);
@@ -629,8 +630,10 @@ struct Relabel
 		ParallelQueueView<int> &aVertexQueue,
 		std::vector<int> &aLevelStarts)
 	{
-		dim3 blockSize1D(512, 1, 1);
+		dim3 blockSize1D(TPolicy::THREADS, 1, 1);
 		dim3 gridSize1D((aGraph.vertexCount() + blockSize1D.x - 1) / (blockSize1D.x), 1);
+		//dim3 blockSize1D(512, 1, 1);
+		//dim3 gridSize1D((aGraph.vertexCount() + blockSize1D.x - 1) / (blockSize1D.x), 1);
 
 		aVertexQueue.clear();
 		initBFSKernel<TGraphData, TPolicy><<<gridSize1D, blockSize1D>>>(aVertexQueue, aGraph);
@@ -638,7 +641,7 @@ struct Relabel
 		CUGIP_CHECK_RESULT(cudaThreadSynchronize());
 		CUGIP_CHECK_ERROR_STATE("After initBFSKernel()");
 		int lastLevelSize = aVertexQueue.size();
-		//CUGIP_DPRINT("Level 1 size: " << lastLevelSize);
+		CUGIP_DPRINT("Level 1 size: " << lastLevelSize);
 		aLevelStarts.clear();
 		aLevelStarts.push_back(0);
 		aLevelStarts.push_back(lastLevelSize);
@@ -646,6 +649,7 @@ struct Relabel
 		bool finished = lastLevelSize == 0;
 		while (!finished) {
 			finished = bfs_iteration(aGraph, currentLevel, aLevelStarts, aVertexQueue);
+			//CUGIP_DFORMAT("Level %1% - layer starts %2%", currentLevel, aLevelStarts.back());
 			//break;
 		}
 
@@ -657,6 +661,7 @@ struct Relabel
 		thrust::host_vector<int> tmp = dev_tmp;
 		int lower = 0;
 		for (int i = 0; i < aLevelStarts.size(); ++i) {
+			std::sort(tmp.begin() + lower, tmp.begin() + aLevelStarts[i]);
 			for (int j = lower; j < aLevelStarts[i]; ++j) {
 				std::cout << tmp[j] << "; ";
 			}

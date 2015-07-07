@@ -29,7 +29,7 @@ fillLayeredGraph(cugip::Graph<float> &aGraph, int aLayerCount, int aLayerSize, i
 				int secondVertex = layer * aLayerSize + ((i + j) % aLayerSize);
 				edges[edgeIdx] = EdgeRecord(firstVertex, secondVertex);
 				weights[edgeIdx] = weight;
-				//std::cout << i << "; " << secondVertex << "\n";
+				//std::cout << firstVertex << "; " << secondVertex << "\n";
 				++edgeIdx;
 			}
 		}
@@ -82,7 +82,7 @@ fillTwoLayerGraph(cugip::Graph<float> &aGraph, int aVertexCount, int aLayerSize,
 			tweights.data());
 }
 
-/*BOOST_AUTO_TEST_CASE(bfsPropagation)
+BOOST_AUTO_TEST_CASE(bfsPropagation)
 {
 	using namespace cugip;
 	typedef GraphCutPolicy::RelabelPolicy Policy;
@@ -140,7 +140,7 @@ fillTwoLayerGraph(cugip::Graph<float> &aGraph, int aVertexCount, int aLayerSize,
 	}
 
 	CUGIP_DPRINT("queue size " << queue.size());
-}*/
+}
 
 
 BOOST_AUTO_TEST_CASE(MinCutLayeredGraph)
@@ -149,8 +149,9 @@ BOOST_AUTO_TEST_CASE(MinCutLayeredGraph)
 
 	Graph<float> graph;
 	//fillLayeredGraph(graph, 100, 1024, 8);
-	fillLayeredGraph(graph, 4, 100, 1);
+	fillLayeredGraph(graph, 100, 1024, 8);
 
 	float flow = graph.max_flow();
 	CUGIP_DPRINT("Computed flow " << flow);
+	BOOST_CHECK_EQUAL(flow, 1024 * 8);
 }
