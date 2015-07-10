@@ -116,7 +116,7 @@ struct MinCut
 			}
 			flow = flow2;*/
 			//CUGIP_DPRINT("**iteration " << iteration << ": " << timer.format(9, "%w"));
-			//CUGIP_DPRINT("Flow: " << computeFlowThroughSinkFrontier(aGraph));
+			CUGIP_DPRINT("Flow: " << computeFlowThroughSinkFrontier(aGraph));
 			//if (iteration == 35) break;
 			//CUGIP_DPRINT("Queue size = " << aVertexQueue.size());
 			++iteration;

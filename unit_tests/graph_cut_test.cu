@@ -10,9 +10,16 @@
 #include <thrust/device_vector.h>
 #include <thrust/reduce.h>
 
+void
+fillGridGraph(cugip::Graph<float> &aGraph, int aSize, int aSeparationSize)
+{
+	using namespace cugip;
+	aGraph.set_vertex_count(aSize * aSize);
+
+}
 
 void
-fillLayeredGraph(cugip::Graph<float> &aGraph, int aLayerCount, int aLayerSize, int aNeighborCount)
+fillLayeredGraph(cugip::Graph<float> &aGraph, int aLayerCount, int aLayerSize, int aNeighborCount, bool sourceSinkFlip)
 {
 	using namespace cugip;
 	aGraph.set_vertex_count(aLayerCount * aLayerSize);
@@ -20,7 +27,8 @@ fillLayeredGraph(cugip::Graph<float> &aGraph, int aLayerCount, int aLayerSize, i
 	std::vector<EdgeRecord> edges((aLayerCount - 1) * aLayerSize * aNeighborCount);
 
 	int edgeIdx = 0;
-	std::vector<float> weights(edges.size());
+	std::vector<float> forwardWeights(edges.size());
+	std::vector<float> backwardWeights(edges.size());
 	for (int layer = 1; layer < aLayerCount; ++layer) {
 		float weight = (layer == aLayerCount / 2) ? 1.0f : 20.0f;
 		for (int i = 0; i < aLayerSize; ++i) {
@@ -28,7 +36,8 @@ fillLayeredGraph(cugip::Graph<float> &aGraph, int aLayerCount, int aLayerSize, i
 				int firstVertex = (layer - 1) * aLayerSize + i;
 				int secondVertex = layer * aLayerSize + ((i + j) % aLayerSize);
 				edges[edgeIdx] = EdgeRecord(firstVertex, secondVertex);
-				weights[edgeIdx] = weight;
+				forwardWeights[edgeIdx] = weight;
+				backwardWeights[edgeIdx] = 2*weight;
 				//std::cout << firstVertex << "; " << secondVertex << "\n";
 				++edgeIdx;
 			}
@@ -43,11 +52,17 @@ fillLayeredGraph(cugip::Graph<float> &aGraph, int aLayerCount, int aLayerSize, i
 	aGraph.set_nweights(
 			edges.size(),
 			edges.data(),
-			weights.data(),
-			weights.data());
-	aGraph.set_tweights(
+			forwardWeights.data(),
+			backwardWeights.data());
+	if (sourceSinkFlip) {
+		aGraph.set_tweights(
+			tweightsSink.data(),
+			tweightsSource.data());
+	} else {
+		aGraph.set_tweights(
 			tweightsSource.data(),
 			tweightsSink.data());
+	}
 }
 
 
@@ -81,7 +96,7 @@ fillTwoLayerGraph(cugip::Graph<float> &aGraph, int aVertexCount, int aLayerSize,
 			tweights.data(),
 			tweights.data());
 }
-
+/*
 BOOST_AUTO_TEST_CASE(bfsPropagation)
 {
 	using namespace cugip;
@@ -141,7 +156,7 @@ BOOST_AUTO_TEST_CASE(bfsPropagation)
 
 	CUGIP_DPRINT("queue size " << queue.size());
 }
-
+*/
 
 BOOST_AUTO_TEST_CASE(MinCutLayeredGraph)
 {
@@ -149,9 +164,23 @@ BOOST_AUTO_TEST_CASE(MinCutLayeredGraph)
 
 	Graph<float> graph;
 	//fillLayeredGraph(graph, 100, 1024, 8);
-	fillLayeredGraph(graph, 100, 1024, 8);
+	fillLayeredGraph(graph, 100, 1024, 8, false);
 
 	float flow = graph.max_flow();
 	CUGIP_DPRINT("Computed flow " << flow);
 	BOOST_CHECK_EQUAL(flow, 1024 * 8);
+}
+
+
+BOOST_AUTO_TEST_CASE(MinCutLayeredGraph2)
+{
+	using namespace cugip;
+
+	Graph<float> graph;
+	//fillLayeredGraph(graph, 100, 1024, 8);
+	fillLayeredGraph(graph, 100, 1024, 8, true);
+
+	float flow = graph.max_flow();
+	CUGIP_DPRINT("Computed flow " << flow);
+	BOOST_CHECK_EQUAL(flow, 2*1024 * 8);
 }

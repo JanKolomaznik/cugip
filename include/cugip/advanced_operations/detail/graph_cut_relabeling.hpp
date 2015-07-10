@@ -4,6 +4,7 @@
 #include <cugip/parallel_queue.hpp>
 #include <cugip/advanced_operations/detail/graph_cut_data.hpp>
 #include <algorithm>
+#include <thrust/fill.h>
 
 namespace cugip {
 
@@ -386,18 +387,36 @@ struct TileProcessor
 		bool connectionSide = !mGraph.connectionSide(offsetScratch[scratchIndex]);
 		auto residuals = mGraph.residuals(connectionId);
 		auto residual = residuals.getResidual(connectionSide);
-		/*printf("TID: %d; neighborId: %d, label %d, cid: %d, cside: %d, %f\n",
+		/*printf("TID: %d; neighborId: %d, label %d, cid: %d, cside: %d, %f - %f\n",
 				int(threadIdx.x),
 				neighborId,
 				label,
 				connectionId,
 				int(connectionSide),
-				residuals.residuals[1]);*/
-		//TODO residuals
+				residuals.getResidual(false),
+				residuals.getResidual(true));*/
 		if (label == TPolicy::INVALID_LABEL && residual > 0.0f) {
 			//mGraph.label(neighborId) = mCurrentLevel;
 			if (!(TPolicy::INVALID_LABEL == atomicCAS(&(mGraph.label(neighborId)), TPolicy::INVALID_LABEL, mCurrentLevel))) {
+				printf("LevelN: %d; neighborId: %d, label %d, cid: %d, cside: %d, %f - %f\n",
+					mCurrentLevel,
+					neighborId,
+					label,
+					connectionId,
+					int(connectionSide),
+					residuals.getResidual(false),
+					residuals.getResidual(true));
 				neighborId = -1;
+			} else {
+				printf("LevelY: %d; neighborId: %d, label %d, cid: %d, cside: %d, %f - %f\n",
+					mCurrentLevel,
+					neighborId,
+					label,
+					connectionId,
+					int(connectionSide),
+					residuals.getResidual(false),
+					residuals.getResidual(true));
+
 			}
 		} else {
 			neighborId = -1;
@@ -636,12 +655,16 @@ struct Relabel
 		//dim3 gridSize1D((aGraph.vertexCount() + blockSize1D.x - 1) / (blockSize1D.x), 1);
 
 		aVertexQueue.clear();
+		/*thrust::fill_n(
+			thrust::device_ptr<int>(aGraph.labels),
+			aGraph.vertexCount(),
+			int(TPolicy::INVALID_LABEL));*/
 		initBFSKernel<TGraphData, TPolicy><<<gridSize1D, blockSize1D>>>(aVertexQueue, aGraph);
 
 		CUGIP_CHECK_RESULT(cudaThreadSynchronize());
 		CUGIP_CHECK_ERROR_STATE("After initBFSKernel()");
 		int lastLevelSize = aVertexQueue.size();
-		CUGIP_DPRINT("Level 1 size: " << lastLevelSize);
+		//CUGIP_DPRINT("Level 1 size: " << lastLevelSize);
 		aLevelStarts.clear();
 		aLevelStarts.push_back(0);
 		aLevelStarts.push_back(lastLevelSize);
@@ -655,19 +678,24 @@ struct Relabel
 
 		CUGIP_CHECK_RESULT(cudaThreadSynchronize());
 
-		/*thrust::device_vector<int> dev_tmp(
+		thrust::device_vector<int> dev_tmp(
 					thrust::device_ptr<int>(aVertexQueue.mData),
 					thrust::device_ptr<int>(aVertexQueue.mData + aLevelStarts.back()));
 		thrust::host_vector<int> tmp = dev_tmp;
+		thrust::host_vector<float> excesses(aGraph.vertexCount());
+		thrust::copy(
+			thrust::device_ptr<float>(aGraph.vertexExcess),
+			thrust::device_ptr<float>(aGraph.vertexExcess + aGraph.vertexCount()),
+			excesses.begin());
 		int lower = 0;
 		for (int i = 0; i < aLevelStarts.size(); ++i) {
 			std::sort(tmp.begin() + lower, tmp.begin() + aLevelStarts[i]);
 			for (int j = lower; j < aLevelStarts[i]; ++j) {
-				std::cout << tmp[j] << "; ";
+				std::cout << tmp[j] << ((excesses[tmp[j]] > 0.0f) ? std::string("* ") : std::string("; "));
 			}
-			std::cout << std::endl << "------------------------------------" << std::endl;
+			std::cout << std::endl << (i+1) << "  ------------------------------------" << std::endl;
 			lower = aLevelStarts[i];
-		}*/
+		}
 		/*thrust::copy(
 			)),
 			tmp.begin(),

@@ -113,18 +113,19 @@ tryPull(GraphCutData<TFlow> &aGraph, int aFrom, int aTo, TFlow aCapacity)
 
 template<typename TFlow>
 CUGIP_DECL_DEVICE bool
-tryPullPush(GraphCutData<TFlow> &aGraph, int aFrom, int aTo, int aConnectionIndex)
+tryPullPush(GraphCutData<TFlow> &aGraph, int aFrom, int aTo, int aConnectionIndex, bool aConnectionSide)
 {
 	EdgeResidualsRecord<TFlow> &edge = aGraph.residuals(aConnectionIndex);
-	TFlow residual = edge.getResidual(aFrom < aTo);
+	TFlow residual = edge.getResidual(aConnectionSide);
 	TFlow flow = tryPull(aGraph, aFrom, aTo, residual);
 	if (flow > 0.0f) {
-		//printf("try pull push %d %d -> %d %d %f\n", aGraph.label(aFrom), aFrom, aGraph.label(aTo), aTo, flow);
+		printf("try pull push %d %d -> %d %d %f - residual %f\n", aGraph.label(aFrom), aFrom, aGraph.label(aTo), aTo, flow, residual);
 		atomicAdd(&(aGraph.excess(aTo)), flow);
-		edge.getResidual(aFrom < aTo) -= flow;
-		edge.getResidual(aFrom > aTo) += flow;
+		edge.getResidual(aConnectionSide) -= flow;
+		edge.getResidual(!aConnectionSide) += flow;
 		return true;
 	}
+	printf("failed pull push %d %d -> %d %d %f - residual %f\n", aGraph.label(aFrom), aFrom, aGraph.label(aTo), aTo, flow, residual);
 	return false;
 }
 /* // Each iteration visits all vertices
@@ -165,21 +166,25 @@ pushImplementation(
 {
 	int vertex = aVertices.get_device(index);
 	//printf("p %d - %f\n", vertex, aGraph.excess(vertex));
+		int label = aGraph.label(vertex);
 	if (aGraph.excess(vertex) > 0.0f) {
 		int neighborCount = aGraph.neighborCount(vertex);
 		int firstNeighborIndex = aGraph.firstNeighborIndex(vertex);
-		int label = aGraph.label(vertex);
+		//int label = aGraph.label(vertex);
 		for (int i = 0; i < neighborCount; ++i) {
 			int secondVertex = aGraph.secondVertex(firstNeighborIndex + i);
 			int secondLabel = aGraph.label(secondVertex);
 			if (label > secondLabel && secondLabel >= 0) {
 				int connectionIndex = aGraph.connectionIndex(firstNeighborIndex + i);
-				if (tryPullPush(aGraph, vertex, secondVertex, connectionIndex)) {
-					printf("proc %d %d -> %d %d\n", vertex, label, secondVertex, secondLabel);
+				bool connectionSide = aGraph.connectionSide(firstNeighborIndex + i);
+				if (tryPullPush(aGraph, vertex, secondVertex, connectionIndex, connectionSide)) {
+					//printf("proc %d %d -> %d %d\n", vertex, label, secondVertex, secondLabel);
 					aPushSuccessfulFlag.set_device();
 				}
 			}
 		}
+	} else {
+		printf("vertex without excess %d - label %d\n", vertex, label);
 	}
 }
 
