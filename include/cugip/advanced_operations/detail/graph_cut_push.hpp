@@ -119,13 +119,13 @@ tryPullPush(GraphCutData<TFlow> &aGraph, int aFrom, int aTo, int aConnectionInde
 	TFlow residual = edge.getResidual(aConnectionSide);
 	TFlow flow = tryPull(aGraph, aFrom, aTo, residual);
 	if (flow > 0.0f) {
-		printf("try pull push %d %d -> %d %d %f - residual %f\n", aGraph.label(aFrom), aFrom, aGraph.label(aTo), aTo, flow, residual);
+		//printf("try pull push %d %d -> %d %d %f - residual %f\n", aGraph.label(aFrom), aFrom, aGraph.label(aTo), aTo, flow, residual);
 		atomicAdd(&(aGraph.excess(aTo)), flow);
 		edge.getResidual(aConnectionSide) -= flow;
 		edge.getResidual(!aConnectionSide) += flow;
 		return true;
 	}
-	printf("failed pull push %d %d -> %d %d %f - residual %f\n", aGraph.label(aFrom), aFrom, aGraph.label(aTo), aTo, flow, residual);
+	//printf("failed pull push %d %d -> %d %d %f - residual %f\n", aGraph.label(aFrom), aFrom, aGraph.label(aTo), aTo, flow, residual);
 	return false;
 }
 /* // Each iteration visits all vertices
@@ -165,26 +165,31 @@ pushImplementation(
 		device_flag_view &aPushSuccessfulFlag)
 {
 	int vertex = aVertices.get_device(index);
-	//printf("p %d - %f\n", vertex, aGraph.excess(vertex));
 		int label = aGraph.label(vertex);
 	if (aGraph.excess(vertex) > 0.0f) {
 		int neighborCount = aGraph.neighborCount(vertex);
 		int firstNeighborIndex = aGraph.firstNeighborIndex(vertex);
 		//int label = aGraph.label(vertex);
+		bool success = false;
 		for (int i = 0; i < neighborCount; ++i) {
 			int secondVertex = aGraph.secondVertex(firstNeighborIndex + i);
 			int secondLabel = aGraph.label(secondVertex);
+			//printf("processing %d - %d < %d - %d - %d\n", vertex, /*aGraph.excess(vertex)*/index, aLevelEnd, secondVertex, secondLabel);
 			if (label > secondLabel && secondLabel >= 0) {
 				int connectionIndex = aGraph.connectionIndex(firstNeighborIndex + i);
 				bool connectionSide = aGraph.connectionSide(firstNeighborIndex + i);
 				if (tryPullPush(aGraph, vertex, secondVertex, connectionIndex, connectionSide)) {
-					//printf("proc %d %d -> %d %d\n", vertex, label, secondVertex, secondLabel);
+					//printf("suc push %d %d -> %d %d\n", vertex, label, secondVertex, secondLabel);
 					aPushSuccessfulFlag.set_device();
+					success = true;
 				}
 			}
 		}
+		/*if (success) {
+			printf("no successfull push %d\n", vertex);
+		}*/
 	} else {
-		printf("vertex without excess %d - label %d\n", vertex, label);
+		//printf("vertex without excess %d - label %d\n", vertex, label);
 	}
 }
 

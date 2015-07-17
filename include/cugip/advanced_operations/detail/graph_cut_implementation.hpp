@@ -27,29 +27,31 @@ template<typename TFlow>
 CUGIP_GLOBAL void
 initResidualsKernel(TFlow *aWeightsForward, TFlow *aWeightsBackward, EdgeResidualsRecord<TFlow> *aResiduals, int aSize)
 {
-	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
-	int edgeIdx = blockId * blockDim.x + threadIdx.x;
+	//uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
+	int edgeIdx = blockIdx.x * blockDim.x + threadIdx.x;
 
-	if (edgeIdx < aSize) {
+	while (edgeIdx < aSize) {
 		aResiduals[edgeIdx].residuals[0] = aWeightsForward[edgeIdx];
 		aResiduals[edgeIdx].residuals[1] = aWeightsBackward[edgeIdx];
+		edgeIdx += gridDim.x * blockDim.x;
 	}
 }
 
-
 struct GraphCutPolicy
 {
+	template<int tThreadCount = 512, int tGranularity = 64>
 	struct RelabelPolicy {
 		enum {
 			INVALID_LABEL = 1 << 31,
-			THREADS = 512,
+			THREADS = tThreadCount,
 			SCRATCH_ELEMENTS = THREADS,
 			TILE_SIZE = THREADS,
-			SCHEDULE_GRANULARITY = 64
+			SCHEDULE_GRANULARITY = tGranularity
 		};
 		struct SharedMemoryData {
 			//cub::BlockScan<int, BLOCK_SIZE> temp_storage;
 			int offsetScratch[SCRATCH_ELEMENTS];
+			int incomming[SCRATCH_ELEMENTS];
 		};
 	};
 	struct PushPolicy {};
@@ -101,7 +103,7 @@ struct MinCut
 		while(!done) {
 			timer.start();
 			CUGIP_DPRINT("Relabel");
-			Relabel<TGraphData, typename TPolicy::RelabelPolicy>::compute(aGraph, aVertexQueue, aLevelStarts);
+			Relabel<TGraphData, typename TPolicy::RelabelPolicy<512, 64>>::compute(aGraph, aVertexQueue, aLevelStarts);
 			//assign_label_by_distance();
 
 			//break;
