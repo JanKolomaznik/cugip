@@ -317,6 +317,7 @@ struct Push
 
 		for (int i = aLevelStarts.size() - 1; i > 0; --i) {
 			int count = aLevelStarts[i] - aLevelStarts[i-1];
+			CUGIP_ASSERT(count > 0);
 			/*if (count <= blockSize1D.x) {
 				starts.push_back(aLevelStarts[i]);
 				while (i > 0 && (aLevelStarts[i] - aLevelStarts[i-1]) <= blockSize1D.x) {

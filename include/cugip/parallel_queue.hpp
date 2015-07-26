@@ -107,8 +107,10 @@ public:
 	void
 	reserve(int aSize)
 	{
-		mBuffer.resize(aSize);
-		mView.mData = thrust::raw_pointer_cast(&(mBuffer[0]));
+		if (aSize > mBuffer.size()) {
+			mBuffer.resize(aSize);
+			mView.mData = thrust::raw_pointer_cast(&(mBuffer[0]));
+		}
 	}
 
 	void

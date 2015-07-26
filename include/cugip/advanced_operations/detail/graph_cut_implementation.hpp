@@ -100,14 +100,15 @@ struct MinCut
 		bool done = false;
 		size_t iteration = 0;
 		float flow = -1.0f;
+		Relabel<TGraphData, typename TPolicy::RelabelPolicy<512, 64>> relabel;
 		while(!done) {
 			timer.start();
-			CUGIP_DPRINT("Relabel");
-			Relabel<TGraphData, typename TPolicy::RelabelPolicy<512, 64>>::compute(aGraph, aVertexQueue, aLevelStarts);
+			//CUGIP_DPRINT("Relabel");
+			relabel.compute(aGraph, aVertexQueue, aLevelStarts);
 			//assign_label_by_distance();
-
+			//std::copy(begin(aLevelStarts), end(aLevelStarts), std::ostream_iterator<int>(std::cout, " "));
 			//break;
-			CUGIP_DPRINT("Push");
+			//CUGIP_DPRINT("Push");
 			done = !Push<TGraphData, typename TPolicy::PushPolicy>::compute(aGraph, aVertexQueue, aLevelStarts);
 			//done = !push();
 			timer.stop();
@@ -118,7 +119,7 @@ struct MinCut
 			}
 			flow = flow2;*/
 			//CUGIP_DPRINT("**iteration " << iteration << ": " << timer.format(9, "%w"));
-			CUGIP_DPRINT("Flow: " << computeFlowThroughSinkFrontier(aGraph));
+			//CUGIP_DPRINT("Flow: " << computeFlowThroughSinkFrontier(aGraph));
 			//if (iteration == 35) break;
 			//CUGIP_DPRINT("Queue size = " << aVertexQueue.size());
 			++iteration;
