@@ -98,7 +98,7 @@ struct MinCut
 		timer.stop();
 		//std::cout << timer.format(9, "%w") << "\n";
 		bool done = false;
-		size_t iteration = 0;
+		int iteration = 0;
 		float flow = -1.0f;
 		Relabel<TGraphData, typename TPolicy::RelabelPolicy<512, 64>> relabel;
 		while(!done) {

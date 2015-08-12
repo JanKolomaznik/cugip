@@ -292,7 +292,7 @@
 #define _PSTDINT_H_INCLUDED
 
 #ifndef SIZE_MAX
-# define SIZE_MAX (~(size_t)0)
+# define SIZE_MAX (~(int)0)
 #endif
 
 /*

@@ -74,11 +74,11 @@ public:
 	device_union_find()
 	{}
 
-	device_union_find(size_t aLabelCount)
+	device_union_find(int aLabelCount)
 		: mData(aLabelCount + 1)
 	{}
 
-	CUGIP_DECL_HYBRID size_t
+	CUGIP_DECL_HYBRID int
 	label_count() const
 	{
 		return mData.dimensions() - 1;

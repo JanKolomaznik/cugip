@@ -16,10 +16,10 @@ CUGIP_DECL_HOST inline std::ostream &
 operator<<( std::ostream &stream, const convolution_kernel<TType, TSizeTraits> &kernel )
 {
 	//TODO - for all dimension
-	for (size_t i = 0; i < TSizeTraits::height; ++i) {
+	for (int i = 0; i < TSizeTraits::height; ++i) {
 		stream << "|\t";
 		
-		for (size_t j = 0; j < TSizeTraits::width; ++j) {
+		for (int j = 0; j < TSizeTraits::width; ++j) {
 			stream << kernel.data[i*TSizeTraits::width + j] << "\t";
 		}
 		stream << "|\n";
@@ -37,25 +37,25 @@ struct dimension<convolution_kernel<TType, TSizeTraits> >
 { };
 
 
-template<size_t tDim, typename TConvolutionMask>
-struct size_traits;
+template<int tDim, typename TConvolutionMask>
+struct intraits;
 
 template<typename TType, typename TSizeTraits>
-struct size_traits<0, convolution_kernel<TType, TSizeTraits> >
+struct intraits<0, convolution_kernel<TType, TSizeTraits> >
 {
-	static const size_t value = TSizeTraits::width;
+	static const int value = TSizeTraits::width;
 };
 
 template<typename TType, typename TSizeTraits>
-struct size_traits<1, convolution_kernel<TType, TSizeTraits> >
+struct intraits<1, convolution_kernel<TType, TSizeTraits> >
 {
-	static const size_t value = TSizeTraits::height;
+	static const int value = TSizeTraits::height;
 };
 
 template<typename TType, typename TSizeTraits>
-struct size_traits<2, convolution_kernel<TType, TSizeTraits> >
+struct intraits<2, convolution_kernel<TType, TSizeTraits> >
 {
-	static const size_t value = TSizeTraits::depth;
+	static const int value = TSizeTraits::depth;
 };
 /** 
  * @}
@@ -69,21 +69,21 @@ struct size_traits<2, convolution_kernel<TType, TSizeTraits> >
 
 template <typename TType, typename TSizeTraits>
 CUGIP_FORCE_INLINE CUGIP_DECL_HYBRID const TType &
-get(const convolution_kernel<TType, TSizeTraits>& aMask, size_t i) 
+get(const convolution_kernel<TType, TSizeTraits>& aMask, int i) 
 {
 	return aMask.data[i];
 }
 
 template <typename TType, typename TSizeTraits>
 CUGIP_FORCE_INLINE CUGIP_DECL_HYBRID const TType &
-get(const convolution_kernel<TType, TSizeTraits>& aMask, size_t i, size_t j) 
+get(const convolution_kernel<TType, TSizeTraits>& aMask, int i, int j) 
 {
 	return aMask.data[i + (j * TSizeTraits::width)];
 }
 
 template <typename TType, typename TSizeTraits>
 CUGIP_FORCE_INLINE CUGIP_DECL_HYBRID const TType &
-get(const convolution_kernel<TType, TSizeTraits>& aMask, size_t i, size_t j, size_t k) 
+get(const convolution_kernel<TType, TSizeTraits>& aMask, int i, int j, int k) 
 {
 	return aMask.data[i + (j * TSizeTraits::width) + (k * TSizeTraits::width * TSizeTraits::height)];
 }
@@ -100,7 +100,7 @@ CUGIP_DECL_HYBRID TOutputType
 apply_convolution(const TConvolutionMask &aMask, TLocator &aLocator, dimension_1d_tag) 
 {
 	TOutputType tmp(0);
-	for (size_t i = 0; i < size_traits<0, TConvolutionMask>::value; ++i) {
+	for (int i = 0; i < intraits<0, TConvolutionMask>::value; ++i) {
 		tmp += get(aMask, i) * aLocator[typename TLocator::diff_t(i)];		
 	}
 	return tmp;
@@ -111,8 +111,8 @@ CUGIP_DECL_HYBRID TOutputType
 apply_convolution(const TConvolutionMask &aMask, TLocator &aLocator, dimension_2d_tag) 
 {
 	TOutputType tmp(0);
-	for (size_t j = 0; j < size_traits<1, TConvolutionMask>::value; ++j) {
-		for (size_t i = 0; i < size_traits<0, TConvolutionMask>::value; ++i) {
+	for (int j = 0; j < intraits<1, TConvolutionMask>::value; ++j) {
+		for (int i = 0; i < intraits<0, TConvolutionMask>::value; ++i) {
 			tmp += get(aMask, i, j) * aLocator[typename TLocator::diff_t(i, j)];
 		}
 	}
@@ -124,9 +124,9 @@ CUGIP_DECL_HYBRID TOutputType
 apply_convolution(const TConvolutionMask &aMask, TLocator &aLocator, dimension_3d_tag) 
 {
 	TOutputType tmp(0);
-	for (size_t k = 0; k < size_traits<2, TConvolutionMask>::value; ++k) {
-		for (size_t j = 0; j < size_traits<1, TConvolutionMask>::value; ++j) {
-			for (size_t i = 0; i < size_traits<0, TConvolutionMask>::value; ++i) {
+	for (int k = 0; k < intraits<2, TConvolutionMask>::value; ++k) {
+		for (int j = 0; j < intraits<1, TConvolutionMask>::value; ++j) {
+			for (int i = 0; i < intraits<0, TConvolutionMask>::value; ++i) {
 				tmp += get(aMask, i, j, k) * aLocator[typename TLocator::diff_t(i, j, k)];
 			}
 		}
@@ -174,10 +174,10 @@ convolution(TInView aInView, TOutView aOutView, TConvolutionMask aConvolutionMas
 			);
 }
 
-CUGIP_FORCE_INLINE convolution_kernel<int, size_traits_2d<3,3> >
+CUGIP_FORCE_INLINE convolution_kernel<int, intraits_2d<3,3> >
 laplacian_kernel()
 {
-	convolution_kernel<int, size_traits_2d<3,3> > tmp = {0, 1, 0, 1, -4, 1, 0, 1, 0};
+	convolution_kernel<int, intraits_2d<3,3> > tmp = {0, 1, 0, 1, -4, 1, 0, 1, 0};
 
 	return tmp;
 }
@@ -195,15 +195,15 @@ gaussian_kernel()
 	int centerY = TSizeTraits::height / 2;
 
 	TType sum = 0.0f;
-	for (size_t i = 0; i < TSizeTraits::height; ++i) {
-		for (size_t j = 0; j < TSizeTraits::width; ++j) {
+	for (int i = 0; i < TSizeTraits::height; ++i) {
+		for (int j = 0; j < TSizeTraits::width; ++j) {
 			TType value = exp(-(sqr(i-centerX)/(2*sigma1sqr) + sqr(j-centerY)/(2*sigma2sqr)));
 			sum += value;
 			tmp.data[i*TSizeTraits::width + j] = value;
 		}
 	}
 	TType factor = 1.0f / sum;
-	for (size_t i = 0; i < TSizeTraits::size; ++i) {
+	for (int i = 0; i < TSizeTraits::size; ++i) {
 		tmp.data[i] *= factor;
 	}
 

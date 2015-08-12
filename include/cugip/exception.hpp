@@ -5,6 +5,9 @@
 
 #include <map>
 
+#include <boost/exception/all.hpp>
+#include <boost/filesystem.hpp>
+
 namespace detail {
 
 /// ends recursion
@@ -20,6 +23,16 @@ void formatHelper(boost::format &aFormat, T &&aValue, TArgs &&...aArgs) {
 }  // detail
 
 namespace cugip {
+
+
+typedef boost::error_info<struct tag_message, std::string> MessageErrorInfo;
+
+/// Error info containing file path.
+typedef boost::error_info<struct tag_filename, boost::filesystem::path> FilenameErrorInfo;
+
+class ExceptionBase: public virtual boost::exception, public virtual std::exception {};
+
+class IncompatibleViewSizes: public ExceptionBase {};
 
 
 #define CUGIP_STORE_ENUM_IN_MAP(MAP, ENUM)\
@@ -218,4 +231,3 @@ print_error_enums() {
 
 
 }//namespace cugip
-

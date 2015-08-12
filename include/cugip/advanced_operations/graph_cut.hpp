@@ -54,11 +54,11 @@ public:
 	typedef TFlow EdgeWeight;
 
 	void
-	set_vertex_count(size_t aCount);
+	set_vertex_count(int aCount);
 
 	void
 	set_nweights(
-		size_t aEdgeCount,
+		int aEdgeCount,
 		EdgeRecord *aEdges,
 		EdgeWeight *aWeightsForward,
 		EdgeWeight *aWeightsBackward);
@@ -84,7 +84,7 @@ public:
 	init_residuals();
 
 	bool
-	bfs_iteration(size_t &aCurrentLevel);
+	bfs_iteration(int &aCurrentLevel);
 	void
 	assign_label_by_distance();
 
@@ -130,7 +130,7 @@ Graph<TFlow>::push()
 	dim3 blockSize1D(512);
 	dim3 gridSize1D((mGraphData.vertexCount() + 64*blockSize1D.x - 1) / (64*blockSize1D.x), 64);
 	device_flag pushSuccessfulFlag;
-	size_t pushIterations = 0;
+	int pushIterations = 0;
 	do {
 		pushSuccessfulFlag.reset_host();
 		++pushIterations;
@@ -165,7 +165,7 @@ Graph<TFlow>::max_flow()
 	timer.stop();
 	std::cout << timer.format(9, "%w") << "\n";
 	bool done = false;
-	size_t iteration = 0;
+	int iteration = 0;
 	while(!done) {
 		timer.start();
 		assign_label_by_distance();
@@ -186,7 +186,7 @@ Graph<TFlow>::max_flow()
 
 template<typename TFlow>
 void
-Graph<TFlow>::set_vertex_count(size_t aCount)
+Graph<TFlow>::set_vertex_count(int aCount)
 {
 	mSourceTLinks.resize(aCount);
 	mSinkTLinks.resize(aCount);
@@ -211,13 +211,13 @@ Graph<TFlow>::set_vertex_count(size_t aCount)
 template<typename TFlow>
 void
 Graph<TFlow>::set_nweights(
-	size_t aEdgeCount,
+	int aEdgeCount,
 	EdgeRecord *aEdges,
 	EdgeWeight *aWeightsForward,
 	EdgeWeight *aWeightsBackward)
 {
 	std::vector<std::vector<std::pair<int, int> > > edges(mLabels.size());
-	for (size_t i = 0; i < aEdgeCount; ++i) {
+	for (int i = 0; i < aEdgeCount; ++i) {
 		EdgeRecord &edge = aEdges[i];
 		//std::cout << edge.first << "; " << edge.second << std::endl;
 		edges.at(edge.first).push_back(std::make_pair(int(i), edge.second));
@@ -228,9 +228,9 @@ Graph<TFlow>::set_nweights(
 	thrust::host_vector<int> edgeIndex(2 * aEdgeCount);
 
 	int start = 0;
-	for (size_t i = 0; i < edges.size(); ++i) {
+	for (int i = 0; i < edges.size(); ++i) {
 		neighbors[i] = start;
-		for (size_t j = 0; j < edges[i].size(); ++j) {
+		for (int j = 0; j < edges[i].size(); ++j) {
 			bool connectionSide = i < edges[i][j].second;
 
 			secondVertices[start + j] = edges[i][j].second;
@@ -280,7 +280,7 @@ Graph<TFlow>::debug_print()
 	thrust::host_vector<EdgeWeight> excess = mExcess;
 	thrust::host_vector<int> labels = mLabels;
 
-	for (size_t i = 0; i < excess.size(); ++i) {
+	for (int i = 0; i < excess.size(); ++i) {
 		//if (excess[i] > 0)
 			std::cout << i << ": " << excess[i] << " - " << labels[i] << "\n";
 	}

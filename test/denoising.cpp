@@ -12,7 +12,7 @@ typedef itk::Image<float, 3> ImageType;
 //denoise(ImageType::Pointer aInput, ImageType::Pointer aOutput);
 
 void
-denoise(float *aInput, float *aOutput, size_t aWidth, size_t aHeight, size_t aDepth);
+denoise(float *aInput, float *aOutput, int aWidth, int aHeight, int aDepth);
 
 
 int main( int argc, char* argv[] )
@@ -92,6 +92,3 @@ int main( int argc, char* argv[] )
 
 	return EXIT_SUCCESS;
 }
-
-
-

@@ -2,6 +2,7 @@
 
 #include <cugip/detail/include.hpp>
 #include <cugip/exception.hpp>
+#include <cugip/utils.hpp>
 
 #if defined(__CUDACC__)
 	#define CUGIP_DECL_HOST __host__
@@ -70,14 +71,14 @@ template<typename TType, int tChannelCount>
 struct element
 {
 	typedef TType channel_t;
-	static const size_t dimension;
+	static const int dimension;
 
 	TType data[tChannelCount];
 
 	CUGIP_DECL_HYBRID element &
 	operator=(const element &aArg)
 	{
-		for (size_t i = 0; i < tChannelCount; ++i) {
+		for (int i = 0; i < tChannelCount; ++i) {
 			data[i] = aArg.data[i];
 		}
 		return *this;
@@ -86,18 +87,18 @@ struct element
 	CUGIP_DECL_HYBRID element &
 	operator=(const TType &aArg)
 	{
-		for (size_t i = 0; i < tChannelCount; ++i) {
+		for (int i = 0; i < tChannelCount; ++i) {
 			data[i] = aArg;
 		}
 		return *this;
 	}
 };
 
-template<size_t tIdx, typename TType>
+template<int tIdx, typename TType>
 struct get_policy;
 
 
-/*template<size_t tIdx, typename TType, size_t tChannelCount>
+/*template<int tIdx, typename TType, int tChannelCount>
 struct get_policy<tIdx, const element<TType, tChannelCount> >
 {
 	typedef const TType & return_type;
@@ -110,7 +111,7 @@ struct get_policy<tIdx, const element<TType, tChannelCount> >
 	}
 };
 
-template<size_t tIdx, typename TType, size_t tChannelCount>
+template<int tIdx, typename TType, int tChannelCount>
 struct get_policy<tIdx, element<TType, tChannelCount> >
 {
 	typedef TType & return_type;
@@ -124,7 +125,7 @@ struct get_policy<tIdx, element<TType, tChannelCount> >
 
 };*/
 
-template<size_t tIdx, typename TType>
+template<int tIdx, typename TType>
 CUGIP_DECL_HYBRID typename get_policy<tIdx, typename boost::remove_reference<TType>::type >::return_type
 get(TType &aArg)
 {
@@ -133,14 +134,14 @@ get(TType &aArg)
 			  >::get(aArg);
 }
 
-template<size_t tIdx, typename TType, int tChannelCount>
+template<int tIdx, typename TType, int tChannelCount>
 CUGIP_DECL_HYBRID TType &
 get(element<TType, tChannelCount> &aArg)
 {
 	return aArg.data[tIdx];
 }
 
-template<size_t tIdx, typename TType, int tChannelCount>
+template<int tIdx, typename TType, int tChannelCount>
 CUGIP_DECL_HYBRID const TType &
 get(const element<TType, tChannelCount> &aArg)
 {
@@ -295,5 +296,9 @@ block_prefix_sum_ex(int aTid, int blockSize, const TType &aCurrent, TType *aShar
 	return aSharedBuffer[aTid];*/
 
 }
+
+
+
+
 
 }//namespace cugip

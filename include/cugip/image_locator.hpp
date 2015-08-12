@@ -67,7 +67,7 @@ public:
 		return mView[mCoords];
 	}
 
-	template <size_t tDimIdx>
+	template <int tDimIdx>
 	CUGIP_DECL_HYBRID accessed_type
 	dim_offset(int aOffset)
 	{

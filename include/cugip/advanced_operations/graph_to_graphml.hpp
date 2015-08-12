@@ -30,10 +30,10 @@ Graph::save_to_graphml(const boost::filesystem::path &file) const
 	out << "<node id=\"source\"/>\n";
 	out << "<node id=\"sink\"/>\n";
 
-	for (size_t i = 0; i < excess.size(); ++i) {
+	for (int i = 0; i < excess.size(); ++i) {
 		out << boost::format("<node id=\"n%1%\"/>\n") % i;
 	}
-	for (size_t i = 0; i < edges.size(); ++i) {
+	for (int i = 0; i < edges.size(); ++i) {
 		out <<
 			boost::format("<edge source=\"n%1%\" target=\"n%2%\">\n\t<data key=\"capacity\">%3%</data>\n</edge>\n")
 				% edges[i].first
@@ -41,14 +41,14 @@ Graph::save_to_graphml(const boost::filesystem::path &file) const
 				% weights[i];
 	}
 
-	for (size_t i = 0; i < source_links.size(); ++i) {
+	for (int i = 0; i < source_links.size(); ++i) {
 		if (source_links[i] > 0.0f) {
 			out << boost::format("<edge source=\"source\" target=\"n%1%\">\n\t<data key=\"capacity\">%2%</data>\n</edge>\n")
 				% i
 				% source_links[i];
 		}
 	}
-	for (size_t i = 0; i < sink_links.size(); ++i) {
+	for (int i = 0; i < sink_links.size(); ++i) {
 		if (sink_links[i] > 0.0f) {
 			out << boost::format("<edge source=\"sink\" target=\"n%1%\">\n\t<data key=\"capacity\">%2%</data>\n</edge>\n")
 				% i

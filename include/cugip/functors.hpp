@@ -38,8 +38,8 @@ struct mandelbrot_ftor
 		float x = 0.0f;
 		float y = 0.0f;
 
-		size_t iteration = 0;
-		size_t max_iteration = 1000;
+		int iteration = 0;
+		int max_iteration = 1000;
 
 		while ( (x*x + y*y) < 2*2  &&  (iteration < max_iteration) )
 		{
@@ -180,6 +180,128 @@ struct generate_spiral_ftor
 	dim_traits<2>::extents_t extents;
 };
 
+/// Usable in device/host code.
+struct SquareFunctor {
+	template<typename T>
+	CUGIP_DECL_HYBRID
+	auto operator()(T value) const -> decltype(value * value) {
+		return value * value;
+	}
+};
 
+
+/// Usable in device/host code.
+struct SquareRootFunctor {
+	template<typename T>
+	CUGIP_DECL_HYBRID
+	auto operator()(T value) const -> decltype(sqrt(value)) {
+		return sqrt(value);
+	}
+};
+
+
+/// Multiplies passed value by factor specified in constructor.
+/// Usable in device/host code.
+template<typename TFactor>
+struct MultiplyByFactorFunctor {
+	explicit MultiplyByFactorFunctor(TFactor factor) :
+		factor_(factor)
+	{}
+
+	template<typename T>
+	CUGIP_DECL_HYBRID
+	auto operator()(T value) const -> decltype(std::declval<TFactor>() * value) {
+		return factor_ * value;
+	}
+
+	TFactor factor_;
+};
+
+/// Adds specified constant to the passed value
+/// Usable in device/host code.
+template<typename TType>
+struct AddValueFunctor {
+	explicit AddValueFunctor(TType value) :
+		value_(value)
+	{}
+
+	template<typename T>
+	CUGIP_DECL_HYBRID
+	auto operator()(T in_value) const -> decltype(std::declval<TType>() + in_value) {
+		return value_ + in_value;
+	}
+
+	TType value_;
+};
+
+
+/// Returns maximum of passed value and specified limit value
+/// Usable in device/host code.
+template<typename TType>
+struct MaxFunctor {
+	explicit MaxFunctor(TType limit) :
+		limit_(limit)
+	{}
+
+	CUGIP_DECL_HYBRID
+	TType operator()(TType in_value) const {
+		return max(limit_, in_value);
+	}
+
+	TType limit_;
+};
+
+/// Returns minumum of passed value and specified limit value
+/// Usable in device/host code.
+template<typename TType>
+struct MinFunctor {
+	explicit MinFunctor(TType limit) :
+		limit_(limit)
+	{}
+
+	CUGIP_DECL_HYBRID
+	TType operator()(TType in_value) const {
+		return min(limit_, in_value);
+	}
+
+	TType limit_;
+};
+
+
+/// If passed value is smaller than the limit return replacement value
+/// Usable in device/host code.
+template<typename TType>
+struct LowerLimitFunctor {
+	LowerLimitFunctor(TType limit, TType replacement) :
+		limit_(limit),
+		replacement_(replacement)
+	{}
+
+	CUGIP_DECL_HYBRID
+	TType operator()(TType in_value) const {
+		return in_value < limit_ ? replacement_ : in_value;
+	}
+
+	TType limit_;
+	TType replacement_;
+};
+
+/// If passed value is bigger than the limit return replacement value
+/// Usable in device/host code.
+template<typename TType>
+struct UpperLimitFunctor {
+	UpperLimitFunctor(TType limit, TType replacement) :
+		limit_(limit),
+		replacement_(replacement)
+	{}
+
+	CUGIP_DECL_HYBRID
+	TType operator()(TType in_value) const {
+		return in_value > limit_ ? replacement_ : in_value;
+	}
+
+	TType limit_;
+	TType replacement_;
+};
 
 }//namespace cugip

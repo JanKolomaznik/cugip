@@ -107,7 +107,7 @@ void compute_structural_tensor(TGradientView aGradient, TTensorView aStructuralT
 template<typename TInputTensorView, typename TOutputTensorView>
 void blur_structural_tensor(TInputTensorView aStructuralTensor, TOutputTensorView aBluredStructuralTensor)
 {
-	convolution(aStructuralTensor, aBluredStructuralTensor, gaussian_kernel<float, size_traits_2d<9,9> >());
+	convolution(aStructuralTensor, aBluredStructuralTensor, gaussian_kernel<float, intraits_2d<9,9> >());
 }
 
 	

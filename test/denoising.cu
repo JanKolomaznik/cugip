@@ -15,7 +15,7 @@
 //typedef itk::Image<float, 3> ImageType;
 
 void
-denoise(float *aInput, float *aOutput, size_t aWidth, size_t aHeight, size_t aDepth)
+denoise(float *aInput, float *aOutput, int aWidth, int aHeight, int aDepth)
 //denoise(ImageType::Pointer aInput, ImageType::Pointer aOutput)
 {
 	//cugip::const_host_memory_3d<float> pom(aInput, aWidth, aHeight, aDepth, aWidth * sizeof(float));

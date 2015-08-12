@@ -6,7 +6,7 @@ Graph::debug_print()
 	thrust::host_vector<EdgeWeight> excess = mExcess;
 	thrust::host_vector<int> labels = mLabels;
 
-	for (size_t i = 0; i < excess.size(); ++i) {
+	for (int i = 0; i < excess.size(); ++i) {
 		//if (excess[i] > 0)
 			std::cout << i << ": " << excess[i] << " - " << labels[i] << "\n";
 	}
@@ -32,7 +32,7 @@ Graph::check_flow()
 }
 
 void
-Graph::set_vertex_count(size_t aCount)
+Graph::set_vertex_count(int aCount)
 {
 	std::cout << cudaMemoryInfoText();
 	mSourceTLinks.resize(aCount);
@@ -53,7 +53,7 @@ Graph::set_vertex_count(size_t aCount)
 
 void
 Graph::set_nweights(
-	size_t aEdgeCount,
+	int aEdgeCount,
 	/*VertexId *aVertices1,
 	VertexId *aVertices2,*/
 	EdgeRecord *aEdges,
@@ -138,7 +138,7 @@ Graph::max_flow()
 	std::cout << "Initial excess : " << thrust::reduce(mExcess.begin(), mExcess.end()) << std::endl;*/
 
 	bool done = false;
-	size_t iteration = 0;
+	int iteration = 0;
 	while(!done) {
 		bool push_result = push();
 		//bool push_result = push_host();
@@ -262,7 +262,7 @@ Graph::assign_label_by_distance()
 				);
 
 	device_flag propagationSuccessfulFlag;
-	size_t currentLevel = 1;
+	int currentLevel = 1;
 	do {
 		propagationSuccessfulFlag.reset_host();
 		bfsPropagationKernel<<<edgeGridSize1D, blockSize1D>>>(
@@ -541,7 +541,7 @@ Graph::push()
 	//dim3 blockSize1D( 16 );
 	//dim3 gridSize1D(1, 1, 1);
 	device_flag pushSuccessfulFlag;
-	size_t pushIterations = 0;
+	int pushIterations = 0;
 	do {
 		pushSuccessfulFlag.reset_host();
 		++pushIterations;
@@ -563,7 +563,7 @@ metaPushKernel(device_flag_view aPushSuccessfulFlag, EdgeList aEdges, VertexList
 	dim3 blockSize1D( 512 );
 	dim3 gridSize1D((aEdges.size() + 64*blockSize1D.x - 1) / (64*blockSize1D.x), 64);
 
-	size_t pushIterations = 0;
+	int pushIterations = 0;
 	do {
 		aPushSuccessfulFlag.reset_device();
 		++pushIterations;
@@ -592,7 +592,7 @@ Graph::push_host()
 	thrust::host_vector<float> excess = mExcess;
 	thrust::host_vector<float> pushedFlow(labels.size());
 
-	size_t pushIterations = 0;
+	int pushIterations = 0;
 	bool should_continue;
 	do {
 		should_continue = false;

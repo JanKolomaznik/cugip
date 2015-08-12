@@ -18,7 +18,7 @@ assignLabelByDistance(GraphCutData<TFlow> &aGraphData, ParallelQueueView<int> aV
 	mLevelStarts.clear();
 	mLevelStarts.push_back(0);
 	mLevelStarts.push_back(lastLevelSize);
-	size_t currentLevel = 1;
+	int currentLevel = 1;
 	bool finished = lastLevelSize == 0;
 	while (!finished) {
 		finished = bfs_iteration(currentLevel);

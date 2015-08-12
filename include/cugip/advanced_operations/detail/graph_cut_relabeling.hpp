@@ -27,7 +27,7 @@ Graph<TFlow>::assign_label_by_distance()
 	mLevelStarts.clear();
 	mLevelStarts.push_back(0);
 	mLevelStarts.push_back(lastLevelSize);
-	size_t currentLevel = 1;
+	int currentLevel = 1;
 	bool finished = lastLevelSize == 0;
 	while (!finished) {
 		finished = bfs_iteration(currentLevel);
@@ -577,7 +577,7 @@ struct Relabel
 		aLevelStarts.clear();
 		aLevelStarts.push_back(0);
 		aLevelStarts.push_back(lastLevelSize);
-		size_t currentLevel = 1;
+		int currentLevel = 1;
 		bool finished = lastLevelSize == 0;
 		while (!finished) {
 			finished = computation_step(aGraph, currentLevel, aLevelStarts, aVertexQueue);
@@ -618,9 +618,9 @@ struct Relabel
 	}
 #if 0
 	static bool
-	bfs_iteration2(TGraphData &aGraph, size_t &aCurrentLevel, std::vector<int> &aLevelStarts, ParallelQueueView<int> &aVertexQueue)
+	bfs_iteration2(TGraphData &aGraph, int &aCurrentLevel, std::vector<int> &aLevelStarts, ParallelQueueView<int> &aVertexQueue)
 	{
-		size_t level = aCurrentLevel;
+		int level = aCurrentLevel;
 		dim3 blockSize1D(TPolicy::THREADS, 1, 1);
 		int frontierSize = aLevelStarts[aCurrentLevel] - aLevelStarts[aCurrentLevel - 1];
 		dim3 levelGridSize1D(1 + (frontierSize - 1) / (blockSize1D.x), 1, 1);
@@ -675,7 +675,7 @@ struct Relabel
 	}
 #endif
 	bool
-	computation_step(TGraphData &aGraph, size_t &aCurrentLevel, std::vector<int> &aLevelStarts, ParallelQueueView<int> &aVertexQueue)
+	computation_step(TGraphData &aGraph, int &aCurrentLevel, std::vector<int> &aLevelStarts, ParallelQueueView<int> &aVertexQueue)
 	{
 		int frontierSize = aLevelStarts[aCurrentLevel] - aLevelStarts[aCurrentLevel - 1];
 		if (frontierSize <= 512) {
@@ -686,7 +686,7 @@ struct Relabel
 	}
 
 	bool
-	bfs_multi_iteration(TGraphData &aGraph, size_t &aCurrentLevel, std::vector<int> &aLevelStarts, ParallelQueueView<int> &aVertexQueue)
+	bfs_multi_iteration(TGraphData &aGraph, int &aCurrentLevel, std::vector<int> &aLevelStarts, ParallelQueueView<int> &aVertexQueue)
 	{
 		mLevelStartsQueue.reserve(1000);
 		dim3 blockSize1D(TPolicy::THREADS, 1, 1);
@@ -729,7 +729,7 @@ struct Relabel
 	}
 
 	bool
-	bfs_iteration(TGraphData &aGraph, size_t &aCurrentLevel, std::vector<int> &aLevelStarts, ParallelQueueView<int> &aVertexQueue)
+	bfs_iteration(TGraphData &aGraph, int &aCurrentLevel, std::vector<int> &aLevelStarts, ParallelQueueView<int> &aVertexQueue)
 	{
 		//D_PRINT("Single");
 		int frontierSize = aLevelStarts[aCurrentLevel] - aLevelStarts[aCurrentLevel - 1];
