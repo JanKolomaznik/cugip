@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cugip/image.hpp>
+
 namespace cugip {
 
 struct VonNeumannNeighborhood
@@ -18,10 +20,17 @@ public:
 	intialize();
 
 	void
-	iterate(int aIterationCount);
+	iterate(int aIterationCount)
+	{
+
+	}
 
 	int
 	run_until_equilibrium();
+
+protected:
+	int mIteration;
+	std::array<device_image<Cell>, 2> mImages;
 };
 
 
