@@ -73,6 +73,13 @@ public:
 	{
 		return mData.mData.get();
 	}
+
+	void
+	resize(extents_t aExtents)
+	{
+		mData.reallocate(aExtents);
+	}
+	
 protected:
 	device_image & operator=(const device_image &);
 	device_image(const device_image &);

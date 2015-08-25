@@ -230,4 +230,3 @@ for_each_locator(TView1 aView1, TView2 aView2, TFunctor aOperator)
 
 
 }//namespace cugip
-

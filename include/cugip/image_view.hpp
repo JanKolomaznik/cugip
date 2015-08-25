@@ -132,6 +132,12 @@ protected:
 CUGIP_DECLARE_DEVICE_VIEW_TRAITS((device_image_view<TElement, tDim>), tDim, typename TElement, int tDim);
 CUGIP_DECLARE_DEVICE_VIEW_TRAITS((const_device_image_view<TElement, tDim>), tDim, typename TElement, int tDim);
 
+template<typename TElement, int tDim>
+struct is_memory_based<device_image_view<TElement, tDim>>: public std::true_type {};
+
+template<typename TElement, int tDim>
+struct is_memory_based<const_device_image_view<TElement, tDim>>: public std::true_type {};
+
 /*template<typename TElement, int tDim>
 struct is_device_view<device_image_view<TElement, tDim> > : public std::true_type {};
 

@@ -10,13 +10,14 @@ namespace detail {
 
 } //namespace detail
 
+CUGIP_HD_WARNING_DISABLE
 template<typename TImageView>
 CUGIP_DECL_HYBRID auto
 linear_access(const TImageView &aView, int aIdx) -> typename TImageView::accessed_type
 {
 	typename TImageView::coord_t coords;
 	for(int i = 0; i < dimension<TImageView>::value; ++i) {
-	       	coords[i] = aIdx % aView.dimensions()[i];
+		coords[i] = aIdx % aView.dimensions()[i];
 		aIdx /= aView.dimensions()[i];
 	}
 
@@ -33,7 +34,7 @@ get_linear_access_index(
 	int idx = 0;
 	int stride = 1;
 	for(int i = 0; i < dim; ++i) {
-	       	idx += aCoordinates[i] * stride;
+		idx += aCoordinates[i] * stride;
 		stride *= aExtents[i];
 	}
 	return idx;

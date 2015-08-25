@@ -16,11 +16,9 @@ public:
 	typedef TCoordinateType coord_t;
 	typedef simple_vector<TCoordinateType, tDim> this_t;
 	static const int dim = tDim;
-    /*inline CUGIP_DECL_HYBRID simple_vector()
-    {}*/
 
 	CUGIP_DECL_HYBRID
-        simple_vector()
+	simple_vector()
 	{
 		for (int i = 0; i < tDim; ++i) {
 			mValues[i] = 0;
@@ -28,7 +26,7 @@ public:
 	}
 
 	CUGIP_DECL_HYBRID
-        simple_vector(TCoordinateType const& v0)
+	simple_vector(TCoordinateType const& v0)
 	{
 		CUGIP_ASSERT(tDim >= 1);
 		mValues[0] = v0;
@@ -38,7 +36,7 @@ public:
 	}
 
 	CUGIP_DECL_HYBRID
-        simple_vector(TCoordinateType const& v0, TCoordinateType const& v1)
+	simple_vector(TCoordinateType const& v0, TCoordinateType const& v1)
 	{
 		CUGIP_ASSERT(tDim >= 2);
 		mValues[0] = v0;
@@ -49,7 +47,7 @@ public:
 	}
 
 	CUGIP_DECL_HYBRID
-        simple_vector(TCoordinateType const& v0, TCoordinateType const& v1, TCoordinateType const& v2)
+	simple_vector(TCoordinateType const& v0, TCoordinateType const& v1, TCoordinateType const& v2)
 	{
 		CUGIP_ASSERT(tDim >= 3);
 		mValues[0] = v0;
@@ -62,7 +60,7 @@ public:
 
 	template<typename TOtherCoordType>
 	CUGIP_DECL_HYBRID
-        simple_vector(const simple_vector<TOtherCoordType, tDim> &aArg)
+	simple_vector(const simple_vector<TOtherCoordType, tDim> &aArg)
 	{
 		for (int i = 0; i < tDim; ++i) {
 			mValues[i] = aArg.mValues[i];
@@ -182,8 +180,8 @@ operator==(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TC
 {
 	for (int i = 0; i < tDim; ++i) {
 		if (aArg1.mValues[i] != aArg2.mValues[i]) {
-                        return false;
-                }
+			return false;
+		}
 	}
 	return true;
 }

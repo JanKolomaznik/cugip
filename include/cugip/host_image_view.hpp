@@ -121,6 +121,12 @@ protected:
 CUGIP_DECLARE_HOST_VIEW_TRAITS((host_image_view<TElement, tDim>), tDim, typename TElement, int tDim);
 CUGIP_DECLARE_HOST_VIEW_TRAITS((const_host_image_view<TElement, tDim>), tDim, typename TElement, int tDim);
 
+template<typename TElement, int tDim>
+struct is_memory_based<host_image_view<TElement, tDim>>: public std::true_type {};
+
+template<typename TElement, int tDim>
+struct is_memory_based<const_host_image_view<TElement, tDim>>: public std::true_type {};
+
 template<typename TElement, int tDimension>
 const_host_image_view<const TElement, tDimension>
 makeConstHostImageView(const TElement *buffer, simple_vector<int, tDimension> size, simple_vector<int, tDimension> strides) {

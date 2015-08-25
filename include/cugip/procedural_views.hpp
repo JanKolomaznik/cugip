@@ -2,6 +2,7 @@
 
 #include <cugip/math.hpp>
 #include <cugip/functors.hpp>
+#include <cugip/detail/view_declaration_utils.hpp>
 
 namespace cugip {
 
@@ -383,6 +384,7 @@ public:
 	typedef device_image_view_base<dimension<TView>::value> predecessor_type;
 	typedef typename TView::value_type Input;
 	typedef decltype(std::declval<TOperator>()(std::declval<Input>())) result_type;
+	typedef result_type value_type;
 	typedef result_type accessed_type;
 
 	UnaryOperatorDeviceImageView(TView view, TOperator unary_operator) :
@@ -391,7 +393,8 @@ public:
 		mUnaryOperator(unary_operator)
 	{}
 
-	CUGIP_DECL_DEVICE
+	CUGIP_HD_WARNING_DISABLE
+	CUGIP_DECL_HYBRID
 	accessed_type operator[](coord_t index) const {
 		return mUnaryOperator(mView[index]);
 	}
@@ -401,7 +404,8 @@ protected:
 	TOperator mUnaryOperator;
 };
 
-CUGIP_DECLARE_DEVICE_VIEW_TRAITS((UnaryOperatorDeviceImageView<TView, TOperator>), dimension<TView>::value, typename TView, typename TOperator);
+//CUGIP_DECLARE_DEVICE_VIEW_TRAITS((UnaryOperatorDeviceImageView<TView, TOperator>), dimension<TView>::value, typename TView, typename TOperator);
+CUGIP_DECLARE_HYBRID_VIEW_TRAITS((UnaryOperatorDeviceImageView<TView, TOperator>), dimension<TView>::value, typename TView, typename TOperator);
 
 /// Creates view which returns squared values from the original view
 template<typename TView>
@@ -465,6 +469,49 @@ upperLimit(TType limit, TType replacement, TView view) {
 	return UnaryOperatorDeviceImageView<TView, UpperLimitFunctor<TType>>(view, UpperLimitFunctor<TType>(limit, replacement));
 }
 
+template<typename TFunctor, typename TView>
+UnaryOperatorDeviceImageView<TView, TFunctor>
+unaryOperator(TView view, TFunctor functor) {
+	return UnaryOperatorDeviceImageView<TView, TFunctor>(view, functor);
+}
+
+template<typename TView, typename TOperator>
+class UnaryOperatorOnPositionDeviceImageView : public device_image_view_base<dimension<TView>::value> {
+public:
+	typedef typename TView::extents_t extents_t;
+	typedef typename TView::coord_t coord_t;
+	typedef device_image_view_base<dimension<TView>::value> predecessor_type;
+	typedef typename TView::value_type Input;
+	typedef decltype(std::declval<TOperator>()(std::declval<Input>(), coord_t())) result_type;
+	typedef result_type value_type;
+	typedef result_type accessed_type;
+
+	UnaryOperatorOnPositionDeviceImageView(TView view, TOperator unary_operator) :
+		predecessor_type(view.dimensions()),
+		mView(view),
+		mUnaryOperator(unary_operator)
+	{}
+
+	CUGIP_HD_WARNING_DISABLE
+	CUGIP_DECL_HYBRID
+	accessed_type operator[](coord_t index) const {
+		return mUnaryOperator(mView[index], index);
+	}
+
+protected:
+	TView mView;
+	TOperator mUnaryOperator;
+};
+
+//CUGIP_DECLARE_DEVICE_VIEW_TRAITS((UnaryOperatorDeviceImageView<TView, TOperator>), dimension<TView>::value, typename TView, typename TOperator);
+CUGIP_DECLARE_HYBRID_VIEW_TRAITS((UnaryOperatorOnPositionDeviceImageView<TView, TOperator>), dimension<TView>::value, typename TView, typename TOperator);
+
+
+template<typename TFunctor, typename TView>
+UnaryOperatorOnPositionDeviceImageView<TView, TFunctor>
+unaryOperatorOnPosition(TView view, TFunctor functor) {
+	return UnaryOperatorOnPositionDeviceImageView<TView, TFunctor>(view, functor);
+}
 /// View returning single coordinate mapping from grid
 /// Inspired by Matlab function 'meshgrid'
 template<int tDimension>

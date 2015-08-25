@@ -35,6 +35,9 @@ struct is_device_view: public std::false_type {};
 template<typename TView>
 struct is_host_view: public std::false_type {};
 
+template<typename TView>
+struct is_memory_based: public std::false_type {};
+
 /**
  * @}
  **/

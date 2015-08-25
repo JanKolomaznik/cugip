@@ -349,7 +349,7 @@ struct device_memory_2d
 
 	device_ptr<TType> mData;
 	extents_t mExtents;
-	int mPitch;
+	size_t mPitch;
 };
 
 template<typename TType>
@@ -408,7 +408,7 @@ struct const_device_memory_2d
 
 	const_device_ptr<TType> mData;
 	extents_t mExtents;
-	int mPitch;
+	size_t mPitch;
 };
 
 
@@ -464,7 +464,7 @@ struct device_memory_3d
 
 	device_ptr<TType> mData;
 	extents_t mExtents;
-	int mPitch;
+	size_t mPitch;
 };
 
 
@@ -525,7 +525,7 @@ struct const_device_memory_3d
 
 	const_device_ptr<TType> mData;
 	extents_t mExtents;
-	int mPitch;
+	size_t mPitch;
 };
 
 
@@ -540,22 +540,29 @@ struct device_memory_1d_owner: public device_memory_1d<TType>
 
 	device_memory_1d_owner(int aSize)
 	{
-		void *devPtr = NULL;
-		CUGIP_CHECK_RESULT(cudaMalloc(&devPtr, aSize * sizeof(TType)));
-		this->mExtents.template set<0>(aSize);
-		this->mData = static_cast<TType*>(devPtr);
-		//int *ptr = (int*)devPtr;
-		//this->mData.assign(ptr);
-
-		/*D_PRINT(boost::str(boost::format("GPU allocation: 1D memory - %1% items, %2% bytes per item, address %3$#x")
-					% this->mExtents
-					% sizeof(TType)
-					% int(this->mData.p)));*/
-		CUGIP_ASSERT(this->mData.p);
+		reallocate(extents_t(aSize));
 	}
 
 	device_memory_1d_owner(extents_t aExtents)
 	{
+		reallocate(aExtents);
+	}
+
+	~device_memory_1d_owner()
+	{
+		if (this->mData) {
+			CUGIP_DPRINT("Releasing memory at: " << this->mData);
+			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
+		}
+	}
+
+	void
+	reallocate(extents_t aExtents)
+	{
+		if (this->mData) {
+			CUGIP_DPRINT("Releasing memory at: " << this->mData);
+			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
+		}
 		void *devPtr = NULL;
 		CUGIP_CHECK_RESULT(cudaMalloc(&devPtr, aExtents.get<0>() * sizeof(TType)));
 		this->mExtents = aExtents;
@@ -566,14 +573,7 @@ struct device_memory_1d_owner: public device_memory_1d<TType>
 					% sizeof(TType)
 					% int(this->mData.p)));*/
 		CUGIP_ASSERT(this->mData.p);
-	}
 
-	~device_memory_1d_owner()
-	{
-		if (this->mData) {
-			CUGIP_DPRINT("Releasing memory at: " << this->mData);
-		//	CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
-		}
 	}
 };
 
@@ -588,21 +588,27 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 
 	device_memory_2d_owner(int aWidth, int aHeight)
 	{
-		void *devPtr = NULL;
-		CUGIP_CHECK_RESULT(cudaMallocPitch(&devPtr, &(this->mPitch), aWidth * sizeof(TType), aHeight));
-		this->mExtents.set<0>(aWidth);
-		this->mExtents.set<1>(aHeight);
-		this->mData = reinterpret_cast<TType*>(devPtr);
-
-		D_PRINT(boost::str(boost::format("GPU allocation: 2D memory - %1% items, %2% bytes pitch, %3% item size")
-					% this->mExtents
-					% this->mPitch
-					% sizeof(TType)));
-		CUGIP_ASSERT(this->mData.p);
+		reallocate(extents_t(aWidth, aHeight));
 	}
 
 	device_memory_2d_owner(extents_t aExtents)
 	{
+		reallocate(aExtents);
+	}
+
+	~device_memory_2d_owner()
+	{
+		if (this->mData) {
+			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
+		}
+	}
+
+	void
+	reallocate(extents_t aExtents)
+	{
+		if (this->mData) {
+			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
+		}
 		void *devPtr = NULL;
 		CUGIP_CHECK_RESULT(cudaMallocPitch(&devPtr, &(this->mPitch), aExtents.get<0>() * sizeof(TType), aExtents.get<1>()));
 		this->mExtents = aExtents;
@@ -613,13 +619,6 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 					% this->mPitch
 					% sizeof(TType)));
 		CUGIP_ASSERT(this->mData.p);
-	}
-
-	~device_memory_2d_owner()
-	{
-		if (this->mData) {
-			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
-		}
 	}
 };
 
@@ -635,23 +634,35 @@ struct device_memory_3d_owner: public device_memory_3d<TType>
 
 	device_memory_3d_owner(int aWidth, int aHeight, int aDepth)
 	{
-		cudaPitchedPtr pitchedDevPtr;
-
-		CUGIP_CHECK_RESULT(cudaMalloc3D(&pitchedDevPtr, make_cudaExtent(aWidth * sizeof(TType), aHeight, aDepth)));
-		this->mExtents.set<0>(aWidth);
-		this->mExtents.set<1>(aHeight);
-		this->mExtents.set<2>(aDepth);
-		this->mData = reinterpret_cast<TType*>(pitchedDevPtr.ptr);
-		this->mPitch = pitchedDevPtr.pitch;
-		D_PRINT(boost::str(boost::format("GPU allocation: 3D memory - %1% items, %2% bytes pitch, %3% item size")
-					% this->mExtents
-					% this->mPitch
-					% sizeof(TType)));
-		CUGIP_ASSERT(this->mData.p);
+		reallocate(extents_t(aWidth, aHeight, aDepth));
 	}
 
 	device_memory_3d_owner(extents_t aExtents)
 	{
+		reallocate(aExtents);
+	}
+
+	~device_memory_3d_owner()
+	{
+		if (this->mData) {
+			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
+		}
+	}
+
+	void clear()
+	{
+		CUGIP_ASSERT(false);
+		/*if (this->mData) {
+			CUGIP_CHECK_RESULT(cudaMemset(pitchedDevPtr.ptr, 0, this->mPitch * aExtents[1] * aExtents[2]));
+		}*/
+	}
+
+	void
+	reallocate(extents_t aExtents)
+	{
+		if (this->mData) {
+			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
+		}
 		cudaPitchedPtr pitchedDevPtr;
 		CUGIP_CHECK_RESULT(cudaMalloc3D(&pitchedDevPtr, make_cudaExtent(aExtents[0] * sizeof(TType), aExtents[1], aExtents[2])));
 		this->mExtents = aExtents;
@@ -665,13 +676,6 @@ struct device_memory_3d_owner: public device_memory_3d<TType>
 
 		CUGIP_ASSERT(this->mData.p);
 		CUGIP_CHECK_RESULT(cudaMemset(pitchedDevPtr.ptr, 0, this->mPitch * aExtents[1] * aExtents[2]));
-	}
-
-	~device_memory_3d_owner()
-	{
-		if (this->mData) {
-			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
-		}
 	}
 };
 //*****************************************************************************************

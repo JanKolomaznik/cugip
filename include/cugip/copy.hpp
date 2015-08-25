@@ -3,11 +3,12 @@
 #include <cugip/detail/include.hpp>
 #include <cugip/utils.hpp>
 #include <cugip/cuda_utils.hpp>
+#include <cugip/access_utils.hpp>
 #include <cugip/math.hpp>
 #include <cugip/memory_view.hpp>
 
 namespace cugip {
-/*
+
 namespace detail {
 
 template<typename TType>
@@ -49,7 +50,7 @@ copy_wrapper(
 			aSize[1] * aSize[2],
 			aMemcpyKind));
 }
-
+/*
 template<bool tFromDevice, bool tToDevice>
 struct copy_methods_impl;
 
@@ -165,10 +166,10 @@ struct copy_methods_impl<true, false>
 			      cudaMemcpyDeviceToHost));
 	}
 };
-
+*/
 }//namespace detail
 
-
+/*
 template<typename TFrom, typename TTo>
 void
 copy(TFrom aFrom, TTo aTo)
@@ -269,6 +270,17 @@ void copyDeviceToDeviceAsync(
 	CUGIP_CHECK_ERROR_STATE("After CopyKernel");
 }
 
+template <typename TFromView, typename TToView>
+void copyHostToHost(
+	TFromView from_view,
+	TToView to_view)
+{
+	// TODO(johny) - use memcpy for memory based views
+
+	for (int i = 0; i < elementCount(from_view); ++i) {
+		linear_access(to_view, i) = linear_access(from_view, i);
+	}
+}
 
 template <typename TFromView, typename TToView>
 void copyDeviceToHostAsync(
@@ -279,8 +291,8 @@ void copyDeviceToHostAsync(
 	typedef typename std::remove_cv<typename TFromView::value_type>::type FromElement;
 	typedef typename std::remove_cv<typename TToView::value_type>::type ToElement;
 	static_assert(std::is_same<FromElement, ToElement>::value, "From/To views have incompatible element types.");
-	//static_assert(TFromView::kIsMemoryBased, "Source view must be memory based");
-	//static_assert(TToView::kIsMemoryBased, "Target view must be memory based");
+	static_assert(is_memory_based<TFromView>::value, "Source view must be memory based");
+	static_assert(is_memory_based<TToView>::value, "Target view must be memory based");
 	// Copy without padding
 	cudaMemcpy3DParms parameters = { 0 };
 
@@ -302,8 +314,8 @@ void copyHostToDeviceAsync(
 	typedef typename std::remove_cv<typename TFromView::value_type>::type FromElement;
 	typedef typename std::remove_cv<typename TToView::value_type>::type ToElement;
 	static_assert(std::is_same<FromElement, ToElement>::value, "From/To views have incompatible element types.");
-	//static_assert(TFromView::kIsMemoryBased, "Source view must be memory based");
-	//static_assert(TToView::kIsMemoryBased, "Target view must be memory based");
+	static_assert(is_memory_based<TFromView>::value, "Source view must be memory based");
+	static_assert(is_memory_based<TToView>::value, "Target view must be memory based");
 	cudaMemcpy3DParms parameters = { 0 };
 
 	parameters.srcPtr = stridesToPitchedPtr(from_view.pointer(), from_view.dimensions(), from_view.strides());
@@ -348,8 +360,45 @@ void asyncCopyHelper(
 	copyHostToDeviceAsync(from_view, to_view, cuda_stream);
 }
 
+template <typename TFromView, typename TToView>
+void asyncCopyHelper(
+	TFromView from_view,
+	TToView to_view,
+	HostToHostTag /*tag*/,
+	cudaStream_t cuda_stream)
+{
+	copyHostToHost(from_view, to_view); //TODO - async version
+}
+
 
 // TODO(johny) implement special cases, unified memory, etc.
+
+template <bool tFromIsDevice, bool tFromIsHost, bool tToIsDevice, bool tToIsHost>
+struct GetCopyDirection;
+
+template <bool tFromIsHost>
+struct GetCopyDirection<true, tFromIsHost, true, false>
+{
+	typedef DeviceToDeviceTag Direction;
+};
+
+template <>
+struct GetCopyDirection<false, true, true, false>
+{
+	typedef HostToDeviceTag Direction;
+};
+
+template <bool tFromIsDevice>
+struct GetCopyDirection<tFromIsDevice, true, false, true>
+{
+	typedef HostToHostTag Direction;
+};
+
+template <>
+struct GetCopyDirection<true, false, false, true>
+{
+	typedef DeviceToHostTag Direction;
+};
 
 template <typename TFromView, typename TToView>
 void copyAsync(
@@ -357,13 +406,20 @@ void copyAsync(
 	TToView to_view,
 	cudaStream_t cuda_stream)
 {
+	static_assert(is_device_view<TToView>::value != is_host_view<TToView>::value, "Target view is usable on device and host. Ambiguous copy direction.");
 	CUGIP_DFORMAT("Copy sizes: \n  src: %1%\n  dst: %2%", from_view.dimensions(), to_view.dimensions());
 	if (from_view.dimensions() != to_view.dimensions()) {
 		CUGIP_THROW(IncompatibleViewSizes() /*<< GetViewPairSizesErrorInfo(from_view.dimensions(), to_view.dimensions()))*/);
 	}
 
-	static_assert(is_device_view<TFromView>::value || is_device_view<TToView>::value, "Host to host copy not yet implemented - decide sycnhronous/asynchronous behavior");
-	asyncCopyHelper(from_view, to_view, CopyDirectionTag<is_device_view<TFromView>::value, is_device_view<TToView>::value>(), cuda_stream);
+	//static_assert(is_device_view<TFromView>::value || is_device_view<TToView>::value, "Host to host copy not yet implemented - decide sycnhronous/asynchronous behavior");
+	//asyncCopyHelper(from_view, to_view, CopyDirectionTag<is_device_view<TFromView>::value, is_device_view<TToView>::value>(), cuda_stream);
+	auto direction = typename GetCopyDirection<
+			is_device_view<TFromView>::value,
+			is_host_view<TFromView>::value,
+			is_device_view<TToView>::value,
+			is_host_view<TToView>::value>::Direction();
+	asyncCopyHelper(from_view, to_view, direction, cuda_stream);
 }
 
 

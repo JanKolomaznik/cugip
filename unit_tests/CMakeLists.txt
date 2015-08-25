@@ -23,6 +23,7 @@ CUDA_ADD_EXECUTABLE(
 		test_suite
 		#utils_test.cu
 		#graph_cut_test.cu
-		procedural_view_test.cu
+		#procedural_view_test.cu
+		cellular_automata_test.cu
 		)
 TARGET_LINK_LIBRARIES(test_suite ${Boost_LIBRARIES} ${ITK_LIBRARIES})

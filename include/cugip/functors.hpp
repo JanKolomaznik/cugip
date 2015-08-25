@@ -131,6 +131,7 @@ struct assign_color_ftor
 		tmp.data[0] = (aArg * 123) % 256;
 		tmp.data[1] = (aArg * 7) % 256;
 		tmp.data[2] = (aArg * 13) % 256;
+		//std::cout << aArg << " -> [" << int(tmp.data[0]) << ";" << int(tmp.data[1]) << ";" << int(tmp.data[2]) << "]\n";
 		return tmp;
 	}
 };
