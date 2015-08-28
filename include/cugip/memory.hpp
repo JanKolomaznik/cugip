@@ -293,7 +293,7 @@ struct device_memory_1d
 
 	inline CUGIP_DECL_HYBRID extents_t
 	strides() const
-	{ return mExtents; }
+	{ return sizeof(TType) *mExtents; }
 
 	device_ptr<TType> mData;
 	extents_t mExtents;
@@ -344,7 +344,7 @@ struct device_memory_2d
 
 	inline CUGIP_DECL_HYBRID extents_t
 	strides() const
-	{ return extents_t(1, mPitch / sizeof(TType)); }
+	{ return extents_t(sizeof(TType), mPitch); }
 
 
 	device_ptr<TType> mData;
@@ -403,7 +403,7 @@ struct const_device_memory_2d
 
 	inline CUGIP_DECL_HYBRID extents_t
 	strides() const
-	{ return extents_t(1, mPitch / sizeof(TType)); }
+	{ return extents_t(sizeof(TType), mPitch); }
 
 
 	const_device_ptr<TType> mData;
@@ -459,7 +459,7 @@ struct device_memory_3d
 
 	inline CUGIP_DECL_HYBRID extents_t
 	strides() const
-	{ return extents_t(1, mPitch / sizeof(TType), mPitch / sizeof(TType) * mExtents[1]); }
+	{ return extents_t(sizeof(TType), mPitch, mPitch * mExtents[1]); }
 
 
 	device_ptr<TType> mData;
@@ -520,7 +520,7 @@ struct const_device_memory_3d
 
 	inline CUGIP_DECL_HYBRID extents_t
 	strides() const
-	{ return extents_t(1, mPitch / sizeof(TType), mPitch / sizeof(TType) * mExtents[1]); }
+	{ return extents_t(sizeof(TType), mPitch, mPitch * mExtents[1]); }
 
 
 	const_device_ptr<TType> mData;
@@ -573,7 +573,6 @@ struct device_memory_1d_owner: public device_memory_1d<TType>
 					% sizeof(TType)
 					% int(this->mData.p)));*/
 		CUGIP_ASSERT(this->mData.p);
-
 	}
 };
 
@@ -675,7 +674,7 @@ struct device_memory_3d_owner: public device_memory_3d<TType>
 					% sizeof(TType)));
 
 		CUGIP_ASSERT(this->mData.p);
-		CUGIP_CHECK_RESULT(cudaMemset(pitchedDevPtr.ptr, 0, this->mPitch * aExtents[1] * aExtents[2]));
+		//CUGIP_CHECK_RESULT(cudaMemset(pitchedDevPtr.ptr, 0, this->mPitch * aExtents[1] * aExtents[2]));
 	}
 };
 //*****************************************************************************************

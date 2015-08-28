@@ -35,7 +35,8 @@ public:
 	accessed_type
 	operator[](coord_t aCoords) const
 	{
-		return mHostPtr[dot(mStrides, aCoords)];
+		return *reinterpret_cast<value_type *>(reinterpret_cast<char *>(mHostPtr) + dot(mStrides, aCoords));
+		//return mHostPtr[dot(mStrides, aCoords)];
 	}
 
 	/*template<typename TBorderHandling>
@@ -89,7 +90,8 @@ public:
 	accessed_type
 	operator[](coord_t aCoords) const
 	{
-		return mHostPtr[dot(mStrides, aCoords)];
+		return *reinterpret_cast<const_value_type *>(reinterpret_cast<const char *>(mHostPtr) + dot(mStrides, aCoords));
+		//return mHostPtr[dot(mStrides, aCoords)];
 	}
 
 

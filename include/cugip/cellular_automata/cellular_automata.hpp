@@ -3,6 +3,8 @@
 #include <cugip/image.hpp>
 #include <cugip/for_each.hpp>
 
+#include <cugip/equivalence_management.hpp>
+
 namespace cugip {
 
 template<int tDimension>
@@ -169,21 +171,72 @@ struct NeighborhoodAccessor
 struct Options
 {};
 
-template<typename TNeighborhood, typename TRule>
+template < typename PotentiallyCallable, typename... Args>
+struct is_callable
+{
+	typedef char (&no)  [1];
+	typedef char (&yes) [2];
+
+	template < typename T > struct dummy;
+
+	template < typename CheckType>
+	static yes check(dummy<decltype(std::declval<CheckType>()(std::declval<Args>()...))> *);
+	template < typename CheckType>
+	static no check(...);
+
+	enum { value = sizeof(check<PotentiallyCallable>(0)) == sizeof(yes) };
+};
+
+template<typename TNeighborhood, typename TRule, typename TGlobalState>
 struct CellOperation
 {
-	CellOperation(TRule aRule)
+	CellOperation(int aIteration, TRule aRule, TGlobalState aGlobalState)
 		: mRule(aRule)
+		, mIteration(aIteration)
+		, mGlobalState(aGlobalState)
 	{}
 
+	template<bool tUsesGlobalState, typename TDummy = int>
+	struct CallWrapper;
+	
+	template<typename TDummy>
+	struct CallWrapper<false, TDummy>
+	{
+		template<typename TOutLocator, typename TAccessor>
+		CUGIP_DECL_DEVICE
+		static void invoke(int aIteration, TRule &aRule, TOutLocator aOutLocator, TAccessor aAccessor, TGlobalState aGlobalState)
+		{
+			aOutLocator.get() = aRule(aIteration, aAccessor);
+			//aLocator2.get() = mRule(mIteration, Accessor(aLocator1, TNeighborhood()));
+		}
+	};
+
+	template<typename TDummy>
+	struct CallWrapper<true, TDummy>
+	{
+		template<typename TOutLocator, typename TAccessor>
+		CUGIP_DECL_DEVICE
+		static void invoke(int aIteration, TRule &aRule, TOutLocator aOutLocator, TAccessor aAccessor, TGlobalState aGlobalState)
+		{
+			//aOutLocator.get() = mRule(mIteration, aAccessor);
+			aOutLocator.get() = aRule(aIteration, aAccessor, aGlobalState);
+			//aLocator2.get() = mRule(mIteration, Accessor(aLocator1, TNeighborhood()));
+		}
+	};
+
+
 	template<typename TLocator1, typename TLocator2>
-	CUGIP_DECL_HYBRID void
+	CUGIP_DECL_DEVICE void
 	operator()(TLocator1 aLocator1, TLocator2 aLocator2) {
 		typedef NeighborhoodAccessor<TLocator1, TNeighborhood> Accessor;
-		aLocator2.get() = mRule(Accessor(aLocator1, TNeighborhood()));
+
+		CallWrapper<is_callable<TRule, int, Accessor, TGlobalState>::value>::invoke(mIteration, mRule, aLocator2, Accessor(aLocator1, TNeighborhood()), mGlobalState);
+		//aLocator2.get() = mRule(mIteration,);
 	}
 
 	TRule mRule;
+	int mIteration;
+	TGlobalState mGlobalState;
 };
 
 template<typename TElement, int tDim>
@@ -193,10 +246,38 @@ struct Grid
 	typedef TElement Element;
 };
 
-template<typename TGrid, typename TNeighborhood, typename TRule/*, typename TOptions*/>
+struct DummyGlobalState
+{
+	void
+	initialize(){}
+
+	template<typename TView>
+	void
+	postprocess(TView /*aView*/){}
+};
+
+
+template<typename TGrid, typename TNeighborhood, typename TRule, typename TGlobalState = DummyGlobalState/*, typename TOptions*/>
 class CellularAutomaton {
 public:
 	typedef device_image<typename TGrid::Element, TGrid::cDimension> State;
+
+	template<typename TInputView>
+	void
+	initialize(TRule aRule, TInputView aView, TGlobalState aGlobalState)
+	{
+		mGlobalState = aGlobalState;
+		initialize(aRule, aView);
+	}
+
+	template<typename TInputView>
+	void
+	initialize(TInputView aView, TGlobalState aGlobalState)
+	{
+		mGlobalState = aGlobalState;
+		initialize(aView);
+	}
+
 	template<typename TInputView>
 	void
 	initialize(TRule aRule, TInputView aView)
@@ -209,18 +290,23 @@ public:
 	void
 	initialize(TInputView aView)
 	{
+		mIteration = 0;
 		mImages[0].resize(aView.dimensions());
 		mImages[1].resize(aView.dimensions());
 		copy(aView, view(mImages[0]));
+
+		mGlobalState.initialize();
 	}
 
 	void
 	iterate(int aIterationCount)
 	{
 		for (int i = 0; i < aIterationCount; ++i) {
-			for_each_locator(const_view(mImages[mIteration % 2]), view(mImages[(mIteration + 1) % 2]), CellOperation<TNeighborhood, TRule>(mRule));
+			for_each_locator(const_view(mImages[mIteration % 2]), view(mImages[(mIteration + 1) % 2]), CellOperation<TNeighborhood, TRule, TGlobalState>(mIteration, mRule, mGlobalState));
+			mGlobalState.postprocess(view(mImages[(mIteration + 1) % 2]));
 			++mIteration;
 		}
+		CUGIP_CHECK_RESULT(cudaThreadSynchronize());
 	}
 
 	typename State::const_view_t
@@ -237,6 +323,7 @@ protected:
 	std::array<State, 2> mImages;
 
 	TRule mRule;
+	TGlobalState mGlobalState;
 };
 
 
@@ -244,7 +331,7 @@ struct ConwayRule
 {
 	template<typename TNeighborhood>
 	CUGIP_DECL_HYBRID uint8_t
-	operator()(TNeighborhood aNeighborhood) const
+	operator()(int aIteration, TNeighborhood aNeighborhood) const
 	{
 		int sum = 0;
 		for (int i = 1; i < aNeighborhood.size(); ++i) {
@@ -268,7 +355,7 @@ struct ConnectedComponentLabelingRule
 {
 	template<typename TNeighborhood>
 	CUGIP_DECL_HYBRID int
-	operator()(TNeighborhood aNeighborhood) const
+	operator()(int aIteration, TNeighborhood aNeighborhood) const
 	{
 		auto value = aNeighborhood[0];
 		if (value) {
@@ -283,5 +370,45 @@ struct ConnectedComponentLabelingRule
 	}
 };
 
+
+struct EquivalenceGlobalState
+{
+	void
+	initialize(){
+		manager.initialize();
+	}
+
+	template<typename TView>
+	void
+	postprocess()
+	{
+		manager.compaction();
+	}
+
+	EquivalenceManager<int> manager;
+};
+
+struct ConnectedComponentLabelingRule2
+{
+	template<typename TNeighborhood>
+	CUGIP_DECL_DEVICE int
+	operator()(int aIteration, TNeighborhood aNeighborhood, EquivalenceGlobalState &aEquivalence) const
+	{
+		auto value = aNeighborhood[0];
+		auto minValue = value;
+		if (value) {
+			for (int i = 1; i < aNeighborhood.size(); ++i) {
+				//printf("%d %d - %d val = %d -> %d\n", threadIdx.x, threadIdx.y, i, aNeighborhood[0], aNeighborhood[i]);
+				if (aNeighborhood[i] > 0 && aNeighborhood[i] < minValue) {
+					minValue = aNeighborhood[i];
+				}
+			}
+			if (minValue < value) {
+				aEquivalence.manager.merge(minValue, value);
+			}
+		}
+		return value;
+	}
+};
 
 } //namespace cugip

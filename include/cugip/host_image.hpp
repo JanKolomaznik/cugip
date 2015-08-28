@@ -3,6 +3,7 @@
 #include <cugip/detail/include.hpp>
 #include <cugip/image_view.hpp>
 #include <cugip/utils.hpp>
+#include <cugip/cuda_utils.hpp>
 #include <cugip/host_image_view.hpp>
 
 namespace cugip {
@@ -19,7 +20,7 @@ const_view(TImage &aImage);
 //**************************************************************************
 
 /// \return Strides for memory without padding.
-CUGIP_DECL_HYBRID
+/*CUGIP_DECL_HYBRID
 inline Int2 stridesFromExtents(Int2 size) {
 	return Int2(1, size[0]);
 }
@@ -28,7 +29,7 @@ inline Int2 stridesFromExtents(Int2 size) {
 CUGIP_DECL_HYBRID
 inline Int3 stridesFromExtents(Int3 size) {
 	return Int3(1, size[0], size[0] * size[1]);
-}
+}*/
 
 
 template<typename TElement, int tDim = 2>
@@ -62,7 +63,7 @@ public:
                 reallocate(extents_t(aS0, aS1, aS2));
         }
 
-	CUGIP_DECL_HYBRID extents_t
+	extents_t
 	dimensions() const
 	{ return mSize; }
 
@@ -97,7 +98,7 @@ protected:
         {
                 mHostPtr.reset(new value_type[product(aSize)]);
 		mSize = aSize;
-		mStrides = stridesFromExtents(mSize);
+		mStrides = sizeof(value_type) * stridesFromSize(mSize);
         }
 
         extents_t mSize;

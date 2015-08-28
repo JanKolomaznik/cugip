@@ -28,14 +28,14 @@ simple_vector<int, tDimension> pitchedPtrToStrides(int bytes, cudaPitchedPtr pit
 
 template<>
 inline Int2 pitchedPtrToStrides<2>(int bytes, cudaPitchedPtr pitched_ptr) {
-	CUGIP_ASSERT(pitched_ptr.pitch % bytes == 0);
-	return Int2(1, pitched_ptr.pitch / bytes);
+	//CUGIP_ASSERT(pitched_ptr.pitch % bytes == 0);
+	return Int2(bytes, pitched_ptr.pitch);
 }
 
 template<>
 inline Int3 pitchedPtrToStrides<3>(int bytes, cudaPitchedPtr pitched_ptr) {
-	CUGIP_ASSERT(pitched_ptr.pitch % bytes == 0);
-	return Int3(1, pitched_ptr.pitch / bytes, (pitched_ptr.pitch / bytes) * pitched_ptr.ysize);
+	//CUGIP_ASSERT(pitched_ptr.pitch % bytes == 0);
+	return Int3(bytes, pitched_ptr.pitch, pitched_ptr.pitch * pitched_ptr.ysize);
 }
 
 /// Convert element based strides to cuda pitched pointer.
@@ -43,16 +43,16 @@ inline Int3 pitchedPtrToStrides<3>(int bytes, cudaPitchedPtr pitched_ptr) {
 /// \param size Size of image buffer
 template<typename TElement>
 inline cudaPitchedPtr stridesToPitchedPtr(TElement *ptr, Int2 size, Int2 strides) {
-	CUGIP_ASSERT(strides[0] == 1 && "Pitched cuda pointer is usable only for continuous mmemory blocks");
+	CUGIP_ASSERT(strides[0] == sizeof(TElement) && "Pitched cuda pointer is usable only for continuous mmemory blocks");
 	// pitched pointer wraps only void * -> goodbye const correctness here
-	return make_cudaPitchedPtr(const_cast<void *>(reinterpret_cast<const void *>(ptr)), sizeof(TElement) * strides[1], size[0], size[1]);
+	return make_cudaPitchedPtr(const_cast<void *>(reinterpret_cast<const void *>(ptr)), strides[1], size[0], size[1]);
 }
 
 template<typename TElement>
 inline cudaPitchedPtr stridesToPitchedPtr(TElement *ptr, Int3 size, Int3 strides) {
-	CUGIP_ASSERT(strides[0] == 1 && "Pitched cuda pointer is usable only for continuous mmemory blocks");
+	CUGIP_ASSERT(strides[0] == sizeof(TElement) && "Pitched cuda pointer is usable only for continuous mmemory blocks");
 	// pitched pointer wraps only void * -> goodbye const correctness here
-	return make_cudaPitchedPtr(const_cast<void *>(reinterpret_cast<const void *>(ptr)), sizeof(TElement) * strides[1], size[0], size[1]);
+	return make_cudaPitchedPtr(const_cast<void *>(reinterpret_cast<const void *>(ptr)), strides[1], size[0], size[1]);
 }
 
 /// \return Strides for memory without padding.

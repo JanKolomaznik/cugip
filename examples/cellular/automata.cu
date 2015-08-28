@@ -6,6 +6,8 @@
 #include <cugip/host_image.hpp>
 #include <cugip/copy.hpp>
 
+#include <thrust/device_vector.h>
+
 using namespace cugip;
 
 struct ColorToCell {
@@ -55,7 +57,7 @@ class AutomatonWrapper: public AAutomatonWrapper
 		auto input = makeConstHostImageView(
 			reinterpret_cast<const element_rgb8_t *>(aBuffer),
 			Int2(aWidth, aHeight),
-			Int2(1, aBytesPerLine / sizeof(element_rgb8_t)));
+			Int2(sizeof(element_rgb8_t), aBytesPerLine));
 		setStartImageView(input);
 	}
 
@@ -66,7 +68,7 @@ class AutomatonWrapper: public AAutomatonWrapper
 		auto result = makeHostImageView(
 			reinterpret_cast<element_rgb8_t *>(aBuffer),
 			Int2(aWidth,aHeight),
-			Int2(1, aBytesPerLine / sizeof(element_rgb8_t)));
+			Int2(sizeof(element_rgb8_t), aBytesPerLine));
 		fillFromCurrentImage(result);
 	}
 
@@ -124,7 +126,87 @@ getConwaysAutomatonWrapper() {
 
 //******************************************************************************************
 
+template<typename TAutomaton>
 class CCLAutomatonWrapper: public AutomatonWrapper
+{
+public:
+	void
+	runIteration() override;
+
+	virtual void
+	setStartImageView(const_host_image_view<const element_rgb8_t, 2> aView) override;
+
+	virtual void
+	fillFromCurrentImage(host_image_view<element_rgb8_t, 2> aView) override;
+
+	TAutomaton mAutomaton;
+};
+
+
+template<typename TAutomaton>
+void
+CCLAutomatonWrapper<TAutomaton>::runIteration()
+{
+	mAutomaton.iterate(1);
+}
+
+template<typename TAutomaton>
+void CCLAutomatonWrapper<TAutomaton>::setStartImageView(const_host_image_view<const element_rgb8_t, 2> aView)
+{
+	host_image<int, 2> hostInput(aView.dimensions());
+	copy(unaryOperatorOnPosition(aView, ColorToLabel(aView.dimensions())), view(hostInput));
+	mAutomaton.initialize(const_view(hostInput));
+}
+
+template<typename TAutomaton>
+void CCLAutomatonWrapper<TAutomaton>::fillFromCurrentImage(host_image_view<element_rgb8_t, 2> aView)
+{
+	auto state = mAutomaton.getCurrentState();
+	host_image<int, 2> hostState(state.dimensions());
+	copy(state, view(hostState));
+	/*auto cv = const_view(hostState);
+	for (int j = 0; j < cv.dimensions()[1]; ++j){
+		for (int i = 0; i < cv.dimensions()[0]; ++i){
+			std::cout << "\t" << cv[Int2(i, j)];
+		}
+		std::cout << "\n";
+	}*/
+	copy(unaryOperator(const_view(hostState), assign_color_ftor()), aView);
+}
+
+std::unique_ptr<AAutomatonWrapper>
+getCCLAutomatonWrapper() {
+	return std::unique_ptr<AAutomatonWrapper>(new CCLAutomatonWrapper<CellularAutomaton<Grid<int, 2>, VonNeumannNeighborhood<2>, ConnectedComponentLabelingRule>>());
+}
+
+typedef CellularAutomaton<Grid<int, 2>, VonNeumannNeighborhood<2>, ConnectedComponentLabelingRule2, EquivalenceGlobalState> CCLMergeAutomaton;
+
+class CCLAutomatonMergeWrapper: public CCLAutomatonWrapper<CCLMergeAutomaton>
+{
+public:
+	void
+	setStartImageView(const_host_image_view<const element_rgb8_t, 2> aView)
+	{
+		host_image<int, 2> hostInput(aView.dimensions());
+		copy(unaryOperatorOnPosition(aView, ColorToLabel(aView.dimensions())), view(hostInput));
+		EquivalenceGlobalState globalState;
+
+		mBuffer.resize(elementCount(aView) + 1);
+		globalState.manager = EquivalenceManager<int>(thrust::raw_pointer_cast(mBuffer.data()), mBuffer.size());
+		mAutomaton.initialize(const_view(hostInput), globalState);
+	}
+
+	thrust::device_vector<int> mBuffer;
+};
+
+std::unique_ptr<AAutomatonWrapper>
+getCCLAutomatonWrapper2() {
+	return std::unique_ptr<AAutomatonWrapper>(new CCLAutomatonMergeWrapper());
+}
+
+//******************************************************************************************
+
+class WShedAutomatonWrapper: public AutomatonWrapper
 {
 public:
 	void
@@ -141,36 +223,36 @@ public:
 
 
 void
-CCLAutomatonWrapper::runIteration()
+WShedAutomatonWrapper::runIteration()
 {
 	mAutomaton.iterate(1);
 }
 
-void CCLAutomatonWrapper::setStartImageView(const_host_image_view<const element_rgb8_t, 2> aView)
+void WShedAutomatonWrapper::setStartImageView(const_host_image_view<const element_rgb8_t, 2> aView)
 {
 	host_image<int, 2> hostInput(aView.dimensions());
 	copy(unaryOperatorOnPosition(aView, ColorToLabel(aView.dimensions())), view(hostInput));
 	mAutomaton.initialize(const_view(hostInput));
 }
 
-void CCLAutomatonWrapper::fillFromCurrentImage(host_image_view<element_rgb8_t, 2> aView)
+void WShedAutomatonWrapper::fillFromCurrentImage(host_image_view<element_rgb8_t, 2> aView)
 {
 	auto state = mAutomaton.getCurrentState();
 	host_image<int, 2> hostState(state.dimensions());
 	copy(state, view(hostState));
-	auto cv = const_view(hostState);
+	/*auto cv = const_view(hostState);
 	for (int j = 0; j < cv.dimensions()[1]; ++j){
 		for (int i = 0; i < cv.dimensions()[0]; ++i){
 			std::cout << "\t" << cv[Int2(i, j)];
 		}
 		std::cout << "\n";
-	}
+	}*/
 	copy(unaryOperator(const_view(hostState), assign_color_ftor()), aView);
 }
 
 std::unique_ptr<AAutomatonWrapper>
-getCCLAutomatonWrapper() {
-	return std::unique_ptr<AAutomatonWrapper>(new CCLAutomatonWrapper());
+getWShedAutomatonWrapper() {
+	return std::unique_ptr<AAutomatonWrapper>(new WShedAutomatonWrapper());
 }
 
 
