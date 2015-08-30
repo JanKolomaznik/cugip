@@ -9,6 +9,7 @@
 #include <QFileDialog>
 
 #include "AutomatonWrapper.hpp"
+#include "AutomatonView.hpp"
 
 namespace Ui {
 class MainWindow;
@@ -36,16 +37,19 @@ public slots:
 
 	void
 	zoomOut();
+
+	void
+	setImageToAutomata();
+
+	void
+	reset();
 private:
 	Ui::MainWindow *ui;
-	AAutomatonWrapper &
-	getCurrentAutomaton();
 
-	std::vector<std::unique_ptr<AAutomatonWrapper>> mAutomataWrappers;
+	std::vector<AutomatonView *> mAutomataViews;
 
 	QImage mInputImage;
 	QImage mOutputImage;
-	QGraphicsPixmapItem *mGraphicsItem;
 
 	QTimer mTimer;
 };

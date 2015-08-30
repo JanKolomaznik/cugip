@@ -35,6 +35,7 @@ INCLUDE_DIRECTORIES(
 	)
 
 SET(${PROJECT_NAME}_HEADERS
+	"AutomatonView.hpp"
 	"AutomatonWrapper.hpp"
 	)
 
@@ -43,11 +44,13 @@ SET(${PROJECT_NAME}_CUDA_SOURCES
 	)
 
 SET(${PROJECT_NAME}_SOURCES
+	"AutomatonView.cpp"
 	"MainWindow.cpp"
 	"main.cpp"
 	)
 
 qt5_wrap_ui(${PROJECT_NAME}_UIS
+	"AutomatonView.ui"
 	"MainWindow.ui"
 	)
 

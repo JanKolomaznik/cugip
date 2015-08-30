@@ -9,17 +9,13 @@ MainWindow::MainWindow(QWidget *parent)
 {
 	ui->setupUi(this);
 
-	mAutomataWrappers.push_back(getConwaysAutomatonWrapper());
-	mAutomataWrappers.push_back(getCCLAutomatonWrapper());
-	QGraphicsScene *scene = new QGraphicsScene (this);
-	ui->mGraphicsView->setScene(scene);
-
-	mGraphicsItem = new QGraphicsPixmapItem();
-	scene->addItem(mGraphicsItem);
-
 	mTimer.setInterval(50);
 
 	QObject::connect(&mTimer, &QTimer::timeout, this, &MainWindow::runIteration);
+
+	AutomatonView *view = new AutomatonView();
+	ui->mdiArea->addSubWindow(view);
+	mAutomataViews.push_back(view);
 }
 
 MainWindow::~MainWindow()
@@ -29,10 +25,9 @@ MainWindow::~MainWindow()
 
 void MainWindow::runIteration()
 {
-	getCurrentAutomaton().runIteration();
-
-	getCurrentAutomaton().getCurrentImage(mOutputImage.bits(), mOutputImage.width(), mOutputImage.height(), mOutputImage.bytesPerLine());
-	mGraphicsItem->setPixmap(QPixmap::fromImage(mOutputImage));
+	for (auto view : mAutomataViews) {
+		view->runIterations(1);
+	}
 }
 
 void MainWindow::openImage()
@@ -47,11 +42,11 @@ void MainWindow::openImage()
 		if (mInputImage.format() != QImage::Format_RGB888) {
 			mInputImage = mInputImage.convertToFormat(QImage::Format_RGB888);
 		}
-		mGraphicsItem->setPixmap(QPixmap::fromImage(mInputImage));
+		//mGraphicsItem->setPixmap(QPixmap::fromImage(mInputImage));
 		//ui->mGraphicsView->scene()->addPixmap(QPixmap::fromImage(mImage));
-		mOutputImage = QImage(mInputImage.width(), mInputImage.height(), QImage::Format_RGB888);
+		//mOutputImage = QImage(mInputImage.width(), mInputImage.height(), QImage::Format_RGB888);
 
-		getCurrentAutomaton().setStartImage(mInputImage.bits(), mInputImage.width(), mInputImage.height(), mInputImage.bytesPerLine());
+		setImageToAutomata();
 	}
 }
 
@@ -66,15 +61,24 @@ void MainWindow::toggleRun(bool aRun)
 
 void MainWindow::zoomIn()
 {
-	ui->mGraphicsView->scale(1.1, 1.1);
+
 }
 
 void MainWindow::zoomOut()
 {
-	ui->mGraphicsView->scale(1 / 1.1, 1/ 1.1);
+
 }
 
-AAutomatonWrapper &MainWindow::getCurrentAutomaton()
+void MainWindow::setImageToAutomata()
 {
-	return *(mAutomataWrappers[1]);
+	for (auto view : mAutomataViews) {
+		view->setImage(mInputImage);
+	}
+}
+
+void MainWindow::reset()
+{
+	for (auto view : mAutomataViews) {
+		view->resetAutomaton();
+	}
 }

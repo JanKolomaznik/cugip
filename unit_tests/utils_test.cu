@@ -60,3 +60,4 @@ BOOST_AUTO_TEST_CASE(blockScanEx)
 	int result = thrust::reduce(buffer.begin(), buffer.end(), 0, thrust::plus<int>());
 	BOOST_CHECK_EQUAL(result, 0);
 }*/
+

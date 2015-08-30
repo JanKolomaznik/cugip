@@ -86,7 +86,7 @@ public:
 	{}
 
 	void
-	runIteration() override;
+	runIterations(int aIterationCount) override;
 
 	virtual void
 	setStartImageView(const_host_image_view<const element_rgb8_t, 2> aView) override;
@@ -99,9 +99,9 @@ public:
 
 
 void
-ConwaysAutomatonWrapper::runIteration()
+ConwaysAutomatonWrapper::runIterations(int aIterationCount)
 {
-	mAutomaton.iterate(1);
+	mAutomaton.iterate(aIterationCount);
 }
 
 void ConwaysAutomatonWrapper::setStartImageView(const_host_image_view<const element_rgb8_t, 2> aView)
@@ -131,7 +131,7 @@ class CCLAutomatonWrapper: public AutomatonWrapper
 {
 public:
 	void
-	runIteration() override;
+	runIterations(int aIterationCount) override;
 
 	virtual void
 	setStartImageView(const_host_image_view<const element_rgb8_t, 2> aView) override;
@@ -145,9 +145,9 @@ public:
 
 template<typename TAutomaton>
 void
-CCLAutomatonWrapper<TAutomaton>::runIteration()
+CCLAutomatonWrapper<TAutomaton>::runIterations(int aIterationCount)
 {
-	mAutomaton.iterate(1);
+	mAutomaton.iterate(aIterationCount);
 }
 
 template<typename TAutomaton>
@@ -210,7 +210,7 @@ class WShedAutomatonWrapper: public AutomatonWrapper
 {
 public:
 	void
-	runIteration() override;
+	runIterations(int aIterationCount) override;
 
 	virtual void
 	setStartImageView(const_host_image_view<const element_rgb8_t, 2> aView) override;
@@ -223,9 +223,9 @@ public:
 
 
 void
-WShedAutomatonWrapper::runIteration()
+WShedAutomatonWrapper::runIterations(int aIterationCount)
 {
-	mAutomaton.iterate(1);
+	mAutomaton.iterate(aIterationCount);
 }
 
 void WShedAutomatonWrapper::setStartImageView(const_host_image_view<const element_rgb8_t, 2> aView)

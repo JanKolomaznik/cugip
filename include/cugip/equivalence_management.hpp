@@ -17,6 +17,7 @@ kernelCompaction(TClassId *aBuffer, int aSize)
 		while (aBuffer[newValue] != newValue) {
 			newValue = aBuffer[newValue];
 		}
+		aBuffer[idx] = newValue;
 	}
 }
 
@@ -42,12 +43,21 @@ public:
 	{}
 
 	CUGIP_DECL_DEVICE
+	TClassId
+	get(TClassId aClass) const
+	{
+		return mBuffer[aClass];
+	}
+
+	CUGIP_DECL_DEVICE
 	void
 	merge(TClassId aFirst, TClassId aSecond)
 	{
 		TClassId minId = min(aFirst, aSecond);
 		TClassId maxId = max(aFirst, aSecond);
-		mBuffer[maxId] = minId;
+		if (mBuffer[maxId] > minId) {
+			mBuffer[maxId] = minId;
+		}
 	}
 
 	CUGIP_DECL_HOST
