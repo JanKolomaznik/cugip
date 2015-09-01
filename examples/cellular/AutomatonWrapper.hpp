@@ -26,3 +26,7 @@ getCCLAutomatonWrapper();
 
 std::unique_ptr<AAutomatonWrapper>
 getCCLAutomatonWrapper2();
+
+std::unique_ptr<AAutomatonWrapper>
+getWShedAutomatonWrapper();
+

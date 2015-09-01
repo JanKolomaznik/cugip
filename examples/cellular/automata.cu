@@ -5,6 +5,7 @@
 #include <cugip/procedural_views.hpp>
 #include <cugip/host_image.hpp>
 #include <cugip/copy.hpp>
+#include <cugip/tuple.hpp>
 
 #include <thrust/device_vector.h>
 
@@ -189,8 +190,8 @@ public:
 	{
 		host_image<int, 2> hostInput(aView.dimensions());
 		copy(unaryOperatorOnPosition(aView, ColorToLabel(aView.dimensions())), view(hostInput));
-		EquivalenceGlobalState globalState;
 
+		EquivalenceGlobalState globalState;
 		mBuffer.resize(elementCount(aView) + 1);
 		globalState.manager = EquivalenceManager<int>(thrust::raw_pointer_cast(mBuffer.data()), mBuffer.size());
 		mAutomaton.initialize(const_view(hostInput), globalState);
@@ -209,6 +210,8 @@ getCCLAutomatonWrapper2() {
 class WShedAutomatonWrapper: public AutomatonWrapper
 {
 public:
+	typedef simple_vector<int, 3> Value;
+
 	void
 	runIterations(int aIterationCount) override;
 
@@ -218,26 +221,41 @@ public:
 	virtual void
 	fillFromCurrentImage(host_image_view<element_rgb8_t, 2> aView) override;
 
-	CellularAutomaton<Grid<int, 2>, MooreNeighborhood<2>, ConnectedComponentLabelingRule> mAutomaton;
+	thrust::device_vector<int> mBuffer;
+	CellularAutomaton<Grid<int, 2>, MooreNeighborhood<2>, ConnectedComponentLabelingRule2, EquivalenceGlobalState> mLocalMinimumAutomaton;
+	//CellularAutomaton<Grid<Value, 2>, MooreNeighborhood<2>, ConnectedComponentLabelingRule> mAutomaton;
 };
 
 
 void
 WShedAutomatonWrapper::runIterations(int aIterationCount)
 {
-	mAutomaton.iterate(aIterationCount);
+	mLocalMinimumAutomaton.iterate(aIterationCount);
+	//mAutomaton.iterate(aIterationCount);
 }
 
 void WShedAutomatonWrapper::setStartImageView(const_host_image_view<const element_rgb8_t, 2> aView)
 {
-	host_image<int, 2> hostInput(aView.dimensions());
-	copy(unaryOperatorOnPosition(aView, ColorToLabel(aView.dimensions())), view(hostInput));
-	mAutomaton.initialize(const_view(hostInput));
+	host_image<int, 2> hostGrayscale(aView.dimensions());
+	copy(unaryOperator(aView, grayscale_ftor()), view(hostGrayscale));
+	device_image<int, 2> deviceGrayscale(aView.dimensions());
+	copy(const_view(hostGrayscale), view(deviceGrayscale));
+
+	auto gradient = lowerLimit(2, 0, unaryOperatorOnLocator(const_view(deviceGrayscale), gradient_magnitude<int,int>()));
+	auto localMinima = unaryOperatorOnLocator(gradient, LocalMinimumLabel());
+
+	EquivalenceGlobalState globalState;
+	mBuffer.resize(elementCount(aView) + 1);
+	globalState.manager = EquivalenceManager<int>(thrust::raw_pointer_cast(mBuffer.data()), mBuffer.size());
+	mLocalMinimumAutomaton.initialize(localMinima, globalState);
+	mLocalMinimumAutomaton.iterate(50);
+
+	//mAutomaton.initialize(localMinima);
 }
 
 void WShedAutomatonWrapper::fillFromCurrentImage(host_image_view<element_rgb8_t, 2> aView)
 {
-	auto state = mAutomaton.getCurrentState();
+	auto state = mLocalMinimumAutomaton/*mAutomaton*/.getCurrentState();
 	host_image<int, 2> hostState(state.dimensions());
 	copy(state, view(hostState));
 	/*auto cv = const_view(hostState);

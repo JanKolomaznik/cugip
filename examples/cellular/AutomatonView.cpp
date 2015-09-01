@@ -11,6 +11,9 @@ AutomatonView::AutomatonView(QWidget *parent)
 	mAutomatonCombo->addItem("CCL");
 	mAutomataWrappers.push_back(getCCLAutomatonWrapper2());
 	mAutomatonCombo->addItem("CCL with global state");
+	mAutomataWrappers.push_back(getWShedAutomatonWrapper());
+	mAutomatonCombo->addItem("Watersheds");
+
 	mAutomatonCombo->setCurrentIndex(0);
 	QGraphicsScene *scene = new QGraphicsScene (this);
 	mGraphicsView->setScene(scene);

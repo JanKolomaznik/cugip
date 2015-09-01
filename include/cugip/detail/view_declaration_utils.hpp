@@ -41,7 +41,8 @@ struct is_memory_based: public std::false_type {};
 /**
  * @}
  **/
-
+ 
+CUGIP_HD_WARNING_DISABLE
 template<typename TView>
 CUGIP_DECL_HYBRID int
 elementCount(const TView &aView)

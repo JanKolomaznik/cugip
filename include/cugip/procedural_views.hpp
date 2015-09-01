@@ -2,6 +2,7 @@
 
 #include <cugip/math.hpp>
 #include <cugip/functors.hpp>
+#include <cugip/tuple.hpp>
 #include <cugip/detail/view_declaration_utils.hpp>
 
 namespace cugip {
@@ -15,6 +16,32 @@ public:
 	device_image_view_base(extents_t dimensions)
 		: mDimensions(dimensions)
 	{}
+
+	CUGIP_DECL_HYBRID extents_t
+	dimensions() const
+	{ return mDimensions; }
+
+	extents_t mDimensions;
+};
+
+template<int tDimension, typename TDerived>
+class device_image_view_crtp
+{
+public:
+	typedef typename dim_traits<tDimension>::extents_t extents_t;
+	typedef typename dim_traits<tDimension>::coord_t coord_t;
+	typedef typename dim_traits<tDimension>::diff_t diff_t;
+
+	device_image_view_crtp(extents_t dimensions)
+		: mDimensions(dimensions)
+	{}
+
+	template<typename TBorderHandling>
+	CUGIP_DECL_HYBRID image_locator<TDerived, TBorderHandling>
+	locator(coord_t aCoordinates) const
+	{
+		return image_locator<TDerived, TBorderHandling>(*const_cast<TDerived *>(static_cast<const TDerived *>(this)), aCoordinates);
+	}
 
 	CUGIP_DECL_HYBRID extents_t
 	dimensions() const
@@ -377,14 +404,21 @@ padView(
 /// View which allows mirror access to another view
 /// TODO(johny) - specialization for memory based views - only stride and pointer reordering
 template<typename TView, typename TOperator>
-class UnaryOperatorDeviceImageView : public device_image_view_base<dimension<TView>::value> {
+class UnaryOperatorDeviceImageView
+	: public device_image_view_crtp<
+		dimension<TView>::value,
+		UnaryOperatorDeviceImageView<TView, TOperator>>
+{
 public:
 	typedef typename TView::extents_t extents_t;
 	typedef typename TView::coord_t coord_t;
-	typedef device_image_view_base<dimension<TView>::value> predecessor_type;
+	typedef typename TView::diff_t diff_t;
+	typedef UnaryOperatorDeviceImageView<TView, TOperator> this_t;
+	typedef device_image_view_crtp<dimension<TView>::value, this_t> predecessor_type;
 	typedef typename TView::value_type Input;
 	typedef decltype(std::declval<TOperator>()(std::declval<Input>())) result_type;
 	typedef result_type value_type;
+	typedef const result_type const_value_type;
 	typedef result_type accessed_type;
 
 	UnaryOperatorDeviceImageView(TView view, TOperator unary_operator) :
@@ -476,14 +510,21 @@ unaryOperator(TView view, TFunctor functor) {
 }
 
 template<typename TView, typename TOperator>
-class UnaryOperatorOnPositionDeviceImageView : public device_image_view_base<dimension<TView>::value> {
+class UnaryOperatorOnPositionDeviceImageView
+	: public device_image_view_crtp<
+		dimension<TView>::value,
+		UnaryOperatorOnPositionDeviceImageView<TView, TOperator>>
+{
 public:
 	typedef typename TView::extents_t extents_t;
 	typedef typename TView::coord_t coord_t;
-	typedef device_image_view_base<dimension<TView>::value> predecessor_type;
+	typedef typename TView::diff_t diff_t;
+	typedef UnaryOperatorOnPositionDeviceImageView<TView, TOperator> this_t;
+	typedef device_image_view_crtp<dimension<TView>::value, this_t> predecessor_type;
 	typedef typename TView::value_type Input;
 	typedef decltype(std::declval<TOperator>()(std::declval<Input>(), coord_t())) result_type;
 	typedef result_type value_type;
+	typedef const result_type const_value_type;
 	typedef result_type accessed_type;
 
 	UnaryOperatorOnPositionDeviceImageView(TView view, TOperator unary_operator) :
@@ -511,6 +552,51 @@ template<typename TFunctor, typename TView>
 UnaryOperatorOnPositionDeviceImageView<TView, TFunctor>
 unaryOperatorOnPosition(TView view, TFunctor functor) {
 	return UnaryOperatorOnPositionDeviceImageView<TView, TFunctor>(view, functor);
+}
+
+template<typename TView, typename TOperator, typename TBorderHandling = cugip::border_handling_repeat_t>
+class UnaryOperatorOnLocatorDeviceImageView
+	: public device_image_view_crtp<
+		dimension<TView>::value,
+		UnaryOperatorOnLocatorDeviceImageView<TView, TOperator, TBorderHandling>>
+{
+public:
+	typedef typename TView::extents_t extents_t;
+	typedef typename TView::coord_t coord_t;
+	typedef typename TView::diff_t diff_t;
+	typedef UnaryOperatorOnLocatorDeviceImageView<TView, TOperator, TBorderHandling> this_t;
+	typedef device_image_view_crtp<dimension<TView>::value, this_t> predecessor_type;
+	typedef typename TView::value_type Input;
+	typedef decltype(std::declval<TOperator>()(std::declval<image_locator<TView, TBorderHandling>>())) result_type;
+	typedef result_type value_type;
+	typedef const result_type const_value_type;
+	typedef result_type accessed_type;
+	//TODO - support border handling
+	UnaryOperatorOnLocatorDeviceImageView(TView view, TOperator unary_operator) :
+		predecessor_type(view.dimensions()),
+		mView(view),
+		mUnaryOperator(unary_operator)
+	{}
+
+	CUGIP_HD_WARNING_DISABLE
+	CUGIP_DECL_HYBRID
+	accessed_type operator[](coord_t index) const {
+		return mUnaryOperator(mView.template locator<TBorderHandling>(index));
+	}
+
+protected:
+	TView mView;
+	TOperator mUnaryOperator;
+};
+
+//CUGIP_DECLARE_DEVICE_VIEW_TRAITS((UnaryOperatorDeviceImageView<TView, TOperator>), dimension<TView>::value, typename TView, typename TOperator);
+CUGIP_DECLARE_HYBRID_VIEW_TRAITS((UnaryOperatorOnLocatorDeviceImageView<TView, TOperator>), dimension<TView>::value, typename TView, typename TOperator);
+
+
+template<typename TFunctor, typename TView>
+UnaryOperatorOnLocatorDeviceImageView<TView, TFunctor>
+unaryOperatorOnLocator(TView view, TFunctor functor) {
+	return UnaryOperatorOnLocatorDeviceImageView<TView, TFunctor>(view, functor);
 }
 /// View returning single coordinate mapping from grid
 /// Inspired by Matlab function 'meshgrid'
@@ -573,7 +659,55 @@ meshGrid(simple_vector<int, tDimension> from, simple_vector<int, tDimension> to)
 	return result;
 }
 
+template<typename TFirstView, typename... TViews>
+struct MultiViewTraits
+{
+	static const int cDimension = dimension<TFirstView>::value;
 
+	typedef typename TFirstView::extents_t extents_t;
+	typedef typename TFirstView::coord_t coord_t;
+	typedef typename TFirstView::diff_t diff_t;
+};
 
+template<typename TOperator, typename TView, typename... TViews>
+class NAryOperatorDeviceImageView
+	: public device_image_view_crtp<
+		MultiViewTraits<TView, TViews...>::cDimension,
+		NAryOperatorDeviceImageView<TOperator, TView, TViews...>>
+{
+public:
+	typedef MultiViewTraits<TViews...> MultiTraits;
+
+	typedef typename MultiTraits::extents_t extents_t;
+	typedef typename MultiTraits::coord_t coord_t;
+	typedef typename MultiTraits::diff_t diff_t;
+	typedef NAryOperatorDeviceImageView<TOperator, TView, TViews...> this_t;
+	typedef device_image_view_crtp<
+		MultiViewTraits<TView, TViews...>::cDimension,
+		NAryOperatorDeviceImageView<TOperator, TView, TViews...>> predecessor_type;
+	//typedef typename TView::value_type Input;
+	typedef decltype(std::declval<TOperator>()(std::declval<typename TView::value_type>(), std::declval<typename TViews::value_type>()...)) result_type;
+	typedef result_type value_type;
+	typedef const result_type const_value_type;
+	typedef result_type accessed_type;
+
+	NAryOperatorDeviceImageView(TOperator aOperator, TView aView, TViews... aViews) :
+		predecessor_type(aView.dimensions()),
+		mOperator(aOperator),
+		mViews(aView, aViews...)
+	{}
+
+	CUGIP_HD_WARNING_DISABLE
+	CUGIP_DECL_HYBRID
+	accessed_type operator[](coord_t index) const {
+		return value_type();//mOperator(mView[index]);
+	}
+
+protected:
+	TOperator mOperator;
+	Tuple<TView, TViews...> mViews;
+};
+
+//CUGIP_DECLARE_HYBRID_VIEW_TRAITS((UnaryOperatorDeviceImageView<TView, TOperator>), dimension<TView>::value, typename TView, typename TOperator);
 
 } // namespace cugip

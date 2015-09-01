@@ -71,7 +71,6 @@ struct grayscale_ftor
 		tmp += aArg.data[2];
 		return tmp / 4;
 	}
-	dim_traits<2>::extents_t extents;
 };
 
 template<typename TInValue, typename TOutValue>
@@ -92,7 +91,7 @@ struct thresholding_ftor
 };
 
 template<typename TInputType, typename TOutputType>
-struct gradient_difference
+struct gradient_magnitude
 {
 
 	template<typename TAccessor>
@@ -302,6 +301,27 @@ struct UpperLimitFunctor {
 
 	TType limit_;
 	TType replacement_;
+};
+
+
+struct LocalMinimumLabel
+{
+	// TODO
+	template<typename TAccessor>
+	CUGIP_DECL_HYBRID int
+	operator()(TAccessor aAccessor) const
+	{
+		auto value = aAccessor[typename TAccessor::diff_t()];
+		if (value <= aAccessor[typename TAccessor::diff_t(-1,0)] &&
+			value <= aAccessor[typename TAccessor::diff_t(1,0)] &&
+			value <= aAccessor[typename TAccessor::diff_t(0, -1)] &&
+			value <= aAccessor[typename TAccessor::diff_t(0, 1)])
+		{
+			return get_linear_access_index(aAccessor.dimensions(), aAccessor.coords());
+		} else {
+			return 0;
+		}
+	}
 };
 
 }//namespace cugip

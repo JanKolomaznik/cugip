@@ -42,9 +42,9 @@ public:
 
 	template<typename TBorderHandling>
 	CUGIP_DECL_HYBRID image_locator<this_t, TBorderHandling>
-	locator(coord_t aCoordinates)
+	locator(coord_t aCoordinates) const
 	{
-		return image_locator<this_t, TBorderHandling>(*this, aCoordinates);
+		return image_locator<this_t, TBorderHandling>(*const_cast<this_t *>(this), aCoordinates); //TODO - remove const_cast
 	}
 
 	CUGIP_DECL_HYBRID const memory_t&
@@ -105,9 +105,9 @@ public:
 
 	template<typename TBorderHandling>
 	CUGIP_DECL_HYBRID image_locator<this_t, TBorderHandling>
-	locator(coord_t aCoordinates)
+	locator(coord_t aCoordinates) const
 	{
-		return image_locator<this_t, TBorderHandling>(*this, aCoordinates);
+		return image_locator<this_t, TBorderHandling>(*const_cast<this_t *>(this), aCoordinates); //TODO - remove const_cast
 	}
 
 	CUGIP_DECL_HYBRID const memory_t&
