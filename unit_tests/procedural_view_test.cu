@@ -74,3 +74,11 @@ BOOST_AUTO_TEST_CASE(FlatCopyAndCopyToHost)
 		BOOST_CHECK_CLOSE(7.0f, linear_access(hostView, i), cEpsilon);
 	}
 }
+
+BOOST_AUTO_TEST_CASE(MultiViewOperator)
+{
+	device_image<int, 3> deviceImage(16, 16, 2);
+
+	auto result = nAryOperator(SumValuesFunctor(), const_view(deviceImage), const_view(deviceImage));
+	copy(result, view(deviceImage));
+}

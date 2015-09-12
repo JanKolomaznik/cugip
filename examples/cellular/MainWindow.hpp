@@ -39,6 +39,9 @@ public slots:
 	zoomOut();
 
 	void
+	fitView();
+
+	void
 	setImageToAutomata();
 
 	void

@@ -4,6 +4,12 @@
 
 namespace cugip {
 
+template<int tValue>
+struct IntValue
+{
+	static const int value = tValue;
+};
+
 struct dimension_1d_tag { };
 struct dimension_2d_tag { };
 struct dimension_3d_tag { };

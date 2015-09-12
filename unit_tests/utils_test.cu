@@ -4,8 +4,12 @@
 #include <cuda.h>
 
 #include <cugip/utils.hpp>
+#include <cugip/tuple.hpp>
 #include <thrust/device_vector.h>
 #include <thrust/reduce.h>
+#include <thrust/for_each.h>
+
+using namespace cugip;
 
 /*CUGIP_GLOBAL void
 testBlockScanIn(int *output)
@@ -60,4 +64,57 @@ BOOST_AUTO_TEST_CASE(blockScanEx)
 	int result = thrust::reduce(buffer.begin(), buffer.end(), 0, thrust::plus<int>());
 	BOOST_CHECK_EQUAL(result, 0);
 }*/
+BOOST_AUTO_TEST_CASE(TupleAccess)
+{
+	Tuple<int, float, bool> tuple1(3, 1.5f, true);
+	BOOST_CHECK_EQUAL(tuple1.get<0>(), 3);
+	BOOST_CHECK_EQUAL(tuple1.get<1>(), 1.5f);
+	BOOST_CHECK_EQUAL(tuple1.get<2>(), true);
 
+	BOOST_CHECK_EQUAL(get<0>(tuple1), 3);
+	BOOST_CHECK_EQUAL(get<1>(tuple1), 1.5f);
+	BOOST_CHECK_EQUAL(get<2>(tuple1), true);
+
+	auto tuple2 = tuple1;
+	BOOST_CHECK_EQUAL(get<0>(tuple2), 3);
+	BOOST_CHECK_EQUAL(get<1>(tuple2), 1.5f);
+	BOOST_CHECK_EQUAL(get<2>(tuple2), true);
+
+	Tuple<int, float, bool> tuple3;
+	tuple3 = tuple1;
+	BOOST_CHECK_EQUAL(get<0>(tuple3), 3);
+	BOOST_CHECK_EQUAL(get<1>(tuple3), 1.5f);
+	BOOST_CHECK_EQUAL(get<2>(tuple3), true);
+}
+
+struct InitTuple
+{
+    CUGIP_DECL_HYBRID
+    void operator()(Tuple<int, float, bool> &t) {
+	   t = Tuple<int, float, bool>(3, 1.5f, true);
+    }
+};
+
+struct ModifyTuple
+{
+    CUGIP_DECL_HYBRID
+    void operator()(Tuple<int, float, bool> &t) {
+	   t = Tuple<int, float, bool>(3, 1.5f, true);
+    }
+};
+
+BOOST_AUTO_TEST_CASE(TupleAccessDevice)
+{
+	thrust::device_vector<Tuple<int, float, bool>> tuples1(10);
+
+	thrust::for_each(tuples1.begin(), tuples1.end(), InitTuple());
+
+	thrust::host_vector<Tuple<int, float, bool>> tuples2;
+	tuples2 = tuples1;
+
+	for (int i = 0; i < tuples2.size(); ++i) {
+		BOOST_CHECK_EQUAL(get<0>(tuples2[i]), 3);
+		BOOST_CHECK_EQUAL(get<1>(tuples2[i]), 1.5f);
+		BOOST_CHECK_EQUAL(get<2>(tuples2[i]), true);
+	}
+}

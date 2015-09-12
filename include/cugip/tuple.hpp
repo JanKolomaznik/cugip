@@ -6,39 +6,39 @@ namespace cugip {
 
 // helpers
 template <typename T>
-struct id { using type = T; };
+struct Id { using type = T; };
 
 template <typename T>
 using type_of = typename T::type;
 
 template <size_t... N>
-struct Sizes : id<Sizes<N...>> { };
+struct Sizes : Id<Sizes<N...>> { };
 
 // choose N-th element in list <T...>
 template <size_t N, typename... T>
 struct Choose;
 
 template <size_t N, typename H, typename... T>
-struct Choose<N, H, T...> : Choose <N-1, T...> { };
+struct Choose<N, H, T...> : Choose<N-1, T...> { };
 
 template <typename H, typename... T>
-struct Choose<0, H, T...> : id <H> { };
+struct Choose<0, H, T...> : Id<H> { };
 
 template <size_t N, typename... T>
-using choose = type_of<Choose <N, T...> >;
+using choose = type_of<Choose<N, T...>>;
 
 // given L>=0, generate sequence <0, ..., L-1>
-template <size_t L, size_t I = 0, typename S = Sizes<> >
+template <size_t L, size_t I = 0, typename S = Sizes<>>
 struct Range;
 
 template <size_t L, size_t I, size_t... N>
-struct Range<L, I, Sizes<N...>> : Range<L, I+1, Sizes<N..., I> > { };
+struct Range<L, I, Sizes<N...>> : Range<L, I+1, Sizes<N..., I>> { };
 
 template <size_t L, size_t... N>
 struct Range<L, L, Sizes<N...>> : Sizes<N...> { };
 
 template <size_t L>
-using range = type_of <Range <L>>;
+using range = type_of<Range <L>>;
 
 // single tuple element
 template <size_t N, typename T>
@@ -46,6 +46,14 @@ class TupleElem
 {
 	T elem;
 public:
+	CUGIP_DECL_HYBRID
+	TupleElem() {}
+
+	CUGIP_DECL_HYBRID
+	TupleElem(T aElement)
+		: elem(aElement)
+	{}
+
 	CUGIP_DECL_HYBRID
 	T&       get()       { return elem; }
 
@@ -65,6 +73,14 @@ class TupleImpl<Sizes<N...>, T...> : TupleElem<N, T>...
 	template <size_t M> using elem = TupleElem<M, choose<M, T...>>;
 
 public:
+	CUGIP_DECL_HYBRID
+	TupleImpl() {}
+
+	CUGIP_DECL_HYBRID
+	TupleImpl(T... aItems)
+		: TupleElem<N, T>(aItems)...
+	{}
+
 	template <size_t M>
 	CUGIP_DECL_HYBRID
 	pick<M>& get() { return elem<M>::get(); }
@@ -77,8 +93,44 @@ public:
 template <typename... T>
 struct Tuple : TupleImpl<range<sizeof...(T)>, T...>
 {
+	typedef TupleImpl<range<sizeof...(T)>, T...> Predecessor;
+
+	CUGIP_DECL_HYBRID
+	Tuple(){}
+
+	CUGIP_DECL_HYBRID
+	Tuple(T... aItems)
+		: Predecessor(aItems...)
+	{}
+
 	CUGIP_DECL_HYBRID
 	static constexpr std::size_t size() { return sizeof...(T); }
+};
+
+template<int tIdx, typename... TType>
+struct get_policy<tIdx, const Tuple<TType...>>
+{
+	typedef const choose<tIdx, TType...> & return_type;
+	typedef const Tuple<TType...> & value_t;
+
+	static CUGIP_DECL_HYBRID auto
+	get(value_t aArg) -> decltype(aArg.template get<tIdx>())
+	{
+		return aArg.template get<tIdx>();
+	}
+};
+
+template<int tIdx, typename... TType>
+struct get_policy<tIdx, Tuple<TType...>>
+{
+	typedef choose<tIdx, TType...> & return_type;
+	typedef Tuple<TType...> & value_t;
+
+	static CUGIP_DECL_HYBRID auto
+	get(value_t aArg) -> decltype(aArg.template get<tIdx>())
+	{
+		return aArg.template get<tIdx>();
+	}
 };
 
 } // namespace cugip

@@ -61,12 +61,23 @@ void MainWindow::toggleRun(bool aRun)
 
 void MainWindow::zoomIn()
 {
-
+	for (auto view : mAutomataViews) {
+		view->zoomIn();
+	}
 }
 
 void MainWindow::zoomOut()
 {
+	for (auto view : mAutomataViews) {
+		view->zoomOut();
+	}
+}
 
+void MainWindow::fitView()
+{
+	for (auto view : mAutomataViews) {
+		view->fitView();
+	}
 }
 
 void MainWindow::setImageToAutomata()

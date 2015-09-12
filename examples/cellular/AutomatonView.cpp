@@ -13,6 +13,8 @@ AutomatonView::AutomatonView(QWidget *parent)
 	mAutomatonCombo->addItem("CCL with global state");
 	mAutomataWrappers.push_back(getWShedAutomatonWrapper());
 	mAutomatonCombo->addItem("Watersheds");
+	mAutomataWrappers.push_back(getWShedAutomaton2Wrapper());
+	mAutomatonCombo->addItem("Watersheds 2");
 
 	mAutomatonCombo->setCurrentIndex(0);
 	QGraphicsScene *scene = new QGraphicsScene (this);
@@ -62,12 +64,21 @@ void AutomatonView::resetAutomaton()
 		getCurrentAutomaton().setStartImage(mInputImage.bits(), mInputImage.width(), mInputImage.height(), mInputImage.bytesPerLine());
 		getCurrentAutomaton().getCurrentImage(mOutputImage.bits(), mOutputImage.width(), mOutputImage.height(), mOutputImage.bytesPerLine());
 		mGraphicsItem->setPixmap(QPixmap::fromImage(mOutputImage));
+		mPreprocessingCheckBox->setChecked(getCurrentAutomaton().preprocessingEnabled());
 	}
 }
 
 void AutomatonView::selectAutomaton(int aIndex)
 {
 	resetAutomaton();
+}
+
+void AutomatonView::enablePreprocessing(bool aEnabled)
+{
+	if (getCurrentAutomaton().preprocessingEnabled() != aEnabled) {
+		getCurrentAutomaton().enablePreprocessing(aEnabled);
+		resetAutomaton();
+	}
 }
 
 AAutomatonWrapper &AutomatonView::getCurrentAutomaton()

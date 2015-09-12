@@ -15,7 +15,7 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,1,0">
+    <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,1,0,0">
      <item>
       <widget class="QLabel" name="label">
        <property name="text">
@@ -45,6 +45,16 @@
         </size>
        </property>
       </spacer>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="mPreprocessingCheckBox">
+       <property name="text">
+        <string>Preprocessing</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>
@@ -84,8 +94,25 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>mPreprocessingCheckBox</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>AutomatonView</receiver>
+   <slot>enablePreprocessing(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>348</x>
+     <y>24</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>397</x>
+     <y>86</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>selectAutomaton(int)</slot>
+  <slot>enablePreprocessing(bool)</slot>
  </slots>
 </ui>

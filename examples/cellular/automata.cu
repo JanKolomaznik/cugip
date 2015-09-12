@@ -210,7 +210,9 @@ getCCLAutomatonWrapper2() {
 class WShedAutomatonWrapper: public AutomatonWrapper
 {
 public:
-	typedef simple_vector<int, 3> Value;
+	typedef Tuple<int, int, int> Value;
+	typedef Tuple<int, int> Value2;
+	//typedef simple_vector<int, 2> Value2;
 
 	void
 	runIterations(int aIterationCount) override;
@@ -221,50 +223,75 @@ public:
 	virtual void
 	fillFromCurrentImage(host_image_view<element_rgb8_t, 2> aView) override;
 
+	CellularAutomaton<Grid<Value2, 2>, VonNeumannNeighborhood<2>, LocalMinimaConnectedComponentRule, LocalMinimaEquivalenceGlobalState> mLocalMinimumAutomaton;
+	CellularAutomaton<Grid<Value, 2>, MooreNeighborhood<2>, WatershedRule> mAutomaton;
 	thrust::device_vector<int> mBuffer;
-	CellularAutomaton<Grid<int, 2>, MooreNeighborhood<2>, ConnectedComponentLabelingRule2, EquivalenceGlobalState> mLocalMinimumAutomaton;
-	//CellularAutomaton<Grid<Value, 2>, MooreNeighborhood<2>, ConnectedComponentLabelingRule> mAutomaton;
 };
 
 
 void
 WShedAutomatonWrapper::runIterations(int aIterationCount)
 {
-	mLocalMinimumAutomaton.iterate(aIterationCount);
-	//mAutomaton.iterate(aIterationCount);
+	//mLocalMinimumAutomaton.iterate(aIterationCount);
+	mAutomaton.iterate(aIterationCount);
 }
+
+struct InitWatershed
+{
+	CUGIP_DECL_HYBRID
+	Tuple<int, int, int>
+	operator()(int aGradient, int aLocalMinimum) const
+	{
+		return Tuple<int, int, int>(aGradient, aLocalMinimum, aLocalMinimum > 0 ? 0 : 999999);
+	}
+};
+
+struct ZipGradientAndLabel
+{
+	CUGIP_DECL_HYBRID
+	Tuple<int, int>
+	operator()(int aGradient, int aLocalMinimum) const
+	{
+		return Tuple<int, int>(aGradient, aLocalMinimum);
+	}
+};
 
 void WShedAutomatonWrapper::setStartImageView(const_host_image_view<const element_rgb8_t, 2> aView)
 {
-	host_image<int, 2> hostGrayscale(aView.dimensions());
-	copy(unaryOperator(aView, grayscale_ftor()), view(hostGrayscale));
-	device_image<int, 2> deviceGrayscale(aView.dimensions());
-	copy(const_view(hostGrayscale), view(deviceGrayscale));
-
-	auto gradient = lowerLimit(2, 0, unaryOperatorOnLocator(const_view(deviceGrayscale), gradient_magnitude<int,int>()));
-	auto localMinima = unaryOperatorOnLocator(gradient, LocalMinimumLabel());
-
-	EquivalenceGlobalState globalState;
 	mBuffer.resize(elementCount(aView) + 1);
-	globalState.manager = EquivalenceManager<int>(thrust::raw_pointer_cast(mBuffer.data()), mBuffer.size());
-	mLocalMinimumAutomaton.initialize(localMinima, globalState);
+	CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+	host_image<int, 2> hostGrayscale(aView.dimensions());
+	copy(unaryOperator(aView, ChannelSumFunctor()/*grayscale_ftor()*/), view(hostGrayscale));
+	device_image<int, 2> deviceGradient(aView.dimensions());
+	copy(const_view(hostGrayscale), view(deviceGradient));
+
+	if (this->mPreprocessingEnabled) {
+		device_image<int, 2> tmpImage(aView.dimensions());
+		auto gradient = lowerLimit(0, 0, unaryOperatorOnLocator(const_view(deviceGradient), gradient_magnitude<int,int>()));
+		copy(gradient, view(tmpImage));
+		copy(const_view(tmpImage), view(deviceGradient));
+	}
+	auto localMinima = unaryOperatorOnLocator(const_view(deviceGradient), LocalMinimumLabel());
+
+	LocalMinimaEquivalenceGlobalState globalState;
+	globalState.manager = EquivalenceManager<int>(thrust::raw_pointer_cast(&mBuffer[0]), mBuffer.size());
+
+
+	mLocalMinimumAutomaton.initialize(nAryOperator(ZipGradientAndLabel(), const_view(deviceGradient), localMinima), globalState);
 	mLocalMinimumAutomaton.iterate(50);
 
-	//mAutomaton.initialize(localMinima);
+	auto wshed = nAryOperator(InitWatershed(), const_view(deviceGradient), getDimension(mLocalMinimumAutomaton.getCurrentState(), IntValue<1>()));
+	mAutomaton.initialize(wshed);
 }
 
 void WShedAutomatonWrapper::fillFromCurrentImage(host_image_view<element_rgb8_t, 2> aView)
 {
-	auto state = mLocalMinimumAutomaton/*mAutomaton*/.getCurrentState();
+	//auto state = mLocalMinimumAutomaton.getCurrentState();
+	auto state = mAutomaton.getCurrentState();
+	device_image<int, 2> tmpState(state.dimensions());
 	host_image<int, 2> hostState(state.dimensions());
-	copy(state, view(hostState));
-	/*auto cv = const_view(hostState);
-	for (int j = 0; j < cv.dimensions()[1]; ++j){
-		for (int i = 0; i < cv.dimensions()[0]; ++i){
-			std::cout << "\t" << cv[Int2(i, j)];
-		}
-		std::cout << "\n";
-	}*/
+	copy(getDimension(state, IntValue<1>()), view(tmpState));
+	copy(const_view(tmpState), view(hostState));
 	copy(unaryOperator(const_view(hostState), assign_color_ftor()), aView);
 }
 
@@ -273,4 +300,71 @@ getWShedAutomatonWrapper() {
 	return std::unique_ptr<AAutomatonWrapper>(new WShedAutomatonWrapper());
 }
 
+
+//******************************************************************************************
+
+class WShedAutomaton2Wrapper: public AutomatonWrapper
+{
+public:
+	typedef Tuple<int, int, int> Value;
+
+	void
+	runIterations(int aIterationCount) override;
+
+	virtual void
+	setStartImageView(const_host_image_view<const element_rgb8_t, 2> aView) override;
+
+	virtual void
+	fillFromCurrentImage(host_image_view<element_rgb8_t, 2> aView) override;
+
+	CellularAutomaton<Grid<Value, 2>, MooreNeighborhood<2>, Watershed2Rule, Watershed2EquivalenceGlobalState> mAutomaton;
+	thrust::device_vector<int> mBuffer;
+};
+
+
+void
+WShedAutomaton2Wrapper::runIterations(int aIterationCount)
+{
+	mAutomaton.iterate(aIterationCount);
+}
+
+void WShedAutomaton2Wrapper::setStartImageView(const_host_image_view<const element_rgb8_t, 2> aView)
+{
+	mBuffer.resize(elementCount(aView) + 1);
+	CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+	host_image<int, 2> hostGrayscale(aView.dimensions());
+	copy(unaryOperator(aView, ChannelSumFunctor()/*grayscale_ftor()*/), view(hostGrayscale));
+	device_image<int, 2> deviceGradient(aView.dimensions());
+	copy(const_view(hostGrayscale), view(deviceGradient));
+
+	if (this->mPreprocessingEnabled) {
+		device_image<int, 2> tmpImage(aView.dimensions());
+		auto gradient = lowerLimit(0, 0, unaryOperatorOnLocator(const_view(deviceGradient), gradient_magnitude<int,int>()));
+		copy(gradient, view(tmpImage));
+		copy(const_view(tmpImage), view(deviceGradient));
+	}
+	auto smallerNeighbor = unaryOperatorOnLocator(const_view(deviceGradient), HasSmallerNeighbor());
+
+	Watershed2EquivalenceGlobalState globalState;
+	globalState.manager = EquivalenceManager<int>(thrust::raw_pointer_cast(&mBuffer[0]), mBuffer.size());
+
+	auto wshed = zipViews(const_view(deviceGradient), UniqueIdDeviceImageView<2>(aView.dimensions()), smallerNeighbor);
+	mAutomaton.initialize(wshed, globalState);
+}
+
+void WShedAutomaton2Wrapper::fillFromCurrentImage(host_image_view<element_rgb8_t, 2> aView)
+{
+	auto state = mAutomaton.getCurrentState();
+	device_image<int, 2> tmpState(state.dimensions());
+	copy(getDimension(state, IntValue<1>()), view(tmpState));
+
+	host_image<int, 2> hostState(state.dimensions());
+	copy(const_view(tmpState), view(hostState));
+	copy(unaryOperator(const_view(hostState), assign_color_ftor()), aView);
+}
+
+std::unique_ptr<AAutomatonWrapper>
+getWShedAutomaton2Wrapper() {
+	return std::unique_ptr<AAutomatonWrapper>(new WShedAutomaton2Wrapper());
+}
 

@@ -130,6 +130,37 @@ protected:
 
 CUGIP_DECLARE_HYBRID_VIEW_TRAITS((CheckerBoardDeviceImageView<TElement, tDim>), tDim, typename TElement, int tDim);
 
+template<int tDimension>
+class UniqueIdDeviceImageView
+	: public device_image_view_crtp<
+		tDimension,
+		UniqueIdDeviceImageView<tDimension>>
+{
+public:
+	typedef UniqueIdDeviceImageView<tDimension> this_t;
+	typedef device_image_view_crtp<tDimension, this_t> predecessor_type;
+	typedef typename predecessor_type::coord_t coord_t;
+	typedef typename predecessor_type::extents_t extents_t;
+	typedef int value_type;
+	typedef const int const_value_type;
+	typedef int accessed_type;
+
+	UniqueIdDeviceImageView(extents_t aSize)
+		: predecessor_type(aSize)
+	{}
+
+	CUGIP_HD_WARNING_DISABLE
+	CUGIP_DECL_HYBRID
+	value_type operator[](coord_t index) const {
+		return get_linear_access_index(this->dimensions(), index) + 1;
+	}
+
+protected:
+};
+
+CUGIP_DECLARE_HYBRID_VIEW_TRAITS((UniqueIdDeviceImageView<tDimension>), tDimension, int tDimension);
+
+
 /// Utility function to create CheckerBoardDeviceImageView without the need to specify template parameters.
 template<typename TElement, int tDimension>
 CheckerBoardDeviceImageView<TElement, tDimension>
@@ -175,8 +206,9 @@ protected:
 template<typename TFactor1, typename TView1, typename TFactor2, typename TView2>
 class LinearCombinationDeviceImageView : public BinaryOperatorDeviceImageView<TView1, TView2> {
 public:
-	typedef simple_vector<int, dimension<TView1>::value> extents_t;
-	typedef simple_vector<int, dimension<TView1>::value> coord_t;
+	typedef typename TView1::extents_t extents_t;
+	typedef typename TView1::coord_t coord_t;
+	typedef typename TView1::diff_t diff_t;
 	typedef BinaryOperatorDeviceImageView<TView1, TView2> predecessor_type;
 
 	typedef typename TView1::value_type value1_type;
@@ -669,6 +701,15 @@ struct MultiViewTraits
 	typedef typename TFirstView::diff_t diff_t;
 };
 
+/*CUGIP_HD_WARNING_DISABLE
+template<typename TCoordinates, typename TOperator, typename TTuple, size_t ...N>
+CUGIP_DECL_HYBRID
+int call(TCoordinates aIndex, const TOperator &aOperator, const TTuple &aViews, Sizes<N...> aIndices)
+{
+	return aOperator(aViews.get<N>()[aIndex]...);
+}*/
+
+
 template<typename TOperator, typename TView, typename... TViews>
 class NAryOperatorDeviceImageView
 	: public device_image_view_crtp<
@@ -699,15 +740,84 @@ public:
 
 	CUGIP_HD_WARNING_DISABLE
 	CUGIP_DECL_HYBRID
-	accessed_type operator[](coord_t index) const {
-		return value_type();//mOperator(mView[index]);
+	accessed_type operator[](coord_t index) const
+	{
+		return call(index/*, mOperator, mViews*/, typename Range<1 + sizeof...(TViews)>::type());
 	}
 
 protected:
+
+
+	CUGIP_HD_WARNING_DISABLE
+	template<size_t ...N>
+	CUGIP_DECL_HYBRID
+	value_type call(coord_t aIndex, Sizes<N...> aIndices) const
+	{
+		return mOperator(mViews.get<N>()[aIndex]...);
+	}
+
 	TOperator mOperator;
 	Tuple<TView, TViews...> mViews;
 };
 
-//CUGIP_DECLARE_HYBRID_VIEW_TRAITS((UnaryOperatorDeviceImageView<TView, TOperator>), dimension<TView>::value, typename TView, typename TOperator);
+
+CUGIP_DECLARE_HYBRID_VIEW_TRAITS((NAryOperatorDeviceImageView<TOperator, TView, TViews...>), dimension<TView>::value, typename TOperator, typename TView, typename... TViews);
+
+
+template<typename TFunctor, typename TView, typename... TViews>
+NAryOperatorDeviceImageView<TFunctor, TView, TViews...>
+nAryOperator(TFunctor functor, TView view, TViews... views) {
+	return NAryOperatorDeviceImageView<TFunctor, TView, TViews...>(functor, view, views...);
+}
+
+template<typename TView, typename... TViews>
+NAryOperatorDeviceImageView<ZipValues, TView, TViews...>
+zipViews(TView view, TViews... views) {
+	return NAryOperatorDeviceImageView<ZipValues, TView, TViews...>(ZipValues(), view, views...);
+}
+
+
+template<typename TView, int tIndex>
+class AccessDimensionDeviceImageView
+	: public device_image_view_crtp<
+		dimension<TView>::value,
+		AccessDimensionDeviceImageView<TView, tIndex>>
+{
+public:
+	typedef typename TView::extents_t extents_t;
+	typedef typename TView::coord_t coord_t;
+	typedef typename TView::diff_t diff_t;
+	typedef AccessDimensionDeviceImageView<TView, tIndex> this_t;
+	typedef device_image_view_crtp<dimension<TView>::value, this_t> predecessor_type;
+	typedef typename TView::value_type Input;
+	typedef decltype(get<tIndex>(std::declval<TView>()[coord_t()])) result_type;
+	typedef result_type value_type;
+	typedef const result_type const_value_type;
+	typedef result_type accessed_type;
+
+	AccessDimensionDeviceImageView(TView view) :
+		predecessor_type(view.dimensions()),
+		mView(view)
+	{}
+
+	CUGIP_HD_WARNING_DISABLE
+	CUGIP_DECL_HYBRID
+	value_type operator[](coord_t index) const {
+		return get<tIndex>(mView[index]);
+	}
+
+protected:
+	TView mView;
+};
+
+CUGIP_DECLARE_HYBRID_VIEW_TRAITS((AccessDimensionDeviceImageView<TView, tIndex>), dimension<TView>::value, typename TView, int tIndex);
+
+/// Creates view which returns squared values from the original view
+template<typename TView, typename TDimension>
+AccessDimensionDeviceImageView<TView, TDimension::value>
+getDimension(TView view, TDimension /*aIndex*/) {
+	return AccessDimensionDeviceImageView<TView, TDimension::value>(view);
+}
+
 
 } // namespace cugip

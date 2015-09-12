@@ -16,6 +16,7 @@ kernelCompaction(TClassId *aBuffer, int aSize)
 		int newValue = idx;
 		while (aBuffer[newValue] != newValue) {
 			newValue = aBuffer[newValue];
+			CUGIP_ASSERT(newValue >= 0 && newValue < aSize);
 		}
 		aBuffer[idx] = newValue;
 	}
@@ -40,7 +41,9 @@ public:
 	EquivalenceManager(TClassId *aBuffer = nullptr, int aClassCount = 0)
 		: mBuffer(aBuffer)
 		, mSize(aClassCount)
-	{}
+	{
+		CUGIP_DFORMAT("EquivalenceManager buffer ptr: %p size: %d", uintptr_t(mBuffer), mSize);
+	}
 
 	CUGIP_DECL_DEVICE
 	TClassId
@@ -63,6 +66,8 @@ public:
 	CUGIP_DECL_HOST
 	void compaction()
 	{
+		CUGIP_ASSERT(mBuffer != nullptr);
+		CUGIP_ASSERT(mSize > 0);
 		dim3 blockSize(256, 1, 1);
 		dim3 gridSize((mSize + 255) / 256, 1, 1);
 
@@ -73,6 +78,8 @@ public:
 	CUGIP_DECL_HOST
 	void initialize()
 	{
+		CUGIP_ASSERT(mBuffer != nullptr);
+		CUGIP_ASSERT(mSize > 0);
 		dim3 blockSize(256, 1, 1);
 		dim3 gridSize((mSize + 255) / 256, 1, 1);
 

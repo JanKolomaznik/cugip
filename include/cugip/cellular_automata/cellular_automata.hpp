@@ -132,21 +132,25 @@ public:
 	void
 	initialize(TInputView aView)
 	{
+		CUGIP_DFORMAT("Cellular automaton initialization. Space: %1%", aView.dimensions());
 		mIteration = 0;
 		mImages[0].resize(aView.dimensions());
 		mImages[1].resize(aView.dimensions());
 		copy(aView, view(mImages[0]));
 
 		mGlobalState.initialize();
+		CUGIP_CHECK_ERROR_STATE("Cellular automaton initialization:");
 	}
 
 	void
 	iterate(int aIterationCount)
 	{
 		for (int i = 0; i < aIterationCount; ++i) {
+			CUGIP_DFORMAT("Cellular automaton iteration [%1%]", mIteration+1);
 			for_each_locator(const_view(mImages[mIteration % 2]), view(mImages[(mIteration + 1) % 2]), CellOperation<TNeighborhood, TRule, TGlobalState>(mIteration, mRule, mGlobalState));
 			mGlobalState.postprocess(view(mImages[(mIteration + 1) % 2]));
 			++mIteration;
+			CUGIP_DFORMAT("Cellular automaton iteration [%1%] finished.", mIteration);
 		}
 		CUGIP_CHECK_RESULT(cudaThreadSynchronize());
 	}
@@ -154,6 +158,7 @@ public:
 	typename State::const_view_t
 	getCurrentState() const
 	{
+		CUGIP_DFORMAT("Cellular automaton getCurrentState. After iteration [%1%]", mIteration);
 		return const_view(mImages[mIteration % 2]);
 	}
 

@@ -36,6 +36,9 @@ public slots:
 
 	void
 	selectAutomaton(int aIndex);
+
+	void
+	enablePreprocessing(bool aEnabled);
 private:
 	AAutomatonWrapper &
 	getCurrentAutomaton();

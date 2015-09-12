@@ -53,6 +53,13 @@
         </size>
        </property>
        <layout class="QGridLayout" name="gridLayout">
+        <item row="1" column="0">
+         <widget class="QPushButton" name="pushButton_6">
+          <property name="text">
+           <string>Fit</string>
+          </property>
+         </widget>
+        </item>
         <item row="0" column="0">
          <widget class="QPushButton" name="pushButton_3">
           <property name="text">
@@ -67,14 +74,14 @@
           </property>
          </widget>
         </item>
-        <item row="1" column="1">
+        <item row="2" column="1">
          <widget class="QPushButton" name="pushButton">
           <property name="text">
            <string>Step</string>
           </property>
          </widget>
         </item>
-        <item row="2" column="1">
+        <item row="3" column="1">
          <widget class="QPushButton" name="pushButton_2">
           <property name="text">
            <string>Run</string>
@@ -87,12 +94,25 @@
           </property>
          </widget>
         </item>
-        <item row="1" column="0">
+        <item row="2" column="0">
          <widget class="QPushButton" name="pushButton_5">
           <property name="text">
            <string>Reset</string>
           </property>
          </widget>
+        </item>
+        <item row="4" column="1">
+         <spacer name="verticalSpacer">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
         </item>
        </layout>
       </widget>
@@ -106,7 +126,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>22</height>
+     <height>30</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -144,8 +164,8 @@
    <slot>runIteration()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>781</x>
-     <y>316</y>
+     <x>787</x>
+     <y>169</y>
     </hint>
     <hint type="destinationlabel">
      <x>798</x>
@@ -176,8 +196,8 @@
    <slot>toggleRun(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>781</x>
-     <y>452</y>
+     <x>787</x>
+     <y>209</y>
     </hint>
     <hint type="destinationlabel">
      <x>798</x>
@@ -192,8 +212,8 @@
    <slot>zoomIn()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>683</x>
-     <y>180</y>
+     <x>740</x>
+     <y>89</y>
     </hint>
     <hint type="destinationlabel">
      <x>799</x>
@@ -208,8 +228,8 @@
    <slot>zoomOut()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>781</x>
-     <y>180</y>
+     <x>787</x>
+     <y>89</y>
     </hint>
     <hint type="destinationlabel">
      <x>798</x>
@@ -224,12 +244,28 @@
    <slot>reset()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>612</x>
-     <y>299</y>
+     <x>740</x>
+     <y>169</y>
     </hint>
     <hint type="destinationlabel">
      <x>799</x>
      <y>215</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>pushButton_6</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>fitView()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>719</x>
+     <y>118</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>798</x>
+     <y>285</y>
     </hint>
    </hints>
   </connection>
@@ -241,5 +277,6 @@
   <slot>zoomIn()</slot>
   <slot>zoomOut()</slot>
   <slot>reset()</slot>
+  <slot>fitView()</slot>
  </slots>
 </ui>

@@ -2,6 +2,8 @@
 
 #include <cugip/detail/include.hpp>
 #include <cugip/utils.hpp>
+#include <cugip/element.hpp>
+#include <cugip/tuple.hpp>
 
 namespace cugip {
 
@@ -233,6 +235,30 @@ struct AddValueFunctor {
 	TType value_;
 };
 
+struct SumValuesFunctor {
+	template<typename T1, typename T2>
+	CUGIP_DECL_HYBRID
+	auto operator()(T1 value1, T2 value2) const -> decltype(std::declval<T1>() + std::declval<T2>()) {
+		return value1 + value2;
+	}
+};
+
+struct ChannelSumFunctor {
+
+	template<typename T>
+	using remove_reference = typename std::remove_reference<T>::type;
+
+	template<typename TValue>
+	CUGIP_DECL_HYBRID
+	auto operator()(TValue value) const -> remove_reference<decltype(value[0])> {
+		auto result = value[0];
+		for (int i = 1; i < dimension<TValue>::value; ++i) {
+			result += value[i];
+		}
+		return result;
+	}
+};
+
 
 /// Returns maximum of passed value and specified limit value
 /// Usable in device/host code.
@@ -312,15 +338,70 @@ struct LocalMinimumLabel
 	operator()(TAccessor aAccessor) const
 	{
 		auto value = aAccessor[typename TAccessor::diff_t()];
-		if (value <= aAccessor[typename TAccessor::diff_t(-1,0)] &&
+		int res = 0;
+		if (
+			value <= aAccessor[typename TAccessor::diff_t(-1,-1)] &&
+			value <= aAccessor[typename TAccessor::diff_t(-1,0)] &&
+			value <= aAccessor[typename TAccessor::diff_t(-1,1)] &&
+			value <= aAccessor[typename TAccessor::diff_t(1,-1)] &&
 			value <= aAccessor[typename TAccessor::diff_t(1,0)] &&
-			value <= aAccessor[typename TAccessor::diff_t(0, -1)] &&
-			value <= aAccessor[typename TAccessor::diff_t(0, 1)])
+			value <= aAccessor[typename TAccessor::diff_t(1,1)] &&
+			value <= aAccessor[typename TAccessor::diff_t(0,1)] &&
+			value <= aAccessor[typename TAccessor::diff_t(0,-1)])
 		{
-			return get_linear_access_index(aAccessor.dimensions(), aAccessor.coords());
+			res = get_linear_access_index(aAccessor.dimensions(), aAccessor.coords()) + 1;
+			//printf("val = %d - %d\n", value, res);
+			//return get_linear_access_index(aAccessor.dimensions(), aAccessor.coords()) + 1;
+		} /*else {
+			return 0;
+		}*/
+		/*printf("vals = %d, %d: %d %d %d %d %d %d %d %d [%d, %d] - [%d, %d]\n", value, res,
+			aAccessor[typename TAccessor::diff_t(-1,-1)],
+			aAccessor[typename TAccessor::diff_t(-1,0)],
+			aAccessor[typename TAccessor::diff_t(-1,1)],
+			aAccessor[typename TAccessor::diff_t(1,-1)],
+			aAccessor[typename TAccessor::diff_t(1,0)],
+			aAccessor[typename TAccessor::diff_t(1,1)],
+			aAccessor[typename TAccessor::diff_t(0,1)],
+			aAccessor[typename TAccessor::diff_t(0,-1)],
+			aAccessor.dimensions()[0], aAccessor.dimensions()[1],
+			aAccessor.coords()[0], aAccessor.coords()[1]
+		);*/
+		return res;
+	}
+};
+
+struct HasSmallerNeighbor
+{
+	template<typename TAccessor>
+	CUGIP_DECL_HYBRID int
+	operator()(TAccessor aAccessor) const
+	{
+		auto value = aAccessor[typename TAccessor::diff_t()];
+		if (
+			value > aAccessor[typename TAccessor::diff_t(-1,-1)] ||
+			value > aAccessor[typename TAccessor::diff_t(-1,0)] ||
+			value > aAccessor[typename TAccessor::diff_t(-1,1)] ||
+			value > aAccessor[typename TAccessor::diff_t(1,-1)] ||
+			value > aAccessor[typename TAccessor::diff_t(1,0)] ||
+			value > aAccessor[typename TAccessor::diff_t(1,1)] ||
+			value > aAccessor[typename TAccessor::diff_t(0,1)] ||
+			value > aAccessor[typename TAccessor::diff_t(0,-1)])
+		{
+			return 1;
 		} else {
 			return 0;
 		}
+	}
+};
+
+struct ZipValues
+{
+	template<typename... TTypes>
+	CUGIP_DECL_HYBRID Tuple<TTypes...>
+	operator()(TTypes... aArgs) const
+	{
+		return Tuple<TTypes...>(aArgs...);
 	}
 };
 

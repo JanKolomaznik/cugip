@@ -72,96 +72,18 @@ cudaDeviceInfoText()
 	return result;
 }
 
-template<typename TType, int tChannelCount>
-struct element
-{
-	typedef TType channel_t;
-	static const int dimension;
-
-	TType data[tChannelCount];
-
-	CUGIP_DECL_HYBRID element &
-	operator=(const element &aArg)
-	{
-		for (int i = 0; i < tChannelCount; ++i) {
-			data[i] = aArg.data[i];
-		}
-		return *this;
-	}
-
-	CUGIP_DECL_HYBRID element &
-	operator=(const TType &aArg)
-	{
-		for (int i = 0; i < tChannelCount; ++i) {
-			data[i] = aArg;
-		}
-		return *this;
-	}
-};
-
+//TODO - move generic type traits to special header
 template<int tIdx, typename TType>
 struct get_policy;
 
-
-/*template<int tIdx, typename TType, int tChannelCount>
-struct get_policy<tIdx, const element<TType, tChannelCount> >
-{
-	typedef const TType & return_type;
-	typedef const element<TType, tChannelCount> & value_t;
-
-	static CUGIP_DECL_HYBRID return_type
-	get(value_t aArg)
-	{
-		return aArg.data[tIdx];
-	}
-};
-
-template<int tIdx, typename TType, int tChannelCount>
-struct get_policy<tIdx, element<TType, tChannelCount> >
-{
-	typedef TType & return_type;
-	typedef element<TType, tChannelCount> & value_t;
-
-	static CUGIP_DECL_HYBRID return_type
-	get(value_t aArg)
-	{
-		return aArg.data[tIdx];
-	}
-
-};*/
-
 template<int tIdx, typename TType>
-CUGIP_DECL_HYBRID typename get_policy<tIdx, typename boost::remove_reference<TType>::type >::return_type
+CUGIP_DECL_HYBRID typename get_policy<tIdx, typename std::remove_reference<TType>::type >::return_type
 get(TType &aArg)
 {
 	return get_policy<tIdx,
-			  typename boost::remove_reference<TType>::type
+			  typename std::remove_reference<TType>::type
 			  >::get(aArg);
 }
-
-template<int tIdx, typename TType, int tChannelCount>
-CUGIP_DECL_HYBRID TType &
-get(element<TType, tChannelCount> &aArg)
-{
-	return aArg.data[tIdx];
-}
-
-template<int tIdx, typename TType, int tChannelCount>
-CUGIP_DECL_HYBRID const TType &
-get(const element<TType, tChannelCount> &aArg)
-{
-	//std::cout << typeid(aArg).name() << std::endl;
-	return aArg.data[tIdx]; //get_policy<tIdx,
-			  //const element<TType, tChannelCount>
-			  //>::get(aArg);
-}
-
-
-typedef element<unsigned char, 3> element_rgb8_t;
-//typedef element<unsigned char, 1> element_gray8_t;
-typedef unsigned char element_gray8_t;
-typedef char element_gray8s_t;
-typedef element<signed char, 2> element_channel2_8s_t;
 
 
 //*****************************************************************
