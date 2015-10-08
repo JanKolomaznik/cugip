@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cugip/image_view.hpp>
+#include <cugip/math.hpp>
 #include <cugip/utils.hpp>
 
 namespace cugip {
@@ -9,6 +9,22 @@ namespace detail {
 
 
 } //namespace detail
+
+
+/// \return Strides for memory without padding.
+CUGIP_DECL_HYBRID
+inline Int2 stridesFromSize(Int2 size) {
+	return Int2(1, size[0]);
+}
+
+
+/// \return Strides for memory without padding.
+CUGIP_DECL_HYBRID
+inline Int3 stridesFromSize(Int3 size) {
+	return Int3(1, size[0], size[0] * size[1]);
+}
+
+
 
 CUGIP_HD_WARNING_DISABLE
 template<typename TImageView>

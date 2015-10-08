@@ -3,8 +3,9 @@
 #include <cugip/detail/include.hpp>
 #include <cugip/detail/view_declaration_utils.hpp>
 #include <cugip/utils.hpp>
-#include <cugip/memory.hpp>
-#include <cugip/image_locator.hpp>
+#include <cugip/access_utils.hpp>
+//#include <cugip/memory.hpp>
+//#include <cugip/image_locator.hpp>
 #include <cugip/math.hpp>
 
 namespace cugip {
@@ -39,6 +40,7 @@ public:
 		//return mHostPtr[dot(mStrides, aCoords)];
 	}
 
+	//TODO - locators for host views
 	/*template<typename TBorderHandling>
 	CUGIP_DECL_HYBRID image_locator<this_t, TBorderHandling>
 	locator(coord_t aCoordinates)
@@ -131,10 +133,22 @@ struct is_memory_based<const_host_image_view<TElement, tDim>>: public std::true_
 
 template<typename TElement, int tDimension>
 const_host_image_view<const TElement, tDimension>
+makeConstHostImageView(const TElement *buffer, simple_vector<int, tDimension> size) {
+	return const_host_image_view<const TElement, tDimension>(buffer, size, sizeof(TElement) * stridesFromSize(size));
+}
+
+template<typename TElement, int tDimension>
+const_host_image_view<const TElement, tDimension>
 makeConstHostImageView(const TElement *buffer, simple_vector<int, tDimension> size, simple_vector<int, tDimension> strides) {
 	return const_host_image_view<const TElement, tDimension>(buffer, size, strides);
 }
 
+
+template<typename TElement, int tDimension>
+host_image_view<TElement, tDimension>
+makeHostImageView(TElement *buffer, simple_vector<int, tDimension> size) {
+	return host_image_view<TElement, tDimension>(buffer, size, sizeof(TElement) * stridesFromSize(size));
+}
 
 template<typename TElement, int tDimension>
 host_image_view<TElement, tDimension>

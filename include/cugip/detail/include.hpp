@@ -1,13 +1,16 @@
 #pragma once
 
-#include <cuda.h>
+// can be used in nvcc code and in normal code
+
+#ifdef __CUDACC__
+#	include <cuda.h>
+#endif // __CUDACC__
+
 #include <iostream>
 #include <iomanip>
 #include <boost/format.hpp>
 #include <cassert>
 #include <cstdio>
-#include <boost/call_traits.hpp>
-#include <boost/type_traits.hpp>
 
 
 #ifndef DOUT

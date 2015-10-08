@@ -1,7 +1,7 @@
 #pragma once
 
-//#include <boost/array.hpp>
- #include <boost/type_traits.hpp>
+ #include <type_traits>
+
  #include <cugip/traits.hpp>
  #include <cugip/utils.hpp>
  #include <cmath>
@@ -148,18 +148,18 @@ public:
 };
 
 template<typename TCoordType1, typename TCoordType2, int tDim>
-inline CUGIP_DECL_HYBRID simple_vector<typename boost::common_type<TCoordType1, TCoordType2>::type, tDim>
+inline CUGIP_DECL_HYBRID simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim>
 operator+(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TCoordType2, tDim> &aArg2)
 {
-	simple_vector<typename boost::common_type<TCoordType1, TCoordType2>::type, tDim> res(aArg1);
+	simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim> res(aArg1);
 	return res += aArg2;
 }
 
 template<typename TCoordType1, typename TCoordType2, int tDim>
-inline CUGIP_DECL_HYBRID simple_vector<typename boost::common_type<TCoordType1, TCoordType2>::type, tDim>
+inline CUGIP_DECL_HYBRID simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim>
 operator*(const TCoordType1 &aFactor, const simple_vector<TCoordType2, tDim> &aArg)
 {
-	simple_vector<typename boost::common_type<TCoordType1, TCoordType2>::type, tDim> res;
+	simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim> res;
 	for (int i = 0; i < tDim; ++i) {
 		res.mValues[i] = aFactor * aArg.mValues[i];
 	}
@@ -167,10 +167,10 @@ operator*(const TCoordType1 &aFactor, const simple_vector<TCoordType2, tDim> &aA
 }
 
 template<typename TCoordType1, typename TCoordType2, int tDim>
-inline CUGIP_DECL_HYBRID simple_vector<typename boost::common_type<TCoordType1, TCoordType2>::type, tDim>
+inline CUGIP_DECL_HYBRID simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim>
 operator-(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TCoordType2, tDim> &aArg2)
 {
-	simple_vector<typename boost::common_type<TCoordType1, TCoordType2>::type, tDim> res(aArg1);
+	simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim> res(aArg1);
 	return res -= aArg2;
 }
 
@@ -226,10 +226,10 @@ operator<=( const simple_vector<TCoordType1, tDim> &aA, const simple_vector<TCoo
 }
 
 template<typename TCoordType1, typename TCoordType2, int tDim>
-inline CUGIP_DECL_HYBRID simple_vector<typename boost::common_type<TCoordType1, TCoordType2>::type, tDim>
+inline CUGIP_DECL_HYBRID simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim>
 max_coords(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TCoordType2, tDim> &aArg2)
 {
-	simple_vector<typename boost::common_type<TCoordType1, TCoordType2>::type, tDim> res;
+	simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim> res;
 	for (int i = 0; i < tDim; ++i) {
 		res.mValues[i] = aArg1.mValues[i] > aArg2.mValues[i] ? aArg1.mValues[i] : aArg2.mValues[i];
 	}
@@ -237,10 +237,10 @@ max_coords(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TC
 }
 
 template<typename TCoordType1, typename TCoordType2, int tDim>
-inline CUGIP_DECL_HYBRID simple_vector<typename boost::common_type<TCoordType1, TCoordType2>::type, tDim>
+inline CUGIP_DECL_HYBRID simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim>
 min_coords(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TCoordType2, tDim> &aArg2)
 {
-	simple_vector<typename boost::common_type<TCoordType1, TCoordType2>::type, tDim> res;
+	simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim> res;
 	for (int i = 0; i < tDim; ++i) {
 		res.mValues[i] = aArg1.mValues[i] < aArg2.mValues[i] ? aArg1.mValues[i] : aArg2.mValues[i];
 	}

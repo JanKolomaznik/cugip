@@ -139,7 +139,7 @@ struct access_helper
 	CUGIP_DECL_HYBRID
 	operator TType()const
 	{
-#ifdef __CUDACC__
+#ifdef __CUDA_ARCH__
 		return *(ptr.p);
 #else
 		TType tmp;
@@ -152,7 +152,7 @@ struct access_helper
 	const access_helper&
 	operator=(const TType &aArg)const
 	{
-#ifdef __CUDACC__
+#ifdef __CUDA_ARCH__
 		*(ptr.p) = aArg;
 #else
 		TType tmp = aArg;

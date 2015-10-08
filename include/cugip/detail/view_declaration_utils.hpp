@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cugip/utils.hpp>
+#include <cugip/detail/defines.hpp>
 
 #define REMOVE_PARENTHESES(...) __VA_ARGS__
 
@@ -41,7 +41,7 @@ struct is_memory_based: public std::false_type {};
 /**
  * @}
  **/
- 
+
 CUGIP_HD_WARNING_DISABLE
 template<typename TView>
 CUGIP_DECL_HYBRID int

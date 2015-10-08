@@ -55,20 +55,6 @@ inline cudaPitchedPtr stridesToPitchedPtr(TElement *ptr, Int3 size, Int3 strides
 	return make_cudaPitchedPtr(const_cast<void *>(reinterpret_cast<const void *>(ptr)), strides[1], size[0], size[1]);
 }
 
-/// \return Strides for memory without padding.
-CUGIP_DECL_HYBRID
-inline Int2 stridesFromSize(Int2 size) {
-	return Int2(1, size[0]);
-}
-
-
-/// \return Strides for memory without padding.
-CUGIP_DECL_HYBRID
-inline Int3 stridesFromSize(Int3 size) {
-	return Int3(1, size[0], size[0] * size[1]);
-}
-
-
 }//namespace cugip
 
 inline std::ostream &operator<<(std::ostream &stream, const cudaPitchedPtr &pointer) {
