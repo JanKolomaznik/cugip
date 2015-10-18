@@ -68,6 +68,20 @@ get(TType &aArg)
 			  >::get(aArg);
 }
 
+template<int tIdx1, int tIdx2, typename TType>
+struct get_policy2;
+
+
+template<int tIdx1, int tIdx2, typename TType>
+float
+get(TType &aArg)
+{
+	return get_policy2<tIdx1,
+			  tIdx2,
+			  typename std::remove_reference<TType>::type
+			  >::get(aArg);
+}
+
 
 //*****************************************************************
 //Extensions for built-in types

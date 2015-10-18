@@ -5,6 +5,7 @@
 
 #include <cugip/utils.hpp>
 #include <cugip/tuple.hpp>
+#include <cugip/math/symmetric_tensor.hpp>
 #include <thrust/device_vector.h>
 #include <thrust/reduce.h>
 #include <thrust/for_each.h>
@@ -117,4 +118,29 @@ BOOST_AUTO_TEST_CASE(TupleAccessDevice)
 		BOOST_CHECK_EQUAL(get<1>(tuples2[i]), 1.5f);
 		BOOST_CHECK_EQUAL(get<2>(tuples2[i]), true);
 	}
+}
+
+BOOST_AUTO_TEST_CASE(SymmetricTensorAccess)
+{
+	using namespace cugip;
+	symmetric_tensor<int, 2> m1;
+	for (int i = 0; i < 3; ++i) {
+		m1[i] = i + 1;
+	}
+
+	symmetric_tensor<int, 4> m2;
+	for (int i = 0; i < 10; ++i) {
+		m2[i] = i + 1;
+	}
+
+	BOOST_CHECK_EQUAL((get<0, 0>(m1)), 1);
+	BOOST_CHECK_EQUAL((get<0, 1>(m1)), 2);
+	BOOST_CHECK_EQUAL((get<1, 1>(m1)), 3);
+
+	BOOST_CHECK_EQUAL((get<0, 3>(m2)), 4);
+	BOOST_CHECK_EQUAL((get<1, 1>(m2)), 5);
+	BOOST_CHECK_EQUAL((get<2, 2>(m2)), 8);
+	BOOST_CHECK_EQUAL((get<3, 3>(m2)), 10);
+	BOOST_CHECK_EQUAL((get<2, 3>(m2)), 9);
+	BOOST_CHECK_EQUAL((get<3, 2>(m2)), 9);
 }

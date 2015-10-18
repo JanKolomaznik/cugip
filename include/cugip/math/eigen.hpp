@@ -1,41 +1,53 @@
 #pragma once
 
+#include <cugip/symmetric_tensor.hpp>
+
+namespace cugip {
 #define M_SQRT3    1.73205080756887729352744634151   // sqrt(3)
 
 CUGIP_DECL_HYBRID simple_vector<float, 3>
 eigen_values(symmetric_tensor<float, 3> &aTensor)
 {
-	double m, c1, c0;
-
 	// Determine coefficients of characteristic poynomial. We write
 	//       | a   d   f  |
 	//  A =  | d*  b   e  |
 	//       | f*  e*  c  |
-	double de = aTensor.get<0, 1>() * aTensor.get<1, 2>();                                    // d * e
-	double dd = sqr(aTensor.get<0, 1>());                                         // d^2
-	double ee = sqr(aTensor.get<1, 2>());                                         // e^2
-	double ff = sqr(aTensor.get<0, 2>());                                         // f^2
-	m  = matrix_trace(aTensor);//A[0][0] + A[1][1] + A[2][2];
-	c1 = (A[0][0]*A[1][1] + A[0][0]*A[2][2] + A[1][1]*A[2][2]) - (dd + ee + ff);       // a*b + a*c + b*c - d^2 - e^2 - f^2
-	c0 = A[2][2]*dd + A[0][0]*ee + A[1][1]*ff - A[0][0]*A[1][1]*A[2][2] - 2.0 * A[0][2]*de; // c*d^2 + a*e^2 + b*f^2 - a*b*c - 2*f*d*e)
+	float de = get<0, 1>(aTensor) * get<1, 2>(aTensor);                                    // d * e
+	float dd = sqr(get<0,1>(aTensor));                                         // d^2
+	float ee = sqr(get<1,2>(aTensor));                                         // e^2
+	float ff = sqr(get<0,2>(aTensor));                                         // f^2
+	float m  = matrix_trace(aTensor);//A[0][0] + A[1][1] + A[2][2];
+	float c1 =
+		get<0,0>(aTensor) * get<1,1>(aTensor) +
+		get<0,0>(aTensor) * get<2,2>(aTensor) +
+		get<1,1>(aTensor) * get<2,2>(aTensor) -
+		(dd + ee + ff);       // a*b + a*c + b*c - d^2 - e^2 - f^2
+	float c0 =
+		get<2,2>(aTensor) * dd +
+		get<0,0>(aTensor) * ee +
+		get<1,1>(aTensor) * ff -
+		get<0,0>(aTensor) * get<1,1>(aTensor)*get<2,2>(aTensor) -
+		2.0 * get<0,2>(aTensor)*de; // c*d^2 + a*e^2 + b*f^2 - a*b*c - 2*f*d*e)
 
-	double p, sqrt_p, q, c, s, phi;
-	p = sqr(m) - 3.0 * c1;
-	q = m*(p - (3.0/2.0) * c1) - (27.0/2.0) * c0;
-	sqrt_p = sqrt(fabs(p));
+	float p = sqr(m) - 3.0 * c1;
+	float q = m * (p - (3.0/2.0) * c1) - (27.0/2.0) * c0;
+	float sqrt_p = sqrt(fabs(p));
 
-	phi = 27.0 * (0.25 * sqr(c1) * (p - c1) + c0*(q + 27.0/4.0 * c0));
+	float phi = 27.0 * (0.25 * sqr(c1) * (p - c1) + c0*(q + 27.0/4.0 * c0));
 	phi = (1.0 / 3.0) * atan2(sqrt(fabs(phi)), q);
 
-	c = sqrt_p*cos(phi);
-	s = (1.0/M_SQRT3)*sqrt_p*sin(phi);
+	float c = sqrt_p * cos(phi);
+	float s = (1.0/M_SQRT3) * sqrt_p * sin(phi);
 
-	w[1]  = (1.0/3.0)*(m - c);
-	w[2]  = w[1] + s;
-	w[0]  = w[1] + c;
-	w[1] -= s;
+	simple_vector<float, 3> vals;
+	vals[1]  = (1.0/3.0) * (m - c);
+	vals[2]  = vals[1] + s;
+	vals[0]  = vals[1] + c;
+	vals[1] -= s;
+	return vals;
 }
 
+#if 0
 // ----------------------------------------------------------------------------
 int
 eigen_vectors(symmetric_tensor<float, 3> &aTensor, double Q[3][3], double w[3])
@@ -227,3 +239,6 @@ eigen_vectors(symmetric_tensor<float, 3> &aTensor, double Q[3][3], double w[3])
 
 	return 0;
 }
+#endif //0
+
+}  // namespace cugip
