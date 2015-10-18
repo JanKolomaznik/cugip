@@ -7,26 +7,19 @@
 namespace po = boost::program_options;
 
 typedef itk::Image<float, 3> ImageType;
+typedef itk::Image<int, 3> MarkersType;
 
-//void
-//denoise(ImageType::Pointer aInput, ImageType::Pointer aOutput);
-
-void
-denoise(float *aInput, float *aOutput, int aWidth, int aHeight, int aDepth);
-
-
-int main( int argc, char* argv[] )
+int
+main(int argc, char* argv[])
 {
-	std::string input_file;
-	std::string output_file;
-	int iteration_count;
-	float sigma;
+	std::string inputFile;
+	std::string markersFile;
 
 	po::options_description desc("Allowed options");
 	desc.add_options()
 		("help", "produce help message")
-		("input,i", po::value<std::string>(&input_file), "input file")
-		("output,o", po::value<std::string>(&output_file), "output file")
+		("input,i", po::value<std::string>(&inputFile), "input file")
+		("markers,m", po::value<std::string>(&markersFile), "markers file")
 		;
 
 	po::variables_map vm;
@@ -34,36 +27,34 @@ int main( int argc, char* argv[] )
 	po::notify(vm);
 
 	if (vm.count("help")) {
-	    std::cout << desc << "\n";
-	    return 1;
+		std::cout << desc << "\n";
+		return 1;
 	}
 
 	if (vm.count("input") == 0) {
-	    std::cout << "Missing input filename\n" << desc << "\n";
-	    return 1;
+		std::cout << "Missing input filename\n" << desc << "\n";
+		return 1;
 	}
 
-	if (vm.count("output") == 0) {
-	    std::cout << "Missing output filename\n" << desc << "\n";
-	    return 1;
+	if (vm.count("markers") == 0) {
+		std::cout << "Missing markers filename\n" << desc << "\n";
+		return 1;
 	}
 
+	typedef itk::ImageFileReader<ImageType>  ImageReaderType;
+	typedef itk::ImageFileReader<MarkersType>  MarkersReaderType;
 
-	const unsigned int Dimension = 3;
+	ImageReaderType::Pointer imageReader = ImageReaderType::New();
+	MarkersReaderType::Pointer markersReader = MarkersReaderType::New();
+	imageReader->SetFileName(inputFile);
+	markersReader->SetFileName(markersFile);
+	imageReader->Update();
+	markersReader->Update();
 
-	//typedef float                              PixelType;
-	//typedef itk::Image< PixelType, Dimension > ImageType;
+	ImageType::Pointer image = imageReader->GetOutput();
+	MarkersType::Pointer markers = markersReader->GetOutput();
 
-	typedef itk::ImageFileReader<ImageType>  ReaderType;
-	typedef itk::ImageFileWriter<ImageType> WriterType;
-
-	ReaderType::Pointer reader = ReaderType::New();
-	reader->SetFileName(input_file);
-	reader->Update();
-
-	ImageType::Pointer image = reader->GetOutput();
-
-	ImageType::Pointer output_image = ImageType::New();
+	/*ImageType::Pointer output_image = ImageType::New();
 	output_image->SetRegions(image->GetLargestPossibleRegion());
 	output_image->Allocate();
 
@@ -88,7 +79,7 @@ int main( int argc, char* argv[] )
 	{
 		std::cerr << "Error: " << error << std::endl;
 		return EXIT_FAILURE;
-	}
+	}*/
 
 	return EXIT_SUCCESS;
 }
