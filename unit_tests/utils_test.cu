@@ -6,6 +6,7 @@
 #include <cugip/utils.hpp>
 #include <cugip/tuple.hpp>
 #include <cugip/math/symmetric_tensor.hpp>
+#include <cugip/math/eigen.hpp>
 #include <thrust/device_vector.h>
 #include <thrust/reduce.h>
 #include <thrust/for_each.h>
@@ -90,18 +91,18 @@ BOOST_AUTO_TEST_CASE(TupleAccess)
 
 struct InitTuple
 {
-    CUGIP_DECL_HYBRID
-    void operator()(Tuple<int, float, bool> &t) {
-	   t = Tuple<int, float, bool>(3, 1.5f, true);
-    }
+	CUGIP_DECL_HYBRID
+	void operator()(Tuple<int, float, bool> &t) {
+		t = Tuple<int, float, bool>(3, 1.5f, true);
+	}
 };
 
 struct ModifyTuple
 {
-    CUGIP_DECL_HYBRID
-    void operator()(Tuple<int, float, bool> &t) {
-	   t = Tuple<int, float, bool>(3, 1.5f, true);
-    }
+	CUGIP_DECL_HYBRID
+	void operator()(Tuple<int, float, bool> &t) {
+		t = Tuple<int, float, bool>(3, 1.5f, true);
+	}
 };
 
 BOOST_AUTO_TEST_CASE(TupleAccessDevice)
@@ -143,4 +144,24 @@ BOOST_AUTO_TEST_CASE(SymmetricTensorAccess)
 	BOOST_CHECK_EQUAL((get<3, 3>(m2)), 10);
 	BOOST_CHECK_EQUAL((get<2, 3>(m2)), 9);
 	BOOST_CHECK_EQUAL((get<3, 2>(m2)), 9);
+}
+
+BOOST_AUTO_TEST_CASE(SymmetricTensor3x3EigenValues)
+{
+	using namespace cugip;
+	symmetric_tensor<float, 3> tensor;
+
+	tensor[0] = 1.0f;
+	tensor[1] = 0.0f;
+	tensor[2] = 0.0f;
+	tensor[3] = 2.0f;
+	tensor[4] = 0.0f;
+	tensor[5] = 3.0f;
+
+	std::cout << eigen_values(tensor) << "\n";
+	/*std::cout << eigen_vector<0, 1>(3.0f, tensor) << "\n";
+	std::cout << eigen_vector<0, 2>(2.0f, tensor) << "\n";
+	std::cout << eigen_vector<1, 2>(1.0f, tensor) << "\n";*/
+	std::cout << eigen_vectors(tensor, eigen_values(tensor)) << "\n";
+
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cugip/utils.hpp>
 #include <cugip/math.hpp>
 
 namespace cugip {
@@ -9,9 +10,53 @@ class symmetric_tensor: public simple_vector<TType, ((tDimension + 1) * tDimensi
 {
 public:
 	typedef simple_vector<TType, ((tDimension + 1) * tDimension) / 2> base_type;
+
+	CUGIP_DECL_HYBRID
 	symmetric_tensor()
 		: base_type()
 	{}
+
+	CUGIP_DECL_HYBRID
+	TType &
+	get(int aRow, int aCol)
+	{
+		if (aRow > aCol) {
+			swap(aRow, aCol);
+		}
+		const int index = aCol + aRow * tDimension - ((aRow +1) * aRow / 2);
+		return (*this)[index];
+	}
+
+	CUGIP_DECL_HYBRID
+	const TType &
+	get(int aRow, int aCol) const
+	{
+		if (aRow > aCol) {
+			swap(aRow, aCol);
+		}
+		const int index = aCol + aRow * tDimension - ((aRow +1) * aRow / 2);
+		return (*this)[index];
+	}
+
+	//TODO - get wrapper which provides access
+	CUGIP_DECL_HYBRID
+	simple_vector<TType, tDimension>
+	column(int aCol) const
+	{
+		simple_vector<TType, tDimension> result;
+		for (int i = 0; i < tDimension; ++i) {
+			result[i] = get(i, aCol);
+		}
+		return result;
+	}
+
+	CUGIP_DECL_HYBRID
+	simple_vector<TType, tDimension>
+	row(int aRow) const
+	{
+		return column(aRow);
+	}
+
 private:
 
 };

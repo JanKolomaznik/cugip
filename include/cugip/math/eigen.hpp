@@ -1,22 +1,22 @@
 #pragma once
 
-#include <cugip/symmetric_tensor.hpp>
+#include <cugip/math/symmetric_tensor.hpp>
 
 namespace cugip {
 #define M_SQRT3    1.73205080756887729352744634151   // sqrt(3)
 
-CUGIP_DECL_HYBRID simple_vector<float, 3>
+/*CUGIP_DECL_HYBRID*/ simple_vector<float, 3>
 eigen_values(symmetric_tensor<float, 3> &aTensor)
 {
 	// Determine coefficients of characteristic poynomial. We write
 	//       | a   d   f  |
 	//  A =  | d*  b   e  |
 	//       | f*  e*  c  |
-	float de = get<0, 1>(aTensor) * get<1, 2>(aTensor);                                    // d * e
-	float dd = sqr(get<0,1>(aTensor));                                         // d^2
-	float ee = sqr(get<1,2>(aTensor));                                         // e^2
-	float ff = sqr(get<0,2>(aTensor));                                         // f^2
-	float m  = matrix_trace(aTensor);//A[0][0] + A[1][1] + A[2][2];
+	float de = get<0, 1>(aTensor) * get<1, 2>(aTensor);				    // d * e
+	float dd = sqr(get<0,1>(aTensor));					 // d^2
+	float ee = sqr(get<1,2>(aTensor));					 // e^2
+	float ff = sqr(get<0,2>(aTensor));					 // f^2
+	float m  = matrix_trace(aTensor);
 	float c1 =
 		get<0,0>(aTensor) * get<1,1>(aTensor) +
 		get<0,0>(aTensor) * get<2,2>(aTensor) +
@@ -47,198 +47,94 @@ eigen_values(symmetric_tensor<float, 3> &aTensor)
 	return vals;
 }
 
-#if 0
-// ----------------------------------------------------------------------------
-int
-eigen_vectors(symmetric_tensor<float, 3> &aTensor, double Q[3][3], double w[3])
-// ----------------------------------------------------------------------------
-// Calculates the eigenvalues and normalized eigenvectors of a symmetric 3x3
-// matrix A using Cardano's method for the eigenvalues and an analytical
-// method based on vector cross products for the eigenvectors.
-// Only the diagonal and upper triangular parts of A need to contain meaningful
-// values. However, all of A may be used as temporary storage and may hence be
-// destroyed.
-// ----------------------------------------------------------------------------
-// Parameters:
-//   A: The symmetric input matrix
-//   Q: Storage buffer for eigenvectors
-//   w: Storage buffer for eigenvalues
-// ----------------------------------------------------------------------------
-// Return value:
-//   0: Success
-//  -1: Error
-// ----------------------------------------------------------------------------
-// Dependencies:
-//   dsyevc3()
-// ----------------------------------------------------------------------------
-// Version history:
-//   v1.1 (12 Mar 2012): Removed access to lower triangualr part of A
-//     (according to the documentation, only the upper triangular part needs
-//     to be filled)
-//   v1.0: First released version
-// ----------------------------------------------------------------------------
+template<int tCol1, int tCol2>
+simple_vector<float, 3>
+eigen_vector(float aEigenValue, const symmetric_tensor<float, 3> &aMatrix, const float aThreshold)
 {
-	simple_vector<float, 3> eigenValues;
-	auto maxEigenValue = max(abs(eigenValues)); // The eigenvalue of maximum modulus
-
-	double norm;          // Squared norm or inverse norm of current eigenvector
-	double n0, n1;        // Norm of first and second columns of A
-	double n0tmp, n1tmp;  // "Templates" for the calculation of n0/n1 - saves a few FLOPS
-	double thresh;        // Small number used as threshold for floating point comparisons
-	double error;         // Estimated maximum roundoff error in some steps
-	double f, t;          // Intermediate storage
-	int i, j;             // Loop counters
-
-	thresh = sqr(8.0 * DBL_EPSILON * wmax);
-
-	// Prepare calculation of eigenvectors
-	n0tmp   = sqr(A[0][1]) + sqr(A[0][2]);
-	n1tmp   = sqr(A[0][1]) + sqr(A[1][2]);
-	Q[0][1] = A[0][1]*A[1][2] - A[0][2]*A[1][1];
-	Q[1][1] = A[0][2]*A[0][1] - A[1][2]*A[0][0];
-	Q[2][1] = sqr(A[0][1]);
-
-	// Calculate first eigenvector by the formula
-	//   v[0] = (A - w[0]).e1 x (A - w[0]).e2
-	A[0][0] -= w[0];
-	A[1][1] -= w[0];
-	Q[0][0] = Q[0][1] + A[0][2]*w[0];
-	Q[1][0] = Q[1][1] + A[1][2]*w[0];
-	Q[2][0] = A[0][0]*A[1][1] - Q[2][1];
-	norm    = sqr(Q[0][0]) + sqr(Q[1][0]) + sqr(Q[2][0]);
-	n0      = n0tmp + sqr(A[0][0]);
-	n1      = n1tmp + sqr(A[1][1]);
-	error   = n0 * n1;
-
-	if (n0 <= thresh) {         // If the first column is zero, then (1,0,0) is an eigenvector
-		Q[0][0] = 1.0;
-		Q[1][0] = 0.0;
-		Q[2][0] = 0.0;
-	} else if (n1 <= thresh) {   // If the second column is zero, then (0,1,0) is an eigenvector
-		Q[0][0] = 0.0;
-		Q[1][0] = 1.0;
-		Q[2][0] = 0.0;
-	} else if (norm < sqr(64.0 * DBL_EPSILON) * error) {
+	auto v1 = aMatrix.column(tCol1);
+	v1[tCol1] -= aEigenValue;
+	auto v2 = aMatrix.column(tCol2);
+	v2[tCol2] -= aEigenValue;
+	auto n1 = squared_magnitude(v1);
+	auto n2 = squared_magnitude(v2);
+	if (n1 <= aThreshold) {
+		return simple_vector<float, 3>(1.0f, 0.0f, 0.0f);
+	} else if (n2 <= aThreshold) {
+		return simple_vector<float, 3>(0.0f, 1.0f, 0.0f);
+	}
+	auto result = cross(v1, v2);
+	auto norm = squared_magnitude(result);
+	auto threshold2 = sqr(64.0f * EPSILON) * n1 * n2;
+	if (norm < threshold2) {
 		// If angle between A[0] and A[1] is too small, don't use
-		t = sqr(A[0][1]);       // cross product, but calculate v ~ (1, -A0/A1, 0)
-		f = -A[0][0] / A[0][1];
-		if (sqr(A[1][1]) > t) {
-			t = sqr(A[1][1]);
-			f = -A[0][1] / A[1][1];
+		// cross product, but calculate v ~ (1, -A0/A1, 0)
+		auto t = sqr(get<0, 1>(aMatrix));
+		auto f = -get<0, 0>(aMatrix) / get<0, 1>(aMatrix);
+		if (sqr(get<1, 1>(aMatrix) > t)) {
+			t = sqr(get<1, 1>(aMatrix));
+			f = -get<0, 1>(aMatrix) / get<1, 1>(aMatrix);
 		}
-		if (sqr(A[1][2]) > t) {
-			f = -A[0][2] / A[1][2];
+		if (sqr(get<1, 2>(aMatrix) > t)) {
+			f = -get<0, 2>(aMatrix) / get<1, 2>(aMatrix);
 		}
-		norm    = 1.0/sqrt(1 + sqr(f));
-		Q[0][0] = norm;
-		Q[1][0] = f * norm;
-		Q[2][0] = 0.0;
-	} else { // This is the standard branch
-		norm = sqrt(1.0 / norm);
-		for (j=0; j < 3; j++) {
-			Q[j][0] = Q[j][0] * norm;
-		}
+		norm = 1.0f / sqrt(1.0f + sqr(f));
+		return simple_vector<float, 3>(norm, f * norm, 0.0f);
 	}
 
+	return (1.0f / sqrt(norm)) * result;
+}
 
-	// Prepare calculation of second eigenvector
-	t = w[0] - w[1];
-	if (fabs(t) > 8.0 * DBL_EPSILON * wmax) {
-		// For non-degenerate eigenvalue, calculate second eigenvector by the formula
-		//   v[1] = (A - w[1]).e1 x (A - w[1]).e2
-		A[0][0] += t;
-		A[1][1] += t;
-		Q[0][1]  = Q[0][1] + A[0][2]*w[1];
-		Q[1][1]  = Q[1][1] + A[1][2]*w[1];
-		Q[2][1]  = A[0][0]*A[1][1] - Q[2][1];
-		norm     = SQR(Q[0][1]) + SQR(Q[1][1]) + SQR(Q[2][1]);
-		n0       = n0tmp + SQR(A[0][0]);
-		n1       = n1tmp + SQR(A[1][1]);
-		error    = n0 * n1;
+/**
+ * Based on implementation for paper: 'Efficient numerical diagonalization of hermitian 3x3 matrices' by Joachim Kopp
+ **/
+simple_vector<simple_vector<float, 3>, 3>
+eigen_vectors(const symmetric_tensor<float, 3> &aTensor, const simple_vector<float, 3> &aEigenValues)
+{
+	simple_vector<simple_vector<float, 3>, 3> result;
 
-		if (n0 <= thresh) {       // If the first column is zero, then (1,0,0) is an eigenvector
-			Q[0][1] = 1.0;
-			Q[1][1] = 0.0;
-			Q[2][1] = 0.0;
-		} else if (n1 <= thresh) { // If the second column is zero, then (0,1,0) is an eigenvector
-			Q[0][1] = 0.0;
-			Q[1][1] = 1.0;
-			Q[2][1] = 0.0;
-		} else if (norm < SQR(64.0 * DBL_EPSILON) * error) {
-			// If angle between A[0] and A[1] is too small, don't use
-			t = SQR(A[0][1]);     // cross product, but calculate v ~ (1, -A0/A1, 0)
-			f = -A[0][0] / A[0][1];
-			if (SQR(A[1][1]) > t) {
-				t = SQR(A[1][1]);
-				f = -A[0][1] / A[1][1];
-			}
-			if (SQR(A[1][2]) > t) {
-				f = -A[0][2] / A[1][2];
-			}
-			norm    = 1.0/sqrt(1 + SQR(f));
-			Q[0][1] = norm;
-			Q[1][1] = f * norm;
-			Q[2][1] = 0.0;
-		} else {
-			norm = sqrt(1.0 / norm);
-			for (j=0; j < 3; j++) {
-				Q[j][1] = Q[j][1] * norm;
-			}
-		}
+	auto maxEigenValue = max(abs(aEigenValues));
+	auto threshold = 8.0f * EPSILON * maxEigenValue;
+
+	result[0] = eigen_vector<0, 1>(aEigenValues[0], aTensor, sqr(threshold));
+	if (abs(aEigenValues[0] - aEigenValues[1]) > threshold) {
+		result[1] = eigen_vector<0, 1>(aEigenValues[1], aTensor, sqr(threshold));
 	} else {
 		// For degenerate eigenvalue, calculate second eigenvector according to
 		//   v[1] = v[0] x (A - w[1]).e[i]
-		//
-		// This would really get to complicated if we could not assume all of A to
-		// contain meaningful values.
-		A[1][0]  = A[0][1];
-		A[2][0]  = A[0][2];
-		A[2][1]  = A[1][2];
-		A[0][0] += w[0];
-		A[1][1] += w[0];
-		for (i=0; i < 3; i++) {
-			A[i][i] -= w[1];
-			n0       = SQR(A[0][i]) + SQR(A[1][i]) + SQR(A[2][i]);
-			if (n0 > thresh) {
-				Q[0][1]  = Q[1][0]*A[2][i] - Q[2][0]*A[1][i];
-				Q[1][1]  = Q[2][0]*A[0][i] - Q[0][0]*A[2][i];
-				Q[2][1]  = Q[0][0]*A[1][i] - Q[1][0]*A[0][i];
-				norm     = SQR(Q[0][1]) + SQR(Q[1][1]) + SQR(Q[2][1]);
-				if (norm > SQR(256.0 * DBL_EPSILON) * n0) {
-					// Accept cross product only if the angle between
-					// the two vectors was not too small
-					norm = sqrt(1.0 / norm);
-					for (j=0; j < 3; j++)
-					Q[j][1] = Q[j][1] * norm;
+		int i;
+		for (i = 0; i < 3; ++i) {
+			auto v = aTensor.column(i);
+			auto n0 = squared_magnitude(v);
+			if (n0 > sqr(threshold)) {
+				result[1] = cross(result[0], v);
+				auto norm = squared_magnitude(result[1]);
+				// Accept cross product only if the angle between
+				// the two vectors was not too small
+				if (norm > sqr(256.0f * EPSILON) * n0) {
+					norm = sqrt(1.0f / norm);
+					result[1] = norm * result[1];
 					break;
 				}
 			}
 		}
-
-		if (i == 3) {    // This means that any vector orthogonal to v[0] is an EV.
-			for (j=0; j < 3; j++) {
-				if (Q[j][0] != 0.0) {
-					// Find nonzero element of v[0] ...
-					// ... and swap it with the next one
-					norm          = 1.0 / sqrt(SQR(Q[j][0]) + SQR(Q[(j+1)%3][0]));
-					Q[j][1]       = Q[(j+1)%3][0] * norm;
-					Q[(j+1)%3][1] = -Q[j][0] * norm;
-					Q[(j+2)%3][1] = 0.0;
+		if (i == 3) {
+			for (int j = 0; j < 3; ++j) {
+				// find some orthogonal vector to the first eigen vector
+				if (result[0][j] != 0.0f) {
+					// swap non-zero coordinate with following one and clear the third -> perpendicular vector
+					auto norm = 1.0f / sqrt(sqr(result[0][j]) + sqr(result[0][(j + 1) % 3]));
+					result[1][j] = result[0][(j + 1) % 3] * norm;
+					result[1][(j + 1) % 3] = -result[0][j] * norm;
+					result[1][(j + 2) % 3] = 0.0f;
 					break;
 				}
 			}
 		}
 	}
 
-
-	// Calculate third eigenvector according to
-	//   v[2] = v[0] x v[1]
-	Q[0][2] = Q[1][0]*Q[2][1] - Q[2][0]*Q[1][1];
-	Q[1][2] = Q[2][0]*Q[0][1] - Q[0][0]*Q[2][1];
-	Q[2][2] = Q[0][0]*Q[1][1] - Q[1][0]*Q[0][1];
-
-	return 0;
+	result[2] = cross(result[0], result[1]);
+	return result;
 }
-#endif //0
+
 
 }  // namespace cugip

@@ -249,7 +249,7 @@ min_coords(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TC
 
 template<typename TType, int tDim>
 CUGIP_DECL_HOST inline std::ostream &
-operator<<( std::ostream &stream, const simple_vector<TType, tDim> &v )
+operator<<(std::ostream &stream, const simple_vector<TType, tDim> &v)
 {
 	stream << "[ ";
 	for (int i = 0; i < tDim - 1; ++i) {
@@ -270,11 +270,30 @@ dot(const simple_vector<TCoordType, tDim> &aVector1, const simple_vector<TCoordT
 	return ret;
 }
 
+template<typename TCoordType>
+inline CUGIP_DECL_HYBRID simple_vector<TCoordType, 3>
+cross(const simple_vector<TCoordType, 3> &aVector1, const simple_vector<TCoordType, 3> &aVector2)
+{
+	simple_vector<TCoordType, 3> result;
+
+	result[0] = aVector1[1] * aVector2[2] - aVector1[2] * aVector2[1];
+	result[1] = aVector1[2] * aVector2[0] - aVector1[0] * aVector2[2];
+	result[2] = aVector1[0] * aVector2[1] - aVector1[1] * aVector2[0];
+	return result;
+}
+
+template <typename TType>
+inline CUGIP_DECL_HYBRID typename TType::coord_t
+squared_magnitude(const TType &aVector)
+{
+	return dot(aVector, aVector);
+}
+
 template <typename TType>
 inline CUGIP_DECL_HYBRID typename TType::coord_t
 magnitude(const TType &aVector)
 {
-	return sqrtf(dot_product(aVector, aVector));
+	return sqrtf(squared_magnitude(aVector));
 }
 
 template <typename TType>
@@ -404,10 +423,31 @@ abs(TType aValue) {
 	return aValue;
 }
 
+template<typename TType, int tDimension>
+inline CUGIP_DECL_HYBRID simple_vector<TType, tDimension>
+abs(simple_vector<TType, tDimension> aValue) {
+	simple_vector<TType, tDimension> result;
+	for (int i = 0; i < tDimension; ++i) {
+		result[i] = abs(aValue[i]);
+	}
+	return result;
+}
+
+
 template<typename TType>
 inline CUGIP_DECL_HYBRID TType
 max(TType aValue1, TType aValue2) {
 	return aValue1 < aValue2 ? aValue2 : aValue1;
+}
+
+template<typename TType, int tDimension>
+inline CUGIP_DECL_HYBRID TType
+max(simple_vector<TType, tDimension> aValue) {
+	auto maxValue = aValue[0];
+	for (int i = 1; i < tDimension; ++i) {
+		maxValue = max(aValue[i], maxValue);
+	}
+	return maxValue;
 }
 
 template<typename TType>
@@ -415,6 +455,17 @@ inline CUGIP_DECL_HYBRID TType
 min(TType aValue1, TType aValue2) {
 	return aValue1 < aValue2 ? aValue1 : aValue2;
 }
+
+template<typename TType, int tDimension>
+inline CUGIP_DECL_HYBRID TType
+min(simple_vector<TType, tDimension> aValue) {
+	auto minValue = aValue[0];
+	for (int i = 1; i < tDimension; ++i) {
+		minValue = min(aValue[i], minValue);
+	}
+	return minValue;
+}
+
 
 template<typename TType, int tDimension>
 inline CUGIP_DECL_HYBRID TType
@@ -449,5 +500,20 @@ product(const simple_vector<TType, tDimension> &aVector)
 	}
 	return result;
 }
+
+template<typename TCoordType, int tDim>
+inline CUGIP_DECL_HYBRID void
+sort(simple_vector<TCoordType, tDim> &aVector)
+{
+	//TODO - check performance
+	for (int i = 0; i < tDim; ++i) {
+		for (int j = 1; i < tDim - i; ++i) {
+			if (aVector[j] < aVector[j-1]) {
+				swap(aVector[j], aVector[j-1]);
+			}
+		}
+	}
+}
+
 
 }//namespace cugip
