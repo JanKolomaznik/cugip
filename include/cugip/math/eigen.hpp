@@ -3,6 +3,7 @@
 #include <cugip/math/symmetric_tensor.hpp>
 
 namespace cugip {
+// TODO handle constants properly
 #define M_SQRT3    1.73205080756887729352744634151   // sqrt(3)
 
 /*CUGIP_DECL_HYBRID*/ simple_vector<float, 3>
@@ -12,7 +13,7 @@ eigen_values(symmetric_tensor<float, 3> &aTensor)
 	//       | a   d   f  |
 	//  A =  | d*  b   e  |
 	//       | f*  e*  c  |
-	float de = get<0, 1>(aTensor) * get<1, 2>(aTensor);				    // d * e
+	float de = get<0, 1>(aTensor) * get<1, 2>(aTensor);			 // d * e
 	float dd = sqr(get<0,1>(aTensor));					 // d^2
 	float ee = sqr(get<1,2>(aTensor));					 // e^2
 	float ff = sqr(get<0,2>(aTensor));					 // f^2
@@ -27,7 +28,7 @@ eigen_values(symmetric_tensor<float, 3> &aTensor)
 		get<0,0>(aTensor) * ee +
 		get<1,1>(aTensor) * ff -
 		get<0,0>(aTensor) * get<1,1>(aTensor)*get<2,2>(aTensor) -
-		2.0 * get<0,2>(aTensor)*de; // c*d^2 + a*e^2 + b*f^2 - a*b*c - 2*f*d*e)
+		2.0 * get<0,2>(aTensor) * de; // c*d^2 + a*e^2 + b*f^2 - a*b*c - 2*f*d*e)
 
 	float p = sqr(m) - 3.0 * c1;
 	float q = m * (p - (3.0/2.0) * c1) - (27.0/2.0) * c0;
@@ -118,17 +119,7 @@ eigen_vectors(const symmetric_tensor<float, 3> &aTensor, const simple_vector<flo
 			}
 		}
 		if (i == 3) {
-			for (int j = 0; j < 3; ++j) {
-				// find some orthogonal vector to the first eigen vector
-				if (result[0][j] != 0.0f) {
-					// swap non-zero coordinate with following one and clear the third -> perpendicular vector
-					auto norm = 1.0f / sqrt(sqr(result[0][j]) + sqr(result[0][(j + 1) % 3]));
-					result[1][j] = result[0][(j + 1) % 3] * norm;
-					result[1][(j + 1) % 3] = -result[0][j] * norm;
-					result[1][(j + 2) % 3] = 0.0f;
-					break;
-				}
-			}
+			result[1] = find_orthonormal(result[0]);
 		}
 	}
 

@@ -515,5 +515,24 @@ sort(simple_vector<TCoordType, tDim> &aVector)
 	}
 }
 
+template<typename TType>
+inline CUGIP_DECL_HYBRID simple_vector<TType, 3>
+find_orthonormal(const simple_vector<TType, 3> &aVector)
+{
+	simple_vector<TType, 3> result;
+	for (int j = 0; j < 3; ++j) {
+		// find some orthogonal vector to the first eigen vector
+		if (aVector[j] != 0.0f) {
+			// swap non-zero coordinate with following one and clear the third -> perpendicular vector
+			auto norm = 1.0f / sqrt(sqr(aVector[0][j]) + sqr(aVector[0][(j + 1) % 3]));
+			result[j] = aVector[0][(j + 1) % 3] * norm;
+			result[(j + 1) % 3] = -aVector[0][j] * norm;
+			result[(j + 2) % 3] = 0.0f;
+			return result;
+		}
+	}
+}
+
+
 
 }//namespace cugip
