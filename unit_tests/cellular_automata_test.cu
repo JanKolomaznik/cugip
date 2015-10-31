@@ -26,6 +26,6 @@ BOOST_AUTO_TEST_CASE(Conway)
         //boost::gil::gray8_image_t gray_out(50, 50);
         //device_image<int, 2> im(50,50);
         //copy(boost::gil::const_view(gray_out), view(im));
-	CellularAutomaton<MooreNeighborhood<2>, ConwayRule> automaton;
-	automaton.iterate(1);
+	//CellularAutomaton<MooreNeighborhood<2>, ConwayRule> automaton;
+	//automaton.iterate(1);
 }

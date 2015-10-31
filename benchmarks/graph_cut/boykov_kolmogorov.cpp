@@ -3,35 +3,73 @@
 #include <BK301/graph.h>
 
 #include <cugip/host_image_view.hpp>
+#include <cugip/neighborhood.hpp>
+#include <cugip/region.hpp>
+#include <cugip/detail/for_each_host.hpp>
+
+#include <boost/log/trivial.hpp>
+
+static void printErrorMessage(char * aMessage) {
+	BOOST_LOG_TRIVIAL(error) << aMessage;
+	throw std::runtime_error(aMessage);
+}
 
 void
 computeBoykovKolmogorovGrid(
-	float *aData,
-	uint8_t *aMarkers,
-	int aWidth,
-	int aHeight,
-	int aDepth)
+	cugip::const_host_image_view<const float, 3> aData,
+	cugip::const_host_image_view<const uint8_t, 3> aMarkers,
+	cugip::host_image_view<uint8_t, 3> aOutput,
+	float aSigma)
 {
-	int edgeCount;
-	int vertexCount;
+	using namespace cugip;
 
-	auto data = cugip::makeConstHostImageView(aData, cugip::Int3(aWidth, aHeight, aDepth));
-	auto markers = cugip::makeConstHostImageView(aMarkers, cugip::Int3(aWidth, aHeight, aDepth));
+	VonNeumannNeighborhood<3> neighborhood;
+	//MooreNeighborhood<3> neighborhood;
+	int edgeCount = product(aData.dimensions()) * neighborhood.size() / 2;
+	int vertexCount = product(aData.dimensions());
 
 	typedef Graph<float, float, float> GraphType;
 
-	GraphType graph(vertexCount, edgeCount);
+	BOOST_LOG_TRIVIAL(info) << "Constructing graph output: vertices = " << vertexCount << "; edges = " << edgeCount;
+	GraphType graph(vertexCount, edgeCount, &printErrorMessage);
 
+	BOOST_LOG_TRIVIAL(info) << "Setting node count: " << vertexCount;
 	graph.add_node(vertexCount);
-
-	for (int k = 0; k < aDepth; ++k) {
-		for (int j = 0; j < aHeight; ++j) {
-			for (int i = 0; i < aWidth; ++i) {
-				//graph.add_tweights(x+y*w,cap_source[x+y*w],cap_sink[x+y*w]);
-				//if (x<w-1) graph.add_edge(x+y*w,(x+1)+y*w,cap_neighbor[MFI::ARC_GE][x+y*w],cap_neighbor[MFI::ARC_LE][(x+1)+y*w]);
+	auto size = aData.dimensions();
+	BOOST_LOG_TRIVIAL(info) << "Setting edge weights...";
+	region<3> imageRegion{ Int3(), size };
+	for_each(
+		imageRegion,
+		[&](const Int3 &coordinate) {
+			int centerIdx = get_linear_access_index(size, coordinate);
+			float source_weight = aMarkers[coordinate] == 128 ? 1000000.f : 0.0f;
+			float sink_weight = aMarkers[coordinate] == 255 ? 1000000.f : 0.0f;
+			if (min(coordinate) <= 1 || min(size - coordinate) <= 2) {
+				source_weight = 1000000.0f;
+				sink_weight = 0.0f;
 			}
-		}
-	}
+			graph.add_tweights(centerIdx, source_weight, sink_weight);
+			for (int n = 1; n < neighborhood.size()/ 2; ++n) {
+				Int3 neighbor = coordinate + neighborhood.offset(n);
+				int neighborIdx = get_linear_access_index(size, neighbor);
+				if (isInsideRegion(aData.dimensions(), neighbor)) {
+					float weight =  std::exp(-sqr(aData[coordinate] - aData[neighbor]) / 2.0f * sqr(aSigma));
+					graph.add_edge(
+						centerIdx,
+						neighborIdx,
+						weight,
+						weight);
+				}
+			}
+
+		});
+	BOOST_LOG_TRIVIAL(info) << "Computing max flow ...";
 	float flow = graph.maxflow();
 
+	BOOST_LOG_TRIVIAL(info) << "Filling output ...";
+	for_each(
+		imageRegion,
+		[&](const Int3 &coordinate) {
+			aOutput[coordinate] = graph.what_segment(get_linear_access_index(size, coordinate)) == GraphType::SINK ? 255 : 0;
+		});
 }

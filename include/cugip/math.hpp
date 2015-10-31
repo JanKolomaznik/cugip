@@ -225,6 +225,14 @@ operator<=( const simple_vector<TCoordType1, tDim> &aA, const simple_vector<TCoo
 	return true;
 }
 
+
+template<typename TCoordType1, typename TCoordType2, int tDim>
+inline CUGIP_DECL_HYBRID bool
+operator>=( const simple_vector<TCoordType1, tDim> &aA, const simple_vector<TCoordType2, tDim> &aB)
+{
+	return aB <= aA;
+}
+
 template<typename TCoordType1, typename TCoordType2, int tDim>
 inline CUGIP_DECL_HYBRID simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim>
 max_coords(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TCoordType2, tDim> &aArg2)
@@ -524,13 +532,14 @@ find_orthonormal(const simple_vector<TType, 3> &aVector)
 		// find some orthogonal vector to the first eigen vector
 		if (aVector[j] != 0.0f) {
 			// swap non-zero coordinate with following one and clear the third -> perpendicular vector
-			auto norm = 1.0f / sqrt(sqr(aVector[0][j]) + sqr(aVector[0][(j + 1) % 3]));
-			result[j] = aVector[0][(j + 1) % 3] * norm;
-			result[(j + 1) % 3] = -aVector[0][j] * norm;
+			auto norm = 1.0f / sqrt(sqr(aVector[j]) + sqr(aVector[(j + 1) % 3]));
+			result[j] = aVector[(j + 1) % 3] * norm;
+			result[(j + 1) % 3] = -aVector[j] * norm;
 			result[(j + 2) % 3] = 0.0f;
 			return result;
 		}
 	}
+	return result;
 }
 
 

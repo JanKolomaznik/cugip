@@ -12,9 +12,10 @@ set(BK301_SOURCES
 	)
 
 
-set(Boost_USE_STATIC_LIBS   ON)
+set(Boost_USE_STATIC_LIBS   OFF)
 set(Boost_USE_MULTITHREADED ON)
-FIND_PACKAGE(Boost REQUIRED COMPONENTS program_options filesystem timer chrono system)
+add_definitions(-DBOOST_LOG_DYN_LINK)
+FIND_PACKAGE(Boost REQUIRED COMPONENTS program_options filesystem timer chrono system log log_setup)
 MESSAGE(  ${Boost_LIBRARIES} )
 INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIRS} ${CUB_INCLUDE_DIRECTORY} "../../include" "${BK301_DIRECTORY}/..")
 

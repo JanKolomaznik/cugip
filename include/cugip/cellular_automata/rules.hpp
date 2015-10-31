@@ -3,7 +3,7 @@
 #include <type_traits>
 
 #include <cugip/cuda_utils.hpp>
-#include <cugip/cellular_automata/neighborhood.hpp>
+#include <cugip/neighborhood.hpp>
 
 
 namespace cugip {

@@ -4,7 +4,7 @@
 #include <cugip/for_each.hpp>
 
 #include <cugip/equivalence_management.hpp>
-#include <cugip/cellular_automata/neighborhood.hpp>
+#include <cugip/neighborhood.hpp>
 #include <cugip/cellular_automata/rules.hpp>
 
 namespace cugip {
