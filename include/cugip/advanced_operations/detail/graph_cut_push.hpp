@@ -170,7 +170,7 @@ pushImplementation(
 		int neighborCount = aGraph.neighborCount(vertex);
 		int firstNeighborIndex = aGraph.firstNeighborIndex(vertex);
 		//int label = aGraph.label(vertex);
-		bool success = false;
+		//bool success = false;
 		for (int i = 0; i < neighborCount; ++i) {
 			int secondVertex = aGraph.secondVertex(firstNeighborIndex + i);
 			int secondLabel = aGraph.label(secondVertex);
@@ -181,7 +181,7 @@ pushImplementation(
 				if (tryPullPush(aGraph, vertex, secondVertex, connectionIndex, connectionSide)) {
 					//printf("suc push %d %d -> %d %d\n", vertex, label, secondVertex, secondLabel);
 					aPushSuccessfulFlag.set_device();
-					success = true;
+					//success = true;
 				}
 			}
 		}

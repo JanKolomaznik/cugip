@@ -19,31 +19,9 @@
 #include <fstream>
 
 #include <cugip/advanced_operations/detail/graph_cut_implementation.hpp>
+#include <cugip/advanced_operations/detail/edge_record.hpp>
 
 namespace cugip {
-
-typedef unsigned NodeId;
-typedef unsigned long CombinedNodeId;
-struct EdgeRecord
-{
-	__host__ __device__
-	EdgeRecord( NodeId aFirst, NodeId aSecond )
-	{
-		first = min( aFirst, aSecond );
-		second = max( aFirst, aSecond );
-	}
-	__host__ __device__
-	EdgeRecord(): edgeCombIdx(0)
-	{ }
-
-	union {
-		CombinedNodeId edgeCombIdx;
-		struct {
-			NodeId second;
-			NodeId first;
-		};
-	};
-};
 
 
 template <typename TFlow>
@@ -59,14 +37,14 @@ public:
 	void
 	set_nweights(
 		int aEdgeCount,
-		EdgeRecord *aEdges,
-		EdgeWeight *aWeightsForward,
-		EdgeWeight *aWeightsBackward);
+		const EdgeRecord *aEdges,
+		const EdgeWeight *aWeightsForward,
+		const EdgeWeight *aWeightsBackward);
 
 	void
 	set_tweights(
-		EdgeWeight *aCapSource,
-		EdgeWeight *aCapSink);
+		const EdgeWeight *aCapSource,
+		const EdgeWeight *aCapSink);
 
 	TFlow
 	max_flow() {
@@ -76,6 +54,9 @@ public:
 
 		return maxFlowComputation.run();
 	}
+
+	void
+	fill_segments(uint8_t *aVertices) const;
 
 	void
 	debug_print();
@@ -188,6 +169,7 @@ template<typename TFlow>
 void
 Graph<TFlow>::set_vertex_count(int aCount)
 {
+	CUGIP_DPRINT("Vertex queue size: " << aCount);
 	mSourceTLinks.resize(aCount);
 	mSinkTLinks.resize(aCount);
 	mExcess.resize(aCount);
@@ -203,7 +185,6 @@ Graph<TFlow>::set_vertex_count(int aCount)
 
 	mVertexQueue.reserve(aCount);
 	mVertexQueue.clear();
-	CUGIP_DPRINT("Vertex queue size: " << aCount);
 
 	mLevelStartsQueue.reserve(500);
 }
@@ -212,13 +193,13 @@ template<typename TFlow>
 void
 Graph<TFlow>::set_nweights(
 	int aEdgeCount,
-	EdgeRecord *aEdges,
-	EdgeWeight *aWeightsForward,
-	EdgeWeight *aWeightsBackward)
+	const EdgeRecord *aEdges,
+	const EdgeWeight *aWeightsForward,
+	const EdgeWeight *aWeightsBackward)
 {
 	std::vector<std::vector<std::pair<int, int> > > edges(mLabels.size());
 	for (int i = 0; i < aEdgeCount; ++i) {
-		EdgeRecord &edge = aEdges[i];
+		const EdgeRecord &edge = aEdges[i];
 		//std::cout << edge.first << "; " << edge.second << std::endl;
 		edges.at(edge.first).push_back(std::make_pair(int(i), edge.second));
 		edges.at(edge.second).push_back(std::make_pair(int(i), edge.first));
@@ -263,14 +244,36 @@ Graph<TFlow>::set_nweights(
 template<typename TFlow>
 void
 Graph<TFlow>::set_tweights(
-	EdgeWeight *aCapSource,
-	EdgeWeight *aCapSink)
+	const EdgeWeight *aCapSource,
+	const EdgeWeight *aCapSink)
 {
 	thrust::copy(aCapSource, aCapSource + mSourceTLinks.size(), mSourceTLinks.begin());
 	thrust::copy(aCapSink, aCapSink + mSinkTLinks.size(), mSinkTLinks.begin());
 
 	thrust::fill(mSinkFlow.begin(), mSinkFlow.end(), 0.0f);
 }
+
+struct SetMask {
+	template<typename T>
+	CUGIP_DECL_HYBRID
+	uint8_t
+	operator()(T aValue) const
+	{
+		return aValue ? 255 : 0;
+	}
+};
+
+template<typename TFlow>
+void
+Graph<TFlow>::fill_segments(uint8_t *aVertices) const
+{
+	// TODO - prevent another allocation on GPU
+	thrust::device_vector<uint8_t> tmp(mLabels.size());
+	thrust::transform(mLabels.begin(), mLabels.end(), tmp.begin(), SetMask());
+
+	thrust::copy(tmp.begin(), tmp.end(), aVertices);
+};
+
 
 
 template<typename TFlow>

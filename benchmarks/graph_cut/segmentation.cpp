@@ -3,10 +3,12 @@
 #include <itkImageFileWriter.h>
 
 #include <boost/program_options.hpp>
+#include <boost/program_options/errors.hpp>
 #include <boost/filesystem.hpp>
 #include <cugip/itk_utils.hpp>
 
 #include <boost/log/trivial.hpp>
+#include <string>
 
 namespace po = boost::program_options;
 
@@ -22,6 +24,40 @@ computeBoykovKolmogorovGrid(
 	cugip::host_image_view<uint8_t, 3> aOutput,
 	float aSigma);
 
+void
+computeGridCut(
+	cugip::const_host_image_view<const float, 3> aData,
+	cugip::const_host_image_view<const uint8_t, 3> aMarkers,
+	cugip::host_image_view<uint8_t, 3> aOutput,
+	float aSigma);
+
+void
+computeCudaGraphCut(
+	cugip::const_host_image_view<const float, 3> aData,
+	cugip::const_host_image_view<const uint8_t, 3> aMarkers,
+	cugip::host_image_view<uint8_t, 3> aOutput,
+	float aSigma);
+
+enum class Algorithm {
+	BoykovKolmogorov,
+	GridCut,
+	CudaCut
+};
+
+Algorithm getAlgorithmFromString(const std::string &token)
+{
+	if (token == "boykov-kolmogorov") {
+		return Algorithm::BoykovKolmogorov;
+	} else if (token == "gridcut") {
+		return Algorithm::GridCut;
+	} else if (token == "cudacut") {
+		return Algorithm::CudaCut;
+	} else {
+		throw po::validation_error(po::validation_error::invalid_option_value);
+	}
+	return Algorithm::BoykovKolmogorov;
+}
+
 int
 main(int argc, char* argv[])
 {
@@ -30,15 +66,17 @@ main(int argc, char* argv[])
 	boost::filesystem::path outputFile;
 	float sigma;
 
+	Algorithm algorithm;
+	std::string algorithmName;
 	po::options_description desc("Allowed options");
 	desc.add_options()
 		("help", "produce help message")
 		("input,i", po::value<boost::filesystem::path>(&inputFile), "input file")
 		("markers,m", po::value<boost::filesystem::path>(&markersFile), "markers file")
+		("algorithm,a", po::value<std::string>(&algorithmName)->default_value("boykov-kolmogorov"), "boykov-kolmogorov, gridcut, cudacut")
 		("output,o", po::value<boost::filesystem::path>(&outputFile), "output mask file")
 		("sigma,s", po::value<float>(&sigma)->default_value(1.0f), "input noise deviation")
 		;
-
 	/*std::string inputFile;
 	std::string markersFile;
 	std::string outputFile;
@@ -54,6 +92,8 @@ main(int argc, char* argv[])
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
 	po::notify(vm);
+
+	algorithm = getAlgorithmFromString(algorithmName);
 
 	if (vm.count("help")) {
 		std::cout << desc << "\n";
@@ -99,16 +139,34 @@ main(int argc, char* argv[])
 	outputImage->SetRegions(image->GetLargestPossibleRegion());
 	outputImage->Allocate();
 
-		/*auto a = cugip::const_view(*(image.GetPointer()));
-		auto b = cugip::const_view(*(markers.GetPointer()));
-		auto c = cugip::view(*(outputImage.GetPointer()));*/
-
-	BOOST_LOG_TRIVIAL(info) << "Running Boykov-Kolmogorov graph cut ...";
-	computeBoykovKolmogorovGrid(
-		cugip::const_view(*(image.GetPointer())),
-		cugip::const_view(*(markers.GetPointer())),
-		cugip::view(*(outputImage.GetPointer())),
-		sigma);
+	switch (algorithm) {
+	case Algorithm::BoykovKolmogorov:
+		BOOST_LOG_TRIVIAL(info) << "Running Boykov-Kolmogorov graph cut ...";
+		computeBoykovKolmogorovGrid(
+			cugip::const_view(*(image.GetPointer())),
+			cugip::const_view(*(markers.GetPointer())),
+			cugip::view(*(outputImage.GetPointer())),
+			sigma);
+		break;
+	case Algorithm::GridCut:
+		BOOST_LOG_TRIVIAL(info) << "Running GridCut ...";
+		computeGridCut(
+			cugip::const_view(*(image.GetPointer())),
+			cugip::const_view(*(markers.GetPointer())),
+			cugip::view(*(outputImage.GetPointer())),
+			sigma);
+		break;
+	case Algorithm::CudaCut:
+		BOOST_LOG_TRIVIAL(info) << "Running CUDACut ...";
+		computeCudaGraphCut(
+			cugip::const_view(*(image.GetPointer())),
+			cugip::const_view(*(markers.GetPointer())),
+			cugip::view(*(outputImage.GetPointer())),
+			sigma);
+		break;
+	default:
+		BOOST_LOG_TRIVIAL(error) << "Unknown algorithm";
+	}
 
 	BOOST_LOG_TRIVIAL(info) << "Saving output ...";
 	MaskWriterType::Pointer writer = MaskWriterType::New();
