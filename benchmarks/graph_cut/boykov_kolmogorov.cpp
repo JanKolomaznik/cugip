@@ -8,6 +8,7 @@
 #include <cugip/detail/for_each_host.hpp>
 
 #include <boost/log/trivial.hpp>
+#include <boost/timer/timer.hpp>
 
 static void printErrorMessage(char * aMessage) {
 	BOOST_LOG_TRIVIAL(error) << aMessage;
@@ -19,7 +20,8 @@ computeBoykovKolmogorovGrid(
 	cugip::const_host_image_view<const float, 3> aData,
 	cugip::const_host_image_view<const uint8_t, 3> aMarkers,
 	cugip::host_image_view<uint8_t, 3> aOutput,
-	float aSigma)
+	float aSigma,
+	uint8_t aMaskValue)
 {
 	using namespace cugip;
 
@@ -64,12 +66,17 @@ computeBoykovKolmogorovGrid(
 
 		});
 	BOOST_LOG_TRIVIAL(info) << "Computing max flow ...";
+	BOOST_LOG_TRIVIAL(info) << "Computing max flow ...";
+	boost::timer::cpu_timer computationTimer;
+	computationTimer.start();
 	float flow = graph.maxflow();
+	computationTimer.stop();
+	BOOST_LOG_TRIVIAL(info) << "Computation time: " << computationTimer.format(9, "%w");
 
 	BOOST_LOG_TRIVIAL(info) << "Filling output ...";
 	for_each(
 		imageRegion,
 		[&](const Int3 &coordinate) {
-			aOutput[coordinate] = graph.what_segment(get_linear_access_index(size, coordinate)) == GraphType::SINK ? 255 : 0;
+			aOutput[coordinate] = graph.what_segment(get_linear_access_index(size, coordinate)) == GraphType::SINK ? aMaskValue : 0;
 		});
 }

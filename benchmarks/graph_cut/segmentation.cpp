@@ -22,21 +22,24 @@ computeBoykovKolmogorovGrid(
 	cugip::const_host_image_view<const float, 3> aData,
 	cugip::const_host_image_view<const uint8_t, 3> aMarkers,
 	cugip::host_image_view<uint8_t, 3> aOutput,
-	float aSigma);
+	float aSigma,
+	uint8_t aMaskValue);
 
 void
 computeGridCut(
 	cugip::const_host_image_view<const float, 3> aData,
 	cugip::const_host_image_view<const uint8_t, 3> aMarkers,
 	cugip::host_image_view<uint8_t, 3> aOutput,
-	float aSigma);
+	float aSigma,
+	uint8_t aMaskValue);
 
 void
 computeCudaGraphCut(
 	cugip::const_host_image_view<const float, 3> aData,
 	cugip::const_host_image_view<const uint8_t, 3> aMarkers,
 	cugip::host_image_view<uint8_t, 3> aOutput,
-	float aSigma);
+	float aSigma,
+	uint8_t aMaskValue);
 
 enum class Algorithm {
 	BoykovKolmogorov,
@@ -65,6 +68,7 @@ main(int argc, char* argv[])
 	boost::filesystem::path markersFile;
 	boost::filesystem::path outputFile;
 	float sigma;
+	uint8_t maskValue;
 
 	Algorithm algorithm;
 	std::string algorithmName;
@@ -76,6 +80,7 @@ main(int argc, char* argv[])
 		("algorithm,a", po::value<std::string>(&algorithmName)->default_value("boykov-kolmogorov"), "boykov-kolmogorov, gridcut, cudacut")
 		("output,o", po::value<boost::filesystem::path>(&outputFile), "output mask file")
 		("sigma,s", po::value<float>(&sigma)->default_value(1.0f), "input noise deviation")
+		("mask-value,v", po::value<uint8_t>(&maskValue)->default_value(255), "mask value")
 		;
 	/*std::string inputFile;
 	std::string markersFile;
@@ -138,6 +143,7 @@ main(int argc, char* argv[])
 	MaskType::Pointer outputImage = MaskType::New();
 	outputImage->SetRegions(image->GetLargestPossibleRegion());
 	outputImage->Allocate();
+	outputImage->SetSpacing(image->GetSpacing());
 
 	switch (algorithm) {
 	case Algorithm::BoykovKolmogorov:
@@ -146,7 +152,8 @@ main(int argc, char* argv[])
 			cugip::const_view(*(image.GetPointer())),
 			cugip::const_view(*(markers.GetPointer())),
 			cugip::view(*(outputImage.GetPointer())),
-			sigma);
+			sigma,
+			maskValue);
 		break;
 	case Algorithm::GridCut:
 		BOOST_LOG_TRIVIAL(info) << "Running GridCut ...";
@@ -154,7 +161,8 @@ main(int argc, char* argv[])
 			cugip::const_view(*(image.GetPointer())),
 			cugip::const_view(*(markers.GetPointer())),
 			cugip::view(*(outputImage.GetPointer())),
-			sigma);
+			sigma,
+			maskValue);
 		break;
 	case Algorithm::CudaCut:
 		BOOST_LOG_TRIVIAL(info) << "Running CUDACut ...";
@@ -162,13 +170,14 @@ main(int argc, char* argv[])
 			cugip::const_view(*(image.GetPointer())),
 			cugip::const_view(*(markers.GetPointer())),
 			cugip::view(*(outputImage.GetPointer())),
-			sigma);
+			sigma,
+			maskValue);
 		break;
 	default:
 		BOOST_LOG_TRIVIAL(error) << "Unknown algorithm";
 	}
 
-	BOOST_LOG_TRIVIAL(info) << "Saving output ...";
+	BOOST_LOG_TRIVIAL(info) << "Saving output `" << outputFile << "` ...";
 	MaskWriterType::Pointer writer = MaskWriterType::New();
 	writer->SetFileName(outputFile.string());
 	writer->SetInput(outputImage);

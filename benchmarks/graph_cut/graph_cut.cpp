@@ -7,15 +7,19 @@
 
 #include <boost/log/trivial.hpp>
 
+constexpr float cTLinkWeight = 1000000.f;
+//constexpr float cTLinkWeight = 1.0e10f;
+
 void
-computeCudaGraphCutImplementation(const cugip::GraphData<float> &aGraphData);
+computeCudaGraphCutImplementation(const cugip::GraphData<float> &aGraphData, cugip::host_image_view<uint8_t, 3> aOutput, uint8_t aMaskValue);
 
 void
 computeCudaGraphCut(
 	cugip::const_host_image_view<const float, 3> aData,
 	cugip::const_host_image_view<const uint8_t, 3> aMarkers,
 	cugip::host_image_view<uint8_t, 3> aOutput,
-	float aSigma)
+	float aSigma,
+	uint8_t aMaskValue)
 {
 	using namespace cugip;
 
@@ -35,10 +39,10 @@ computeCudaGraphCut(
 		imageRegion,
 		[&](const Int3 &coordinate) {
 			int centerIdx = get_linear_access_index(size, coordinate);
-			float source_weight = aMarkers[coordinate] == 128 ? 1000000.f : 0.0f;
-			float sink_weight = aMarkers[coordinate] == 255 ? 1000000.f : 0.0f;
+			float source_weight = aMarkers[coordinate] == 128 ? cTLinkWeight : 0.0f;
+			float sink_weight = aMarkers[coordinate] == 255 ? cTLinkWeight : 0.0f;
 			if (min(coordinate) <= 1 || min(size - coordinate) <= 2) {
-				source_weight = 1000000.0f;
+				source_weight = cTLinkWeight;
 				sink_weight = 0.0f;
 			}
 			graphData.setTWeights(centerIdx, source_weight, sink_weight);
@@ -68,5 +72,5 @@ computeCudaGraphCut(
 
 	float flow = graph.max_flow();*/
 	BOOST_LOG_TRIVIAL(info) << "Computing max flow ...";
-	computeCudaGraphCutImplementation(graphData);
+	computeCudaGraphCutImplementation(graphData, aOutput, aMaskValue);
 }

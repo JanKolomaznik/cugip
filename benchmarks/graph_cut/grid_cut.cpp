@@ -14,7 +14,8 @@ computeGridCut(
 	cugip::const_host_image_view<const float, 3> aData,
 	cugip::const_host_image_view<const uint8_t, 3> aMarkers,
 	cugip::host_image_view<uint8_t, 3> aOutput,
-	float aSigma)
+	float aSigma,
+	uint8_t aMaskValue)
 {
 	using namespace cugip;
 
@@ -57,6 +58,7 @@ computeGridCut(
 	computationTimer.start();
 	graph.compute_maxflow();
 	computationTimer.stop();
+	BOOST_LOG_TRIVIAL(info) << "Max flow: " << graph.get_flow();
 	BOOST_LOG_TRIVIAL(info) << "Computation time: " << computationTimer.format(9, "%w");
 
 	BOOST_LOG_TRIVIAL(info) << "Filling output ...";
@@ -64,6 +66,6 @@ computeGridCut(
 		imageRegion,
 		[&](const Int3 &coordinate) {
 			int node = graph.node_id(coordinate[0], coordinate[1], coordinate[2]);
-			aOutput[coordinate] = graph.get_segment(node) ? 255 : 0;
+			aOutput[coordinate] = graph.get_segment(node) ? aMaskValue : 0;
 		});
 }

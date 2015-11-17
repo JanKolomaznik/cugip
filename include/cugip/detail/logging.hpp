@@ -45,7 +45,7 @@ void formatHelper(boost::format &aFormat, T &&aValue, TArgs &&...aArgs) {
 	do { \
 		boost::format format(format_string); \
 		::detail::formatHelper(format, ##__VA_ARGS__); \
-		logger << __FILE__ << ":" << __LINE__ << ":"; \
+		logger << __FILE__ << ":" << __LINE__ << ":" \
 			<< format << std::endl; \
 	} while (0)
 

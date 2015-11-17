@@ -56,4 +56,53 @@ get_linear_access_index(
 	return idx;
 }
 
+//TODO handle constness, add static assertions
+template<typename TImageView>
+struct device_linear_access_view
+{
+	CUGIP_DECL_HYBRID
+	int
+	size() const
+	{
+		return product(mImageView.dimensions());
+	}
+
+	CUGIP_DECL_DEVICE
+	typename TImageView::accessed_type
+	operator[](int aIndex)
+	{
+		//TODO prevent repeated computation of size
+		return linear_access(mImageView, aIndex);
+	}
+	TImageView mImageView;
+};
+
+template<typename TImageView>
+struct host_linear_access_view
+{
+	//TODO iterator access
+	int
+	size() const
+	{
+		return product(mImageView.dimensions());
+	}
+
+	typename TImageView::accessed_type
+	operator[](int aIndex)
+	{
+		//TODO prevent repeated computation of size
+		return linear_access(mImageView, aIndex);
+	}
+	TImageView mImageView;
+};
+
+//TODO handle device branch
+template<typename TImageView>
+host_linear_access_view<TImageView>
+linear_access_view(TImageView aView)
+{
+	return { aView };
+}
+
+
 } //namespace cugip
