@@ -55,8 +55,9 @@ public:
 		return maxFlowComputation.run();
 	}
 
+	template<typename THostArrayView>
 	void
-	fill_segments(uint8_t *aVertices) const;
+	fill_segments(THostArrayView aVertices, uint8_t mMask, uint8_t mBackground) const;
 
 	void
 	debug_print();
@@ -259,20 +260,29 @@ struct SetMask {
 	uint8_t
 	operator()(T aValue) const
 	{
-		return aValue ? 255 : 0;
+		return (aValue <= mLimit && aValue >= 0) ? mMask : mBackground;
 	}
+	int mLimit;
+	uint8_t mMask;
+	uint8_t mBackground;
 };
 
 template<typename TFlow>
+template<typename THostArrayView>
 void
-Graph<TFlow>::fill_segments(uint8_t *aVertices) const
+Graph<TFlow>::fill_segments(THostArrayView aVertices, uint8_t mMask, uint8_t mBackground) const
 {
 	// TODO - prevent another allocation on GPU
 	thrust::device_vector<uint8_t> tmp(mLabels.size());
-	thrust::transform(mLabels.begin(), mLabels.end(), tmp.begin(), SetMask());
+	thrust::host_vector<uint8_t> tmp2(mLabels.size());
+	thrust::transform(mLabels.begin(), mLabels.end(), tmp.begin(), SetMask{mLabels.size(), mMask, mBackground});
 
-	thrust::copy(tmp.begin(), tmp.end(), aVertices);
+	thrust::copy(tmp.begin(), tmp.end(), tmp2.begin());
+	for (int i = 0; i < tmp2.size(); ++i) {
+		aVertices[i] = tmp2[i];
+	}
 };
+
 
 
 
