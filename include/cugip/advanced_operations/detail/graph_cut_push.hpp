@@ -12,12 +12,13 @@ pushThroughTLinksFromSourceKernel(GraphCutData<TFlow> aGraph)
 	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
 	int index = blockId * blockDim.x + threadIdx.x;
 
-	if (index < aGraph.vertexCount()) {
+	while (index < aGraph.vertexCount()) {
 		float capacity = aGraph.sourceTLinkCapacity(index);
 		//printf("psss %d -> %f\n", index, capacity);
 		if (capacity > 0.0) {
 			aGraph.excess(index) += capacity;
 		}
+		index += blockDim.x * gridDim.x;
 	}
 }
 
@@ -301,22 +302,18 @@ pushKernel2(
 template<typename TGraphData, typename TPolicy>
 struct Push
 {
-	static bool
-	compute(
-		TGraphData &aGraph,
-		ParallelQueueView<int> &aVertexQueue,
-		std::vector<int> &aLevelStarts)
+	template<int tImplementationId>
+	struct PushIteration
 	{
-		thrust::host_vector<int> starts;
-		starts.reserve(1000);
-		thrust::device_vector<int> device_starts;
-		device_starts.reserve(1000);
-		//CUGIP_DPRINT("push()");
-		dim3 blockSize1D(512);
-		device_flag pushSuccessfulFlag;
-
-		for (int i = aLevelStarts.size() - 1; i > 0; --i) {
-			int count = aLevelStarts[i] - aLevelStarts[i-1];
+		static void compute(
+			TGraphData &aGraph,
+			ParallelQueueView<int> &aVertexQueue,
+			int aLevelStart,
+			int aLevelEnd,
+			device_flag_view aPushSuccessfulFlag)
+		{
+			dim3 blockSize1D(512);
+			int count = aLevelEnd - aLevelStart;
 			CUGIP_ASSERT(count > 0);
 			/*if (count <= blockSize1D.x) {
 				starts.push_back(aLevelStarts[i]);
@@ -342,17 +339,41 @@ struct Push
 				pushKernel<<<gridSize1D, blockSize1D>>>(
 						aGraph,
 						aVertexQueue,
-						aLevelStarts[i-1],
-						aLevelStarts[i],
-						pushSuccessfulFlag.view());
+						aLevelStart,
+						aLevelEnd,
+						aPushSuccessfulFlag);
 			}
 			CUGIP_CHECK_RESULT(cudaThreadSynchronize());
 			//CUGIP_DPRINT("-------------------------------");
+
+		}
+	};
+
+	bool
+	compute(
+		TGraphData &aGraph,
+		ParallelQueueView<int> &aVertexQueue,
+		std::vector<int> &aLevelStarts)
+	{
+		/*thrust::host_vector<int> starts;
+		starts.reserve(1000);
+		thrust::device_vector<int> device_starts;
+		device_starts.reserve(1000);*/
+		//CUGIP_DPRINT("push()");
+		//dim3 blockSize1D(512);
+		pushSuccessfulFlag.reset_host();
+		for (int i = aLevelStarts.size() - 1; i > 0; --i) {
+			PushIteration<1>::compute(
+					aGraph,
+					aVertexQueue,
+					aLevelStarts[i-1],
+					aLevelStarts[i],
+					pushSuccessfulFlag.view());
 		}
 		CUGIP_CHECK_ERROR_STATE("After push()");
 		return pushSuccessfulFlag.check_host();
 	}
-
+	device_flag pushSuccessfulFlag;
 };
 
 

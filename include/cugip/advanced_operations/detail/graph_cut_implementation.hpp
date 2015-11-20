@@ -105,6 +105,7 @@ struct MinCut
 		int iteration = 0;
 		//float flow = -1.0f;
 		Relabel<TGraphData, typename TPolicy::RelabelPolicy<512, 64>> relabel;
+		Push<TGraphData, typename TPolicy::PushPolicy> push;
 		while(!done) {
 			timer.start();
 			//CUGIP_DPRINT("Relabel");
@@ -120,7 +121,7 @@ struct MinCut
 			//std::cout << std::endl;
 			//break;
 			//CUGIP_DPRINT("Push");
-			done = !Push<TGraphData, typename TPolicy::PushPolicy>::compute(aGraph, aVertexQueue, aLevelStarts);
+			done = !push.compute(aGraph, aVertexQueue, aLevelStarts);
 			aTraceObject.afterPush(iteration, done, aGraph);
 			//done = !push();
 			/*timer.stop();

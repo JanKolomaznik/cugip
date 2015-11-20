@@ -31,7 +31,7 @@ struct GraphCutData
 	CUGIP_DECL_DEVICE int
 	neighborCount(int aVertexId) const
 	{
-		if (aVertexId < 0) printf("neighborCount()\n");
+		//if (aVertexId < 0) printf("neighborCount()\n");
 		return firstNeighborIndex(aVertexId + 1) - firstNeighborIndex(aVertexId);
 	}
 
@@ -45,7 +45,7 @@ struct GraphCutData
 	CUGIP_DECL_DEVICE int &
 	label(int aVertexId)
 	{
-		if (aVertexId < 0) printf("label()\n");
+		//if (aVertexId < 0) printf("label()\n");
 		return labels[aVertexId];
 	}
 
@@ -58,42 +58,42 @@ struct GraphCutData
 	CUGIP_DECL_DEVICE int
 	firstNeighborIndex(int aVertexId) const
 	{
-		if (aVertexId < 0) printf("firstNeighborIndex()\n");
+		//if (aVertexId < 0) printf("firstNeighborIndex()\n");
 		return neighbors[aVertexId];
 	}
 
 	CUGIP_DECL_DEVICE int
 	secondVertex(int aIndex) const
 	{
-		if (aIndex < 0) printf("secondVertex()\n");
+		//if (aIndex < 0) printf("secondVertex()\n");
 		return secondVertices[aIndex];
 	}
 
 	CUGIP_DECL_DEVICE int
 	connectionIndex(int aIndex) const
 	{
-		if (aIndex < 0) printf("connectionIndex()\n");
+		//if (aIndex < 0) printf("connectionIndex()\n");
 		return CONNECTION_INDEX_MASK & connectionIndices[aIndex];
 	}
 
 	CUGIP_DECL_DEVICE bool
 	connectionSide(int aIndex) const
 	{
-		if (aIndex < 0) printf("connectionSide()\n");
+		//if (aIndex < 0) printf("connectionSide()\n");
 		return CONNECTION_VERTEX & connectionIndices[aIndex];
 	}
 
 	CUGIP_DECL_DEVICE TFlow
 	sourceTLinkCapacity(int aIndex) const
 	{
-		if (aIndex < 0) printf("sourceTLinkCapacity()\n");
+		//if (aIndex < 0) printf("sourceTLinkCapacity()\n");
 		return mSourceTLinks[aIndex];
 	}
 
 	CUGIP_DECL_DEVICE TFlow
 	sinkTLinkCapacity(int aIndex) const
 	{
-		if (aIndex < 0) printf("sinkTLinkCapacity()\n");
+		//if (aIndex < 0) printf("sinkTLinkCapacity()\n");
 		return mSinkTLinks[aIndex];
 	}
 
@@ -127,8 +127,42 @@ struct GraphCutData
 	int *connectionIndices; // 2 * m
 	EdgeResidualsRecord<TFlow> *mResiduals; // m
 
-	TFlow *mSinkFlow;
+	TFlow *mSinkFlow; // n
 
 };
+
+template<typename TFlow, typename TFunctor>
+CUGIP_GLOBAL void
+forEachVertexKernel(GraphCutData<TFlow> aGraph, TFunctor aFunctor)
+{
+	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
+	int index = blockId * blockDim.x + threadIdx.x;
+
+	while (index < aGraph.vertexCount()) {
+		aFunctor(
+			index,
+			aGraph.neighbors[index],
+			aGraph.labels[index],
+			aGraph.vertexExcess[index],
+			aGraph.mSourceTLinks[index],
+			aGraph.mSinkTLinks[index]
+		);
+		index += blockDim.x * gridDim.x;
+	}
+}
+
+template<typename TFlow, typename TFunctor>
+void
+for_each_vertex(GraphCutData<TFlow> &aGraph, TFunctor aFunctor)
+{
+	dim3 blockSize1D( 512 );
+	dim3 gridSize1D((aGraph.vertexCount() + blockSize1D.x - 1) / (blockSize1D.x) , 1);
+
+	forEachVertexKernel<TFlow, TFunctor><<<gridSize1D, blockSize1D>>>(aGraph, aFunctor);
+
+	CUGIP_CHECK_ERROR_STATE("After forEachVertexKernel");
+	CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+}
+
 
 } //namespace cugip

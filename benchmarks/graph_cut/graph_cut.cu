@@ -113,6 +113,7 @@ struct TraceObject
 		for (int i = 0; i < tmp.size(); ++i) {
 			excess[i] = tmp[i] > 0.0f ? 255 : 0;
 			labels[i] = tmpLabels[i];
+			CUGIP_ASSERT(tmp[i] <= 0.0f || (labels[i] < 0 || labels[i] >= tmp.size()));
 		}
 	}
 	cugip::host_image_view<uint8_t, 3> saturated;
@@ -146,8 +147,8 @@ computeCudaGraphCutImplementation(const cugip::GraphData<float> &aGraphData, cug
 			aConfig.excess,
 			aConfig.labels);
 
-	//float flow = graph.max_flow();
-	float flow = graph.max_flow_with_tracing(traceObject);
+	float flow = graph.max_flow();
+	//float flow = graph.max_flow_with_tracing(traceObject);
 	computationTimer.stop();
 	BOOST_LOG_TRIVIAL(info) << "Max flow: " << flow;
 	//BOOST_LOG_TRIVIAL(info) << "Computation time: " << computationTimer.format(9, "%w");
