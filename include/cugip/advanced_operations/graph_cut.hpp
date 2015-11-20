@@ -23,6 +23,25 @@
 
 namespace cugip {
 
+struct DummyTraceObject
+{
+	void
+	computationStarted() {}
+
+	void
+	beginIteration(int aIteration) {}
+
+	void
+	afterRelabel(int aIteration, const std::vector<int> &aLevelStarts) {}
+
+	template <typename TFlow>
+	void
+	afterPush(int aIteration, bool aDone, const GraphCutData<TFlow> &aData) {}
+
+	template <typename TFlow>
+	void
+	computationFinished(TFlow aFlow, const GraphCutData<TFlow> &aData) {}
+};
 
 template <typename TFlow>
 class Graph
@@ -48,16 +67,23 @@ public:
 
 	TFlow
 	max_flow() {
-		MinimalGraphCutComputation<Graph<TFlow>> maxFlowComputation;
+		DummyTraceObject dummyTraceObject;
+		return max_flow_with_tracing<DummyTraceObject>(dummyTraceObject);
+	}
+
+	template<typename TTraceObject>
+	TFlow
+	max_flow_with_tracing(TTraceObject &aTraceObject) {
+		MinimalGraphCutComputation<Graph<TFlow>, TTraceObject> maxFlowComputation;
 
 		maxFlowComputation.setGraph(*this);
 
-		return maxFlowComputation.run();
+		return maxFlowComputation.run(aTraceObject);
 	}
 
 	template<typename THostArrayView>
 	void
-	fill_segments(THostArrayView aVertices, uint8_t mMask, uint8_t mBackground) const;
+	fill_segments(THostArrayView aVertices, uint8_t mMask = 255, uint8_t mBackground = 0) const;
 
 	void
 	debug_print();
@@ -255,6 +281,7 @@ Graph<TFlow>::set_tweights(
 }
 
 struct SetMask {
+
 	template<typename T>
 	CUGIP_DECL_HYBRID
 	uint8_t
@@ -281,8 +308,8 @@ Graph<TFlow>::fill_segments(THostArrayView aVertices, uint8_t mMask, uint8_t mBa
 	for (int i = 0; i < tmp2.size(); ++i) {
 		aVertices[i] = tmp2[i];
 	}
-};
 
+};
 
 
 

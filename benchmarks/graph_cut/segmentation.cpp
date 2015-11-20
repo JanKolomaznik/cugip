@@ -10,9 +10,12 @@
 #include <boost/log/trivial.hpp>
 #include <string>
 
+#include "graph_cut_trace_utils.hpp"
+
 namespace po = boost::program_options;
 
 typedef itk::Image<float, 3> ImageType;
+typedef itk::Image<int, 3> IntImageType;
 typedef itk::Image<uint8_t, 3> MarkersType;
 typedef itk::Image<uint8_t, 3> MaskType;
 
@@ -39,7 +42,8 @@ computeCudaGraphCut(
 	cugip::const_host_image_view<const uint8_t, 3> aMarkers,
 	cugip::host_image_view<uint8_t, 3> aOutput,
 	float aSigma,
-	uint8_t aMaskValue);
+	uint8_t aMaskValue,
+	CudacutConfig &aConfig);
 
 enum class Algorithm {
 	BoykovKolmogorov,
@@ -59,6 +63,17 @@ Algorithm getAlgorithmFromString(const std::string &token)
 		throw po::validation_error(po::validation_error::invalid_option_value);
 	}
 	return Algorithm::BoykovKolmogorov;
+}
+
+template<typename TImage>
+void
+saveImage(typename TImage::Pointer aImage, boost::filesystem::path aFilename)
+{
+	typedef itk::ImageFileWriter<TImage>  WriterType;
+	typename WriterType::Pointer writer = WriterType::New();
+	writer->SetFileName(aFilename.string());
+	writer->SetInput(aImage);
+	writer->Update();
 }
 
 int
@@ -123,6 +138,7 @@ main(int argc, char* argv[])
 	typedef itk::ImageFileReader<ImageType>  ImageReaderType;
 	typedef itk::ImageFileReader<MarkersType>  MarkersReaderType;
 	typedef itk::ImageFileWriter<MaskType>  MaskWriterType;
+	typedef itk::ImageFileWriter<IntImageType>  IntImageWriterType;
 
 	BOOST_LOG_TRIVIAL(info) << "Loading inputs ...";
 	ImageReaderType::Pointer imageReader = ImageReaderType::New();
@@ -164,14 +180,42 @@ main(int argc, char* argv[])
 			sigma,
 			maskValue);
 		break;
-	case Algorithm::CudaCut:
-		BOOST_LOG_TRIVIAL(info) << "Running CUDACut ...";
-		computeCudaGraphCut(
-			cugip::const_view(*(image.GetPointer())),
-			cugip::const_view(*(markers.GetPointer())),
-			cugip::view(*(outputImage.GetPointer())),
-			sigma,
-			maskValue);
+	case Algorithm::CudaCut: {
+			BOOST_LOG_TRIVIAL(info) << "Running CUDACut ...";
+			boost::filesystem::path outputDir = outputFile.parent_path();
+			std::string stem = outputFile.stem().string();
+			MaskType::Pointer saturated = MaskType::New();
+			saturated->SetRegions(image->GetLargestPossibleRegion());
+			saturated->Allocate();
+			saturated->SetSpacing(image->GetSpacing());
+
+			MaskType::Pointer excess = MaskType::New();
+			excess->SetRegions(image->GetLargestPossibleRegion());
+			excess->Allocate();
+			excess->SetSpacing(image->GetSpacing());
+
+			ImageType::Pointer label = ImageType::New();
+			label->SetRegions(image->GetLargestPossibleRegion());
+			label->Allocate();
+			label->SetSpacing(image->GetSpacing());
+
+			CudacutConfig config(
+				cugip::view(*(saturated.GetPointer())),
+				cugip::view(*(excess.GetPointer())),
+				cugip::view(*(label.GetPointer()))
+			);
+
+			computeCudaGraphCut(
+				cugip::const_view(*(image.GetPointer())),
+				cugip::const_view(*(markers.GetPointer())),
+				cugip::view(*(outputImage.GetPointer())),
+				sigma,
+				maskValue,
+				config);
+			saveImage<MaskType>(saturated, outputDir / (stem + "_saturated.mrc"));
+			saveImage<MaskType>(excess, outputDir / (stem + "_excess.mrc"));
+			saveImage<ImageType>(label, outputDir / (stem + "_label.mrc"));
+		}
 		break;
 	default:
 		BOOST_LOG_TRIVIAL(error) << "Unknown algorithm";

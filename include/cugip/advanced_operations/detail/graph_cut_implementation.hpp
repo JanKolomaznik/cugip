@@ -46,7 +46,9 @@ struct GraphCutPolicy
 			THREADS = tThreadCount,
 			SCRATCH_ELEMENTS = THREADS,
 			TILE_SIZE = THREADS,
-			SCHEDULE_GRANULARITY = tGranularity
+			SCHEDULE_GRANULARITY = tGranularity,
+			MULTI_LEVEL_LIMIT = 1024,
+			MULTI_LEVEL_COUNT_LIMIT = 1000,
 		};
 		struct SharedMemoryData {
 			//cub::BlockScan<int, BLOCK_SIZE> temp_storage;
@@ -78,19 +80,21 @@ graphCutDataFromGraph(
 }
 
 
-template<typename TGraphData, typename TPolicy>
+template<typename TGraphData, typename TPolicy, typename TTraceObject>
 struct MinCut
 {
 	static float
 	compute(
 		TGraphData &aGraph,
 		ParallelQueueView<int> &aVertexQueue,
-		std::vector<int> &aLevelStarts)
+		std::vector<int> &aLevelStarts,
+		TTraceObject &aTraceObject)
 	{
 		boost::timer::cpu_timer timer;
 		timer.start();
 		//CUGIP_DPRINT("MAX FLOW");
 		//init_residuals(aGraph);
+		aTraceObject.computationStarted();
 		push_through_tlinks_from_source(aGraph);
 
 		//debug_print();
@@ -104,14 +108,28 @@ struct MinCut
 		while(!done) {
 			timer.start();
 			//CUGIP_DPRINT("Relabel");
+			aTraceObject.beginIteration(iteration);
 			relabel.compute(aGraph, aVertexQueue, aLevelStarts);
+			aTraceObject.afterRelabel(iteration, aLevelStarts);
+			//return 0.0f;
 			//assign_label_by_distance();
-			//std::copy(begin(aLevelStarts), end(aLevelStarts), std::ostream_iterator<int>(std::cout, " "));
+			/*for (int i = max<int>(0, aLevelStarts.size() - 40); i < aLevelStarts.size() - 1; ++i) {
+				std::cout << aLevelStarts[i + 1] - aLevelStarts[i] << " ";
+			}*/
+			//std::copy(begin(aLevelStarts) + , end(aLevelStarts), std::ostream_iterator<int>(std::cout, " "));
+			//std::cout << std::endl;
 			//break;
 			//CUGIP_DPRINT("Push");
 			done = !Push<TGraphData, typename TPolicy::PushPolicy>::compute(aGraph, aVertexQueue, aLevelStarts);
+			aTraceObject.afterPush(iteration, done, aGraph);
 			//done = !push();
-			timer.stop();
+			/*timer.stop();
+			CUGIP_TFORMAT(
+				"iteration %1%, elapsed time %2% ms, queue size %3%, flow= %4%",
+					iteration,
+					timer.elapsed().wall / 1000000.0f,
+					aVertexQueue.size(),
+					computeFlowThroughSinkFrontier(aGraph));*/
 			/*float flow2 = computeFlowThroughSinkFrontier(aGraph);
 			CUGIP_DPRINT("Flow: " << flow2);
 			if (flow == flow2 && !done) {
@@ -121,10 +139,11 @@ struct MinCut
 			//CUGIP_DPRINT("**iteration " << iteration << ": " << timer.format(9, "%w"));
 			//CUGIP_DPRINT("Flow: " << computeFlowThroughSinkFrontier(aGraph));
 			//if (iteration == 35) break;
-			//CUGIP_DPRINT("Queue size = " << aVertexQueue.size());
 			++iteration;
 		}
-		return computeFlowThroughSinkFrontier(aGraph);
+		auto flow = computeFlowThroughSinkFrontier(aGraph);
+		aTraceObject.computationFinished(flow, aGraph);
+		return flow;
 	}
 
 	static void
@@ -166,7 +185,7 @@ struct MinCut
 };
 
 
-template<typename TGraph>
+template<typename TGraph, typename TTraceObject>
 class MinimalGraphCutComputation
 {
 public:
@@ -204,7 +223,7 @@ public:
 	}
 
 	Flow
-	run()
+	run(TTraceObject &aTraceObject)
 	{
 		CUGIP_ASSERT(mGraphData.connectionIndices != nullptr);
 		CUGIP_ASSERT(mGraphData.labels != nullptr);
@@ -216,10 +235,11 @@ public:
 		CUGIP_ASSERT(mGraphData.secondVertices != nullptr);
 		CUGIP_ASSERT(mGraphData.vertexExcess != nullptr);
 		init_residuals();
-		return MinCut<GraphCutData<Flow>, GraphCutPolicy>::compute(
+		return MinCut<GraphCutData<Flow>, GraphCutPolicy, TTraceObject>::compute(
 						mGraphData,
 						mVertexQueue.view(),
-						mLevelStarts);
+						mLevelStarts,
+						aTraceObject);
 	}
 
 	void

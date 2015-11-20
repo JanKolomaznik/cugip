@@ -11,13 +11,13 @@ enum {
 template<typename TFlow>
 struct EdgeResidualsRecord
 {
-	__host__ __device__
+	CUGIP_DECL_HYBRID
 	EdgeResidualsRecord( TFlow aWeight = 0.0f )
 	{
 		residuals[0] = residuals[1] = aWeight;
 	}
 
-	__host__ __device__ float &
+	CUGIP_DECL_HYBRID float &
 	getResidual( bool aFirst )
 	{
 		return aFirst ? residuals[0] : residuals[1];
@@ -29,7 +29,7 @@ template<typename TFlow>
 struct GraphCutData
 {
 	CUGIP_DECL_DEVICE int
-	neighborCount(int aVertexId)
+	neighborCount(int aVertexId) const
 	{
 		if (aVertexId < 0) printf("neighborCount()\n");
 		return firstNeighborIndex(aVertexId + 1) - firstNeighborIndex(aVertexId);
@@ -50,48 +50,48 @@ struct GraphCutData
 	}
 
 	CUGIP_DECL_HYBRID int
-	vertexCount()
+	vertexCount() const
 	{
 		return mVertexCount;
 	}
 
 	CUGIP_DECL_DEVICE int
-	firstNeighborIndex(int aVertexId)
+	firstNeighborIndex(int aVertexId) const
 	{
 		if (aVertexId < 0) printf("firstNeighborIndex()\n");
 		return neighbors[aVertexId];
 	}
 
 	CUGIP_DECL_DEVICE int
-	secondVertex(int aIndex)
+	secondVertex(int aIndex) const
 	{
 		if (aIndex < 0) printf("secondVertex()\n");
 		return secondVertices[aIndex];
 	}
 
 	CUGIP_DECL_DEVICE int
-	connectionIndex(int aIndex)
+	connectionIndex(int aIndex) const
 	{
 		if (aIndex < 0) printf("connectionIndex()\n");
 		return CONNECTION_INDEX_MASK & connectionIndices[aIndex];
 	}
 
 	CUGIP_DECL_DEVICE bool
-	connectionSide(int aIndex)
+	connectionSide(int aIndex) const
 	{
 		if (aIndex < 0) printf("connectionSide()\n");
 		return CONNECTION_VERTEX & connectionIndices[aIndex];
 	}
 
 	CUGIP_DECL_DEVICE TFlow
-	sourceTLinkCapacity(int aIndex)
+	sourceTLinkCapacity(int aIndex) const
 	{
 		if (aIndex < 0) printf("sourceTLinkCapacity()\n");
 		return mSourceTLinks[aIndex];
 	}
 
 	CUGIP_DECL_DEVICE TFlow
-	sinkTLinkCapacity(int aIndex)
+	sinkTLinkCapacity(int aIndex) const
 	{
 		if (aIndex < 0) printf("sinkTLinkCapacity()\n");
 		return mSinkTLinks[aIndex];

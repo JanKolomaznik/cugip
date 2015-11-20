@@ -7,11 +7,14 @@
 
 #include <boost/log/trivial.hpp>
 
+#include "graph_cut_trace_utils.hpp"
+
+
 constexpr float cTLinkWeight = 1000000.f;
 //constexpr float cTLinkWeight = 1.0e10f;
 
 void
-computeCudaGraphCutImplementation(const cugip::GraphData<float> &aGraphData, cugip::host_image_view<uint8_t, 3> aOutput, uint8_t aMaskValue);
+computeCudaGraphCutImplementation(const cugip::GraphData<float> &aGraphData, cugip::host_image_view<uint8_t, 3> aOutput, uint8_t aMaskValue, CudacutConfig &aConfig);
 
 void
 computeCudaGraphCut(
@@ -19,7 +22,8 @@ computeCudaGraphCut(
 	cugip::const_host_image_view<const uint8_t, 3> aMarkers,
 	cugip::host_image_view<uint8_t, 3> aOutput,
 	float aSigma,
-	uint8_t aMaskValue)
+	uint8_t aMaskValue,
+	CudacutConfig &aConfig)
 {
 	using namespace cugip;
 
@@ -72,5 +76,5 @@ computeCudaGraphCut(
 
 	float flow = graph.max_flow();*/
 	BOOST_LOG_TRIVIAL(info) << "Computing max flow ...";
-	computeCudaGraphCutImplementation(graphData, aOutput, aMaskValue);
+	computeCudaGraphCutImplementation(graphData, aOutput, aMaskValue, aConfig);
 }

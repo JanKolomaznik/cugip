@@ -5,7 +5,7 @@
 #include <cugip/advanced_operations/detail/graph_cut_data.hpp>
 #include <algorithm>
 #include <thrust/fill.h>
-
+#include <cuda_profiler_api.h>
 namespace cugip {
 
 /*
@@ -364,6 +364,7 @@ struct TileProcessor
 				int totalItems = 0;
 				BlockScan(temp_storage).ExclusiveSum(shouldAdd, newQueueOffset, totalItems);
 				//TODO - nema to delat jen jedno vlakno?
+				//TODO - save to shared memory and then to global
 				if (threadIdx.x == 0) {
 					currentQueueRunStart = mVertices.allocate(totalItems);
 				}
@@ -401,47 +402,10 @@ struct TileProcessor
 		bool connectionSide = !mGraph.connectionSide(offsetScratch[scratchIndex]);
 		auto residuals = mGraph.residuals(connectionId);
 		auto residual = residuals.getResidual(connectionSide);
-		//int sourceLabel = mGraph.label(source);
-		/*printf("TID: %d; neighborId: %d, label %d from %d, cid: %d, cside: %d, %f - %f\n",
-				int(threadIdx.x),
-				neighborId,
-				label,
-				sourceLabel,
-				connectionId,
-				int(connectionSide),
-				residuals.getResidual(false),
-				residuals.getResidual(true));*/
-		if (label == TPolicy::INVALID_LABEL && residual > 0.0f) {
-			//mGraph.label(neighborId) = mCurrentLevel;
-			if (!(TPolicy::INVALID_LABEL == atomicCAS(&(mGraph.label(neighborId)), TPolicy::INVALID_LABEL, mCurrentLevel))) {
-				/*printf("LevelN: %d; tid: %d, neighborId: %d, from %d, fromLabel %d, cid: %d, cside: %d, %f - %f\n",
-					mCurrentLevel,
-					threadIdx.x,
-					neighborId,
-					source,
-					mGraph.label(source),
-					connectionId,
-					int(connectionSide),
-					residuals.getResidual(false),
-					residuals.getResidual(true));*/
-				neighborId = -1;
-			} else {
-				/*printf("LevelY: %d; tid: %d, neighborId: %d, from %d, fromLabel %d, cid: %d, cside: %d, %f - %f\n",
-					mCurrentLevel,
-					threadIdx.x,
-					neighborId,
-					source,
-					mGraph.label(source),
-					connectionId,
-					int(connectionSide),
-					residuals.getResidual(false),
-					residuals.getResidual(true));*/
-
-			}
-		} else {
-			neighborId = -1;
+		bool isClosed = label != TPolicy::INVALID_LABEL || residual <= 0.0f;
+		if (isClosed || (TPolicy::INVALID_LABEL != atomicCAS(&(mGraph.label(neighborId)), TPolicy::INVALID_LABEL, mCurrentLevel))) {
+			return -1;
 		}
-		//assert(sourceLabel == mCurrentLevel-1);
 		return neighborId;
 	}
 
@@ -551,8 +515,44 @@ bfsPropagationKernel_b40c_multi(
 		}
 		++aCurrentLevel;
 		++m;
-	} while (m < 1000 && aCount <= 512 && aCount > 0);//(false);
+	} while (m < TPolicy::MULTI_LEVEL_COUNT_LIMIT && aCount <= TPolicy::MULTI_LEVEL_LIMIT && aCount > 0);//(false);
 }
+
+#if __CUDA_ARCH__ >= 350
+template<typename TGraph, typename TPolicy>
+CUGIP_GLOBAL void
+bfsPropagationKernel_b40c_dynamic(
+		ParallelQueueView<int> aVertices,
+		int aStart,
+		int aCount,
+		ParallelQueueView<int> aLevelStarts,
+		TGraph aGraph,
+		int aCurrentLevel)
+{
+
+	int m = 0;
+	do {
+		if (threadIdx.x == 0) {
+			dim3 blockSize1D(TPolicy::THREADS, 1, 1);
+			dim3 levelGridSize1D(1 + (aCount - 1) / (blockSize1D.x), 1, 1);
+			bfsPropagationKernel_b40c<TGraphData, TPolicy><<<levelGridSize1D, blockSize1D>>>(
+				aVertices,
+				WorkDistribution(aStart, aCount, gridDim.x, TPolicy::SCHEDULE_GRANULARITY),
+				aGraph,
+				aCurrentLevel);
+			cudaDeviceSynchronize();
+
+			int size = aVertices.device_size();
+			aStart += aCount;
+			aCount = size - aStart;
+			aLevelStarts.append(size);
+		}
+		__syncthreads();
+		++aCurrentLevel;
+		++m;
+	} while (m < TPolicy::MULTI_LEVEL_COUNT_LIMIT && aCount > 0);
+}
+#endif  // __CUDA_ARCH__ >= 350
 
 
 template<typename TGraphData, typename TPolicy>
@@ -579,13 +579,22 @@ struct Relabel
 		aLevelStarts.push_back(lastLevelSize);
 		int currentLevel = 1;
 		bool finished = lastLevelSize == 0;
+
+		//cudaProfilerStart();
 		while (!finished) {
 			finished = computation_step(aGraph, currentLevel, aLevelStarts, aVertexQueue);
+			/*if ((*(aLevelStarts.end()-1)) - (*(aLevelStarts.end()-2)) <= 10) {
+				break;
+			}*/
 			//finished = bfs_iteration(aGraph, currentLevel, aLevelStarts, aVertexQueue);
+			/*if (currentLevel > 3) {
+				break;
+			};*/
 		}
 
 		CUGIP_CHECK_RESULT(cudaThreadSynchronize());
 
+		//cudaProfilerStop();
 		/*thrust::device_vector<int> dev_tmp(
 					thrust::device_ptr<int>(aVertexQueue.mData),
 					thrust::device_ptr<int>(aVertexQueue.mData + aLevelStarts.back()));
@@ -678,9 +687,11 @@ struct Relabel
 	computation_step(TGraphData &aGraph, int &aCurrentLevel, std::vector<int> &aLevelStarts, ParallelQueueView<int> &aVertexQueue)
 	{
 		int frontierSize = aLevelStarts[aCurrentLevel] - aLevelStarts[aCurrentLevel - 1];
-		if (frontierSize <= 512) {
+		if (frontierSize <= 1536) {
+			//CUGIP_DFORMAT("MI frontier size: %1%", frontierSize);
 			return bfs_multi_iteration(aGraph, aCurrentLevel, aLevelStarts, aVertexQueue);
 		} else {
+			//CUGIP_DFORMAT("SI frontier size: %1%", frontierSize);
 			return bfs_iteration(aGraph, aCurrentLevel, aLevelStarts, aVertexQueue);
 		}
 	}
@@ -688,7 +699,7 @@ struct Relabel
 	bool
 	bfs_multi_iteration(TGraphData &aGraph, int &aCurrentLevel, std::vector<int> &aLevelStarts, ParallelQueueView<int> &aVertexQueue)
 	{
-		mLevelStartsQueue.reserve(1000);
+		mLevelStartsQueue.reserve(TPolicy::MULTI_LEVEL_COUNT_LIMIT);
 		dim3 blockSize1D(TPolicy::THREADS, 1, 1);
 		dim3 levelGridSize1D(1, 1, 1);
 		mLevelStartsQueue.clear();
@@ -727,6 +738,44 @@ struct Relabel
 		//CUGIP_DPRINT("Level bundle " << (level + 1) << "-" << (aCurrentLevel + 1) << " size: " << (originalStart - aLevelStarts.back()));
 		return (lastStart == originalStart) || (lastStart == -1);
 	}
+
+#if __CUDA_ARCH__ >= 350
+	bool
+	bfs_multi_iteration_dynamic(TGraphData &aGraph, int &aCurrentLevel, std::vector<int> &aLevelStarts, ParallelQueueView<int> &aVertexQueue)
+	{
+		mLevelStartsQueue.reserve(TPolicy::MULTI_LEVEL_COUNT_LIMIT);
+		dim3 blockSize1D(32, 1, 1);
+		dim3 levelGridSize1D(1, 1, 1);
+		mLevelStartsQueue.clear();
+
+		bfsPropagationKernel_b40c_dynamic<TGraphData, TPolicy><<<levelGridSize1D, blockSize1D>>>(
+				aVertexQueue,
+				aLevelStarts[aCurrentLevel - 1],
+				aLevelStarts[aCurrentLevel] - aLevelStarts[aCurrentLevel - 1],
+				mLevelStartsQueue.view(),
+				aGraph,
+				aCurrentLevel + 1);
+		CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+		CUGIP_CHECK_ERROR_STATE("After bfsPropagationKernelDynamic)");
+		thrust::host_vector<int> starts;
+		mLevelStartsQueue.fill_host(starts);
+		int originalStart = aLevelStarts.back();
+		int lastStart = originalStart;
+		for (int i = 0; i < starts.size(); ++i) {
+			if (starts[i] == lastStart) {
+				lastStart = -1;
+				break;
+			} else {
+				lastStart = starts[i];
+			}
+			aLevelStarts.push_back(starts[i]);
+		}
+		aCurrentLevel = aLevelStarts.size() - 1;
+		//CUGIP_DPRINT("Level bundle " << (level + 1) << "-" << (aCurrentLevel + 1) << " size: " << (originalStart - aLevelStarts.back()));
+		return (lastStart == originalStart) || (lastStart == -1);
+	}
+#endif  // __CUDA_ARCH__ >= 350
+
 
 	bool
 	bfs_iteration(TGraphData &aGraph, int &aCurrentLevel, std::vector<int> &aLevelStarts, ParallelQueueView<int> &aVertexQueue)
