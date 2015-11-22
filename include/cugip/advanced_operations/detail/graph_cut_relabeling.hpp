@@ -79,9 +79,9 @@ initBFSKernel(ParallelQueueView<int> aVertices, TGraph aGraph)
 	}
 }
 
-template<typename TFlow, typename TPolicy>
+template<typename TGraph, typename TPolicy>
 CUGIP_DECL_DEVICE void
-propagateFromVertex(int vertex, ParallelQueueView<int> &aVertices, GraphCutData<TFlow> &aGraph, int aCurrentLevel)
+propagateFromVertex(int vertex, ParallelQueueView<int> &aVertices, TGraph &aGraph, int aCurrentLevel)
 {
 	int neighborCount = aGraph.neighborCount(vertex);
 	int firstNeighborIndex = aGraph.firstNeighborIndex(vertex);
@@ -100,24 +100,46 @@ propagateFromVertex(int vertex, ParallelQueueView<int> &aVertices, GraphCutData<
 	}
 }
 
-template<typename TFlow, typename TPolicy>
+template<typename TGraph, typename TPolicy>
+struct NaiveSweep
+{
+	static CUGIP_DECL_DEVICE void
+	invoke(
+		TGraph &aGraph,
+		ParallelQueueView<int> &aVertices,
+		int aStart,
+		int aCount,
+		int aCurrentLevel)
+	{
+		uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
+		int index = blockId * blockDim.x + threadIdx.x;
+
+		while (index < aCount) {
+			int vertex = aVertices.get_device(aStart + index);
+			propagateFromVertex<TGraph, TPolicy>(vertex, aVertices, aGraph, aCurrentLevel);
+			index += blockDim.x * gridDim.x;
+		}
+
+	}
+};
+
+
+template<typename TGraph, typename TPolicy>
 CUGIP_GLOBAL void
 bfsNaivePropagationKernel(
 		ParallelQueueView<int> aVertices,
 		int aStart,
 		int aCount,
-		GraphCutData<TFlow> aGraph,
+		TGraph aGraph,
 		int aCurrentLevel/*,
 		device_flag_view aPropagationSuccessfulFlag*/)
 {
-	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
-	int index = blockId * blockDim.x + threadIdx.x;
-
-	while (index < aCount) {
-		int vertex = aVertices.get_device(aStart + index);
-		propagateFromVertex<TFlow, TPolicy>(vertex, aVertices, aGraph, aCurrentLevel);
-		index += blockDim.x * gridDim.x;
-	}
+	NaiveSweep<TGraph, TPolicy>::invoke(
+		aGraph,
+		aVertices,
+		aStart,
+		aCount,
+		aCurrentLevel);
 }
 
 template<typename TGraph, typename TPolicy>
@@ -135,13 +157,12 @@ bfsNaivePropagationKernel_multi(
 	do {
 		__syncthreads();
 
-		uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
-		int index = blockId * blockDim.x + threadIdx.x;
-		while (index < aCount) {
-			int vertex = aVertices.get_device(aStart + index);
-			propagateFromVertex<typename TGraph::Flow, TPolicy>(vertex, aVertices, aGraph, aCurrentLevel);
-			index += blockDim.x * gridDim.x;
-		}
+		NaiveSweep<TGraph, TPolicy>::invoke(
+			aGraph,
+			aVertices,
+			aStart,
+			aCount,
+			aCurrentLevel);
 
 		__syncthreads();
 		int size = aVertices.device_size();
@@ -879,7 +900,7 @@ struct Relabel
 		int frontierSize = aLevelStarts[aCurrentLevel] - aLevelStarts[aCurrentLevel - 1];
 		dim3 blockSize1D(TPolicy::THREADS, 1, 1);
 		dim3 levelGridSize1D(1 + (frontierSize - 1) / (blockSize1D.x), 1, 1);
-		bfsNaivePropagationKernel<typename TGraphData::Flow, TPolicy><<<levelGridSize1D, blockSize1D>>>(
+		bfsNaivePropagationKernel<TGraphData, TPolicy><<<levelGridSize1D, blockSize1D>>>(
 			aVertexQueue,
 			aLevelStarts[aCurrentLevel - 1],
 			frontierSize,
