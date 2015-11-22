@@ -25,8 +25,9 @@ namespace cugip {
 
 struct DummyTraceObject
 {
+	template <typename TFlow>
 	void
-	computationStarted() {}
+	computationStarted(const GraphCutData<TFlow> &aData) {}
 
 	void
 	beginIteration(int aIteration) {}

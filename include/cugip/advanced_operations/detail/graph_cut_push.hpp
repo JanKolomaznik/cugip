@@ -162,35 +162,25 @@ pushImplementation(
 		GraphCutData<TFlow> &aGraph,
 		ParallelQueueView<int> &aVertices,
 		int index,
-		int aLevelEnd,
+		int aCurrentLevel,
 		device_flag_view &aPushSuccessfulFlag)
 {
 	int vertex = aVertices.get_device(index);
-		int label = aGraph.label(vertex);
+	CUGIP_ASSERT(aCurrentLevel == aGraph.label(vertex));
 	if (aGraph.excess(vertex) > 0.0f) {
 		int neighborCount = aGraph.neighborCount(vertex);
 		int firstNeighborIndex = aGraph.firstNeighborIndex(vertex);
-		//int label = aGraph.label(vertex);
-		//bool success = false;
 		for (int i = 0; i < neighborCount; ++i) {
 			int secondVertex = aGraph.secondVertex(firstNeighborIndex + i);
 			int secondLabel = aGraph.label(secondVertex);
-			//printf("processing %d - %d < %d - %d - %d\n", vertex, /*aGraph.excess(vertex)*/index, aLevelEnd, secondVertex, secondLabel);
-			if (label > secondLabel && secondLabel >= 0) {
+			if (aCurrentLevel > secondLabel && secondLabel >= 0) {
 				int connectionIndex = aGraph.connectionIndex(firstNeighborIndex + i);
 				bool connectionSide = aGraph.connectionSide(firstNeighborIndex + i);
 				if (tryPullPush(aGraph, vertex, secondVertex, connectionIndex, connectionSide)) {
-					//printf("suc push %d %d -> %d %d\n", vertex, label, secondVertex, secondLabel);
 					aPushSuccessfulFlag.set_device();
-					//success = true;
 				}
 			}
 		}
-		/*if (success) {
-			printf("no successfull push %d\n", vertex);
-		}*/
-	} else {
-		//printf("vertex without excess %d - label %d\n", vertex, label);
 	}
 }
 
@@ -249,13 +239,15 @@ pushKernel(
 		ParallelQueueView<int> aVertices,
 		int aLevelStart,
 		int aLevelEnd,
+		int aCurrentLevel,
 		device_flag_view aPushSuccessfulFlag)
 {
 	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
 	int index = aLevelStart + blockId * blockDim.x + threadIdx.x;
 
-	if (index < aLevelEnd) {
-		pushImplementation(aGraph, aVertices, index, aLevelEnd, aPushSuccessfulFlag);
+	while (index < aLevelEnd) {
+		pushImplementation(aGraph, aVertices, index, aCurrentLevel, aPushSuccessfulFlag);
+		index += blockDim.x * gridDim.x;
 	}
 }
 
@@ -273,7 +265,7 @@ pushKernel2(
 		int index = aLevelStarts[level + 1] + threadIdx.x;
 		if (index < aLevelStarts[level]) {
 			//if (threadIdx.x == 0) printf("aaaa %d\n", index);
-			pushImplementation(aGraph, aVertices, index, aLevelStarts[level], aPushSuccessfulFlag);
+			//pushImplementation(aGraph, aVertices, index, aLevelStarts[level], aPushSuccessfulFlag);
 		}
 		__syncthreads();
 	}
@@ -310,6 +302,7 @@ struct Push
 			ParallelQueueView<int> &aVertexQueue,
 			int aLevelStart,
 			int aLevelEnd,
+			int aCurrentLevel,
 			device_flag_view aPushSuccessfulFlag)
 		{
 			dim3 blockSize1D(512);
@@ -341,6 +334,7 @@ struct Push
 						aVertexQueue,
 						aLevelStart,
 						aLevelEnd,
+						aCurrentLevel,
 						aPushSuccessfulFlag);
 			}
 			CUGIP_CHECK_RESULT(cudaThreadSynchronize());
@@ -363,11 +357,12 @@ struct Push
 		//dim3 blockSize1D(512);
 		pushSuccessfulFlag.reset_host();
 		for (int i = aLevelStarts.size() - 1; i > 0; --i) {
-			PushIteration<1>::compute(
+			PushIteration<TPolicy::PUSH_ITERATION_ALGORITHM>::compute(
 					aGraph,
 					aVertexQueue,
 					aLevelStarts[i-1],
 					aLevelStarts[i],
+					i,
 					pushSuccessfulFlag.view());
 		}
 		CUGIP_CHECK_ERROR_STATE("After push()");

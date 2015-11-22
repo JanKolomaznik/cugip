@@ -28,6 +28,7 @@ struct EdgeResidualsRecord
 template<typename TFlow>
 struct GraphCutData
 {
+	typedef TFlow Flow;
 	CUGIP_DECL_DEVICE int
 	neighborCount(int aVertexId) const
 	{
@@ -139,14 +140,7 @@ forEachVertexKernel(GraphCutData<TFlow> aGraph, TFunctor aFunctor)
 	int index = blockId * blockDim.x + threadIdx.x;
 
 	while (index < aGraph.vertexCount()) {
-		aFunctor(
-			index,
-			aGraph.neighbors[index],
-			aGraph.labels[index],
-			aGraph.vertexExcess[index],
-			aGraph.mSourceTLinks[index],
-			aGraph.mSinkTLinks[index]
-		);
+		aFunctor(index, aGraph);
 		index += blockDim.x * gridDim.x;
 	}
 }

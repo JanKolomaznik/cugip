@@ -18,6 +18,7 @@
 
 #include "graph_cut_push.hpp"
 #include "graph_cut_relabeling.hpp"
+#include "graph_cut_policies.hpp"
 
 //#define INVALID_LABEL (1 << 30)
 
@@ -36,28 +37,6 @@ initResidualsKernel(TFlow *aWeightsForward, TFlow *aWeightsBackward, EdgeResidua
 		edgeIdx += gridDim.x * blockDim.x;
 	}
 }
-
-struct GraphCutPolicy
-{
-	template<int tThreadCount = 512, int tGranularity = 64>
-	struct RelabelPolicy {
-		enum {
-			INVALID_LABEL = 1 << 31,
-			THREADS = tThreadCount,
-			SCRATCH_ELEMENTS = THREADS,
-			TILE_SIZE = THREADS,
-			SCHEDULE_GRANULARITY = tGranularity,
-			MULTI_LEVEL_LIMIT = 1024,
-			MULTI_LEVEL_COUNT_LIMIT = 1000,
-		};
-		struct SharedMemoryData {
-			//cub::BlockScan<int, BLOCK_SIZE> temp_storage;
-			int offsetScratch[SCRATCH_ELEMENTS];
-			int incomming[SCRATCH_ELEMENTS];
-		};
-	};
-	struct PushPolicy {};
-};
 
 template<typename TGraph, typename TGraphCutData>
 void
@@ -94,7 +73,7 @@ struct MinCut
 		timer.start();
 		//CUGIP_DPRINT("MAX FLOW");
 		//init_residuals(aGraph);
-		aTraceObject.computationStarted();
+		aTraceObject.computationStarted(aGraph);
 		push_through_tlinks_from_source(aGraph);
 
 		//debug_print();

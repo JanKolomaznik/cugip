@@ -50,7 +50,7 @@ computeCudaGraphCut(
 				sink_weight = 0.0f;
 			}
 			graphData.setTWeights(centerIdx, source_weight, sink_weight);
-			for (int n = 1; n < neighborhood.size()/ 2; ++n) {
+			for (int n = 1; n < (neighborhood.size() + 1) / 2; ++n) {
 				Int3 neighbor = coordinate + neighborhood.offset(n);
 				int neighborIdx = get_linear_access_index(size, neighbor);
 				if (isInsideRegion(aData.dimensions(), neighbor)) {

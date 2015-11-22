@@ -51,7 +51,7 @@ computeBoykovKolmogorovGrid(
 				sink_weight = 0.0f;
 			}
 			graph.add_tweights(centerIdx, source_weight, sink_weight);
-			for (int n = 1; n < neighborhood.size()/ 2; ++n) {
+			for (int n = 1; n < (neighborhood.size() + 1) / 2; ++n) {
 				Int3 neighbor = coordinate + neighborhood.offset(n);
 				int neighborIdx = get_linear_access_index(size, neighbor);
 				if (isInsideRegion(aData.dimensions(), neighbor)) {
@@ -65,7 +65,6 @@ computeBoykovKolmogorovGrid(
 			}
 
 		});
-	BOOST_LOG_TRIVIAL(info) << "Computing max flow ...";
 	BOOST_LOG_TRIVIAL(info) << "Computing max flow ...";
 	boost::timer::cpu_timer computationTimer;
 	computationTimer.start();

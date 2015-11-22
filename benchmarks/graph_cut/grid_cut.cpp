@@ -49,6 +49,7 @@ computeGridCut(
 				if (isInsideRegion(aData.dimensions(), neighbor)) {
 					float weight =  std::exp(-sqr(aData[coordinate] - aData[neighbor]) / 2.0f * sqr(aSigma));
 					graph.set_neighbor_cap(node, offset[0], offset[1], offset[2], weight);
+					//std::cout << node << "; " << graph.node_id(neighbor[0], neighbor[1], neighbor[2]) << "; " << weight;
 				}
 			}
 

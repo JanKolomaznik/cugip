@@ -56,7 +56,26 @@ debug_fill_saturated(const GraphCutData<float> &aGraph, THostArrayView aVertices
 	}
 };
 
+struct PrintNeighborhood
+{
+	CUGIP_DECL_DEVICE void
+	operator()(int aIndex, GraphCutData<float> &aGraph)
+	{
+		int neighborCount = aGraph.neighborCount(aIndex);
+		int firstNeighborIndex = aGraph.firstNeighborIndex(aIndex);
+		for (int i = firstNeighborIndex; i < firstNeighborIndex + neighborCount; ++i) {
+			int secondVertex = aGraph.secondVertex(i);
+				//printf("%d - %d\n", vertex, secondVertex);
 
+			int connectionId = aGraph.connectionIndex(i);
+			bool connectionSide = aGraph.connectionSide(i);
+			auto residuals = aGraph.residuals(connectionId);
+			auto residual = residuals.getResidual(connectionSide);
+
+			printf("%d; %d; %f\n", aIndex, secondVertex, residual);
+		}
+	}
+};
 
 struct TraceObject
 {
@@ -71,7 +90,34 @@ struct TraceObject
 	{}
 
 	void
-	computationStarted() {}
+	computationStarted(cugip::GraphCutData<float> &aData)
+	{
+		/*thrust::host_vector<int> firstNeighbor(aData.vertexCount() + 1);
+		thrust::device_ptr<int> ptr(aData.neighbors);
+		thrust::copy(ptr, ptr + aData.vertexCount() + 1, firstNeighbor.begin());
+
+		thrust::host_vector<int> secondVertices(2*aData.mEdgeCount);
+		thrust::device_ptr<int> ptr2(aData.secondVertices);
+		thrust::copy(ptr2, ptr2 + 2*aData.mEdgeCount, secondVertices.begin());
+
+		thrust::host_vector<int> connectionIndices(2*aData.mEdgeCount);
+		thrust::device_ptr<int> ptr3(aData.connectionIndices);
+		thrust::copy(ptr3, ptr3 + 2*aData.mEdgeCount, connectionIndices.begin());
+
+		thrust::host_vector<EdgeResidualsRecord<float>> residuals(aData.mEdgeCount);
+		thrust::device_ptr<EdgeResidualsRecord<float>> ptr4(aData.mResiduals);
+		thrust::copy(ptr4, ptr4 + aData.mEdgeCount, residuals.begin());
+
+		for (int i = 0; i < aData.vertexCount(); ++i) {
+			for (int j = firstNeighbor[i]; j < firstNeighbor[i+1]; ++j) {
+				int connectionId = connectionIndices[j] & CONNECTION_INDEX_MASK;
+				bool connectionSide = connectionIndices[j] & CONNECTION_VERTEX;
+				auto res = residuals[connectionId];
+				auto residual = res.getResidual(connectionSide);
+				std::cout << i << "; " << secondVertices[j] << "; " << residual << "\n";
+			}
+		}*/
+	}
 
 	void
 	beginIteration(int aIteration) {}
