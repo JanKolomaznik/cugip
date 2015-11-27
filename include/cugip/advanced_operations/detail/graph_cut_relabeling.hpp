@@ -83,6 +83,9 @@ template<typename TGraph, typename TPolicy>
 CUGIP_DECL_DEVICE void
 propagateFromVertex(int vertex, ParallelQueueView<int> &aVertices, TGraph &aGraph, int aCurrentLevel)
 {
+	//typedef cub::BlockScan<int, TPolicy::THREADS> BlockScan;
+	//__shared__ typename BlockScan::TempStorage temp_storage;
+
 	int neighborCount = aGraph.neighborCount(vertex);
 	int firstNeighborIndex = aGraph.firstNeighborIndex(vertex);
 	for (int i = firstNeighborIndex; i < firstNeighborIndex + neighborCount; ++i) {
@@ -97,6 +100,13 @@ propagateFromVertex(int vertex, ParallelQueueView<int> &aVertices, TGraph &aGrap
 		if (isOpen && (TPolicy::INVALID_LABEL == atomicCAS(&(aGraph.label(secondVertex)), TPolicy::INVALID_LABEL, aCurrentLevel))) {
 			aVertices.append(secondVertex);
 		}
+
+		/*int newQueueOffset = 0;
+		int totalItems = 0;
+		BlockScan(temp_storage).ExclusiveSum(shouldAdd, newQueueOffset, totalItems);
+		if (threadIdx.x == 0) {
+			currentQueueRunStart = mVertices.allocate(totalItems);
+		}*/
 	}
 }
 
@@ -681,8 +691,8 @@ struct Relabel
 		//cudaProfilerStart();
 		while (!finished) {
 
-			finished = ComputationStep<RelabelImplementation::Naive, true>::compute(*this, aGraph, currentLevel, aLevelStarts, aVertexQueue);
-			//finished = ComputationStep<TPolicy::cRelabelImplementation, true>::compute(*this, aGraph, currentLevel, aLevelStarts, aVertexQueue);
+			//finished = ComputationStep<RelabelImplementation::Naive, true>::compute(*this, aGraph, currentLevel, aLevelStarts, aVertexQueue);
+			finished = ComputationStep<TPolicy::cRelabelImplementation, true>::compute(*this, aGraph, currentLevel, aLevelStarts, aVertexQueue);
 			//finished = computation_step(aGraph, currentLevel, aLevelStarts, aVertexQueue);
 			//CUGIP_DPRINT("Level = " << currentLevel << "; " << aVertexQueue.size());
 		}
