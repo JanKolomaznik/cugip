@@ -4,6 +4,7 @@
 
 #include <cugip/cuda_utils.hpp>
 #include <cugip/neighborhood.hpp>
+#include <cugip/device_flag.hpp>
 
 
 namespace cugip {
@@ -172,15 +173,36 @@ struct LocalMinimaConnectedComponentRule
 	}
 };
 
+struct WatershedConvergenceGlobalState
+{
+	void
+	initialize(){
+		mDeviceFlag.reset_host();
+	}
+
+	template<typename TView>
+	void
+	postprocess(TView aView)
+	{
+	}
+
+	CUGIP_DECL_DEVICE
+	void
+	signal()
+	{
+		mDeviceFlag.set_device();
+	}
+	device_flag_view mDeviceFlag;
+};
 
 struct WatershedRule
 {
 	template<typename T>
 	using remove_reference = typename std::remove_reference<T>::type;
-
+	//TODO - global state by reference
 	template<typename TNeighborhood>
 	CUGIP_DECL_DEVICE
-	auto operator()(int aIteration, TNeighborhood aNeighborhood) -> remove_reference<decltype(aNeighborhood[0])> const
+	auto operator()(int aIteration, TNeighborhood aNeighborhood, WatershedConvergenceGlobalState aConvergenceState) -> remove_reference<decltype(aNeighborhood[0])> const
 	{
 		//input, label, distance
 		auto value = aNeighborhood[0];
@@ -197,6 +219,7 @@ struct WatershedRule
 		if (index != -1) {
 			get<1>(value) = get<1>(aNeighborhood[index]);
 			get<2>(value) = get<2>(aNeighborhood[index]) + get<0>(value);
+			aConvergenceState.signal();
 		}
 		return value;
 	}
@@ -238,6 +261,7 @@ struct Watershed2Rule
 	template<typename T>
 	using remove_reference = typename std::remove_reference<T>::type;
 
+	//TODO - global state by reference
 	template<typename TNeighborhood>
 	CUGIP_DECL_DEVICE
 	auto operator()(int aIteration, TNeighborhood aNeighborhood, Watershed2EquivalenceGlobalState aEquivalence) -> remove_reference<decltype(aNeighborhood[0])> const

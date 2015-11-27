@@ -42,7 +42,6 @@ watershedTransformation(
 	device_image<float, 3> data(aData.dimensions());
 	copy(aData, view(data));
 	CellularAutomaton<Grid<Value2, 3>, VonNeumannNeighborhood<3>, LocalMinimaConnectedComponentRule, LocalMinimaEquivalenceGlobalState> localMinimumAutomaton;
-	CellularAutomaton<Grid<Value, 3>, MooreNeighborhood<3>, WatershedRule> automaton;
 
 	thrust::device_vector<int> buffer(elementCount(aData) + 1);
 	auto localMinima = unaryOperatorOnLocator(const_view(data), LocalMinimumLabel());
@@ -52,6 +51,18 @@ watershedTransformation(
 	localMinimumAutomaton.initialize(nAryOperator(ZipGradientAndLabel(), const_view(data), localMinima), globalState);
 	localMinimumAutomaton.iterate(50);
 
+	CellularAutomaton<Grid<Value, 3>, MooreNeighborhood<3>, WatershedRule, WatershedConvergenceGlobalState> automaton;
+	device_flag convergenceFlag;
+	WatershedConvergenceGlobalState convergenceGlobalState{ convergenceFlag.view() };
 	auto wshed = nAryOperator(InitWatershed(), const_view(data), getDimension(localMinimumAutomaton.getCurrentState(), IntValue<1>()));
-	automaton.initialize(wshed);
+	automaton.initialize(wshed, convergenceGlobalState);
+	do {
+		convergenceFlag.reset_host();
+		automaton.iterate(1);
+	} while (convergenceFlag.check_host());
+
+	auto state = automaton.getCurrentState();
+	device_image<int, 3> tmpState(state.dimensions());
+	copy(getDimension(state, IntValue<1>()), view(tmpState));
+	copy(const_view(tmpState), aLabels);
 }

@@ -1,5 +1,5 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
-PROJECT(watershed_transformation)
+PROJECT(watershed)
 
 set(CMAKE_CXX_FLAGS --std=c++11 )
 add_definitions("-DVCL_CAN_STATIC_CONST_INIT_FLOAT=0")

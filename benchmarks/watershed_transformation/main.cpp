@@ -12,6 +12,8 @@
 #include <boost/log/trivial.hpp>
 #include <boost/timer/timer.hpp>
 
+#include "watershed_transformation.hpp"
+
 typedef itk::Image<float, 3> ImageType;
 typedef itk::Image<int, 3> LabeledImageType;
 typedef itk::MorphologicalWatershedImageFilter<ImageType, LabeledImageType> WatershedFilterType;
@@ -103,11 +105,15 @@ main(int argc, char* argv[])
 		}
 		break;
 	default:
-		/*computeWatershedTransformatiom(
+		boost::timer::cpu_timer computationTimer;
+		computationTimer.start();
+		watershedTransformation(
 			cugip::const_view(*(image.GetPointer())),
-			cugip::view(*(outputImage.GetPointer()))
-		);*/
-		BOOST_LOG_TRIVIAL(error) << "Unknown algorithm";
+			cugip::view(*(outputImage.GetPointer())),
+			Options()
+			);
+		BOOST_LOG_TRIVIAL(info) << "Computation time: " << computationTimer.format(9, "%w");
+		//BOOST_LOG_TRIVIAL(error) << "Unknown algorithm";
 	}
 
 	BOOST_LOG_TRIVIAL(info) << "Saving output `" << outputFile << "` ...";
