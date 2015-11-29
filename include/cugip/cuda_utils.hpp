@@ -55,6 +55,29 @@ inline cudaPitchedPtr stridesToPitchedPtr(TElement *ptr, Int3 size, Int3 strides
 	return make_cudaPitchedPtr(const_cast<void *>(reinterpret_cast<const void *>(ptr)), strides[1], size[0], size[1]);
 }
 
+/// Get 1 to 1 mapping between cuda threads in grid and view coordinates
+template<int tDimension>
+CUGIP_DECL_DEVICE cugip::simple_vector<int, tDimension>
+mapBlockIdxAndThreadIdxToViewCoordinates();
+
+template<>
+CUGIP_DECL_DEVICE cugip::simple_vector<int, 2>
+mapBlockIdxAndThreadIdxToViewCoordinates<2>()
+{
+	CUGIP_ASSERT(gridDim.z == 1);
+	CUGIP_ASSERT(blockDim.z == 1);
+	CUGIP_ASSERT(threadIdx.z == 0);
+	return cugip::simple_vector<int, 2>(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y);
+}
+
+template<>
+CUGIP_DECL_DEVICE cugip::simple_vector<int, 3>
+mapBlockIdxAndThreadIdxToViewCoordinates<3>()
+{
+	return cugip::simple_vector<int, 3>(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y, blockIdx.z * blockDim.z + threadIdx.z);
+}
+
+
 }//namespace cugip
 
 inline std::ostream &operator<<(std::ostream &stream, const cudaPitchedPtr &pointer) {

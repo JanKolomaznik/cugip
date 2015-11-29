@@ -563,8 +563,11 @@ struct device_memory_1d_owner: public device_memory_1d<TType>
 			CUGIP_DPRINT("Releasing memory at: " << this->mData);
 			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
 		}
-		void *devPtr = NULL;
+		void *devPtr = nullptr;
 		CUGIP_CHECK_RESULT(cudaMalloc(&devPtr, aExtents.get<0>() * sizeof(TType)));
+		if (!devPtr) {
+			CUGIP_THROW(ExceptionBase() << MessageErrorInfo("Failed to allocate enough GPU memory."));
+		}
 		this->mExtents = aExtents;
 		this->mData = reinterpret_cast<TType*>(devPtr);
 
@@ -662,16 +665,20 @@ struct device_memory_3d_owner: public device_memory_3d<TType>
 		if (this->mData) {
 			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
 		}
-		cudaPitchedPtr pitchedDevPtr;
+		cudaPitchedPtr pitchedDevPtr = {0};
 		CUGIP_CHECK_RESULT(cudaMalloc3D(&pitchedDevPtr, make_cudaExtent(aExtents[0] * sizeof(TType), aExtents[1], aExtents[2])));
+		if (!pitchedDevPtr.ptr) {
+			CUGIP_THROW(ExceptionBase() << MessageErrorInfo("Failed to allocate enough GPU memory."));
+		}
 		this->mExtents = aExtents;
 		this->mData = reinterpret_cast<TType*>(pitchedDevPtr.ptr);
 		this->mPitch = pitchedDevPtr.pitch;
 
-		D_PRINT(boost::str(boost::format("GPU allocation: 3D memory - %1% items, %2% bytes pitch, %3% item size")
+		D_PRINT(boost::str(boost::format("GPU allocation: 3D memory - %1% items, %2% bytes pitch, %3% item size, address: %4$#x")
 					% this->mExtents
 					% this->mPitch
-					% sizeof(TType)));
+					% sizeof(TType)
+					% reinterpret_cast<size_t>(this->mData.p)));
 
 		CUGIP_ASSERT(this->mData.p);
 		//CUGIP_CHECK_RESULT(cudaMemset(pitchedDevPtr.ptr, 0, this->mPitch * aExtents[1] * aExtents[2]));
