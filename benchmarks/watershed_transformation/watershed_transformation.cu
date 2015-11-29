@@ -40,21 +40,30 @@ watershedTransformation(
 	typedef Tuple<float, int> Value2;
 
 	device_image<float, 3> data(aData.dimensions());
+	device_image<int, 3> labelImage(aData.dimensions());
 	copy(aData, view(data));
-	CellularAutomaton<Grid<Value2, 3>, VonNeumannNeighborhood<3>, LocalMinimaConnectedComponentRule, LocalMinimaEquivalenceGlobalState> localMinimumAutomaton;
+	device_flag convergenceFlag;
 
-	thrust::device_vector<int> buffer(elementCount(aData) + 1);
-	auto localMinima = unaryOperatorOnLocator(const_view(data), LocalMinimumLabel());
+	{
+		CellularAutomaton<Grid<Value2, 3>, VonNeumannNeighborhood<3>, LocalMinimaConnectedComponentRule, LocalMinimaEquivalenceGlobalState> localMinimumAutomaton;
 
-	LocalMinimaEquivalenceGlobalState globalState;
-	globalState.manager = EquivalenceManager<int>(thrust::raw_pointer_cast(&buffer[0]), buffer.size());
-	localMinimumAutomaton.initialize(nAryOperator(ZipGradientAndLabel(), const_view(data), localMinima), globalState);
-	localMinimumAutomaton.iterate(50);
+		thrust::device_vector<int> buffer(elementCount(aData) + 1);
+		auto localMinima = unaryOperatorOnLocator(const_view(data), LocalMinimumLabel());
+		LocalMinimaEquivalenceGlobalState globalState;
+		globalState.manager = EquivalenceManager<int>(thrust::raw_pointer_cast(&buffer[0]), buffer.size());
+		globalState.mDeviceFlag = convergenceFlag.view();
+		localMinimumAutomaton.initialize(nAryOperator(ZipGradientAndLabel(), const_view(data), localMinima), globalState);
+		do {
+			convergenceFlag.reset_host();
+			localMinimumAutomaton.iterate(1);
+		} while (convergenceFlag.check_host());
+		copy(getDimension(localMinimumAutomaton.getCurrentState(), IntValue<1>()), view(labelImage));
+	}
 
 	CellularAutomaton<Grid<Value, 3>, MooreNeighborhood<3>, WatershedRule, WatershedConvergenceGlobalState> automaton;
-	device_flag convergenceFlag;
 	WatershedConvergenceGlobalState convergenceGlobalState{ convergenceFlag.view() };
-	auto wshed = nAryOperator(InitWatershed(), const_view(data), getDimension(localMinimumAutomaton.getCurrentState(), IntValue<1>()));
+
+	auto wshed = nAryOperator(InitWatershed(), const_view(data), const_view(labelImage));
 	automaton.initialize(wshed, convergenceGlobalState);
 	do {
 		convergenceFlag.reset_host();
@@ -62,7 +71,6 @@ watershedTransformation(
 	} while (convergenceFlag.check_host());
 
 	auto state = automaton.getCurrentState();
-	device_image<int, 3> tmpState(state.dimensions());
-	copy(getDimension(state, IntValue<1>()), view(tmpState));
-	copy(const_view(tmpState), aLabels);
+	copy(getDimension(state, IntValue<1>()), view(labelImage));
+	copy(const_view(labelImage), aLabels);
 }

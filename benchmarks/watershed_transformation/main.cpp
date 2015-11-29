@@ -23,12 +23,15 @@ namespace po = boost::program_options;
 
 enum class Algorithm {
 	ItkImplementation,
+	TopoDistance
 };
 
 Algorithm getAlgorithmFromString(const std::string &token)
 {
 	if (token == "itk-implementation") {
 		return Algorithm::ItkImplementation;
+	} else if (token == "topo-distance") {
+		return Algorithm::TopoDistance;
 	} else {
 		throw po::validation_error(po::validation_error::invalid_option_value);
 	}
@@ -83,11 +86,6 @@ main(int argc, char* argv[])
 	ImageType::Pointer image = imageReader->GetOutput();
 
 	LabeledImageType::Pointer outputImage;
-	/*BOOST_LOG_TRIVIAL(info) << "Allocating output ...";
-	outputImage = LabelImageMaskType::New();
-	outputImage->SetRegions(image->GetLargestPossibleRegion());
-	outputImage->Allocate();
-	outputImage->SetSpacing(image->GetSpacing());*/
 
 	switch (algorithm) {
 	case Algorithm::ItkImplementation: {
@@ -105,6 +103,12 @@ main(int argc, char* argv[])
 		}
 		break;
 	default:
+		BOOST_LOG_TRIVIAL(info) << "Allocating output ...";
+		outputImage = LabeledImageType::New();
+		outputImage->SetRegions(image->GetLargestPossibleRegion());
+		outputImage->Allocate();
+		outputImage->SetSpacing(image->GetSpacing());
+		BOOST_LOG_TRIVIAL(info) << "Running CUDA version of watershed transformation (topographical distance)...";
 		boost::timer::cpu_timer computationTimer;
 		computationTimer.start();
 		watershedTransformation(

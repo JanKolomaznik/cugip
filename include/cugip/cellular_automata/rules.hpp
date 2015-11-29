@@ -124,6 +124,7 @@ struct LocalMinimaEquivalenceGlobalState
 	void
 	initialize(){
 		manager.initialize();
+		mDeviceFlag.reset_host();
 	}
 
 	template<typename TView>
@@ -134,7 +135,15 @@ struct LocalMinimaEquivalenceGlobalState
 		for_each(aView, Relabel{ manager });
 	}
 
+	CUGIP_DECL_DEVICE
+	void
+	signal()
+	{
+		mDeviceFlag.set_device();
+	}
+
 	EquivalenceManager<int> manager;
+	device_flag_view mDeviceFlag;
 };
 
 struct LocalMinimaConnectedComponentRule
@@ -167,6 +176,7 @@ struct LocalMinimaConnectedComponentRule
 				aEquivalence.manager.merge(minValue, get<1>(value));
 				//printf("%d %d\n", minValue, get<1>(value));
 				get<1>(value) = minValue;
+				aEquivalence.signal();
 			}
 		}
 		return value;
