@@ -8,6 +8,26 @@
 
 namespace cugip {
 
+template<typename TType>
+CUGIP_DECL_HYBRID constexpr TType
+zero()
+{
+	return TType();
+}
+
+template<>
+inline constexpr int zero<int>()
+{
+	return 0;
+}
+
+template<>
+inline constexpr float zero<float>()
+{
+	return 0.0f;
+}
+//TODO handle other types properly
+
 
 template<typename TCoordinateType, int tDim>
 class simple_vector//: public boost::array<TCoordinateType, tDim>
@@ -17,49 +37,53 @@ public:
 	typedef simple_vector<TCoordinateType, tDim> this_t;
 	static const int dim = tDim;
 
-	CUGIP_DECL_HYBRID
+	CUGIP_DECL_HYBRID constexpr
 	simple_vector()
+		: mValues{ zero<TCoordinateType>() }
 	{
-		for (int i = 0; i < tDim; ++i) {
+		/*for (int i = 0; i < tDim; ++i) {
 			mValues[i] = 0;
-		}
+		}*/
 	}
 
-	CUGIP_DECL_HYBRID
+	CUGIP_DECL_HYBRID constexpr explicit
 	simple_vector(TCoordinateType const& v0)
+		: mValues{ v0 }
 	{
-		CUGIP_ASSERT(tDim >= 1);
-		mValues[0] = v0;
-		for (int i = 1; i < tDim; ++i) {
+		static_assert(tDim == 1, "Dimension must be 1!");
+		//mValues[0] = v0;
+		/*for (int i = 1; i < tDim; ++i) {
 			mValues[i] = 0;
-		}
+		}*/
 	}
 
-	CUGIP_DECL_HYBRID
+	CUGIP_DECL_HYBRID constexpr
 	simple_vector(TCoordinateType const& v0, TCoordinateType const& v1)
+		: mValues{ v0, v1 }
 	{
-		CUGIP_ASSERT(tDim >= 2);
-		mValues[0] = v0;
-		mValues[1] = v1;
-		for (int i = 2; i < tDim; ++i) {
+		static_assert(tDim == 2, "Dimension must be 2!");
+		//mValues[0] = v0;
+		//mValues[1] = v1;
+		/*for (int i = 2; i < tDim; ++i) {
 			mValues[i] = 0;
-		}
+		}*/
 	}
 
-	CUGIP_DECL_HYBRID
+	CUGIP_DECL_HYBRID constexpr
 	simple_vector(TCoordinateType const& v0, TCoordinateType const& v1, TCoordinateType const& v2)
+		: mValues{ v0, v1, v2 }
 	{
-		CUGIP_ASSERT(tDim >= 3);
-		mValues[0] = v0;
-		mValues[1] = v1;
-		mValues[2] = v2;
-		for (int i = 3; i < tDim; ++i) {
+		static_assert(tDim == 3, "Dimension must be 3!");
+		//mValues[0] = v0;
+		//mValues[1] = v1;
+		//mValues[2] = v2;
+		/*for (int i = 3; i < tDim; ++i) {
 			mValues[i] = 0;
-		}
+		}*/
 	}
 
 	template<typename TOtherCoordType>
-	CUGIP_DECL_HYBRID
+	CUGIP_DECL_HYBRID /*constexpr*/
 	simple_vector(const simple_vector<TOtherCoordType, tDim> &aArg)
 	{
 		for (int i = 0; i < tDim; ++i) {
@@ -492,7 +516,7 @@ div(const simple_vector<TType, tDimension> &aVector1, const simple_vector<TType,
 {
 	simple_vector<TType, tDimension> result;
 	for (int i = 0; i < tDimension; ++i) {
-		result = aVector1[i] / aVector2[i];
+		result[i] = aVector1[i] / aVector2[i];
 	}
 	return result;
 }
