@@ -183,13 +183,13 @@ struct MooreNeighborhood<3>
 	}
 
 	CUGIP_DECL_HYBRID constexpr Int3
-	offset(int aIndex) const
+	offset2(int aIndex) const
 	{
-		return aIndex < 14 ? hemisphereOffset(aIndex) : -1 * hemisphereOffset(27 - aIndex);
+		return aIndex < 14 ? hemisphereOffset(aIndex) : (-1 * hemisphereOffset(27 - aIndex));
 	}
 
 	CUGIP_DECL_HYBRID Int3
-	offset2(int aIndex) const
+	offset(int aIndex) const
 	{
 		switch (aIndex) {
 		case 0: return Int3(0, 0, 0);

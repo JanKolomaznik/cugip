@@ -339,7 +339,15 @@ struct LocalMinimumLabel
 	{
 		auto value = aAccessor[typename TAccessor::diff_t()];
 		int res = 0;
-		if (
+		MooreNeighborhood<dimension<TAccessor>::value> neighborhood;
+		bool smallest = true;
+		for (int i = 1; i < neighborhood.size(); ++i) {
+			smallest = smallest && (value <= aAccessor[neighborhood.offset(i)]);
+		}
+		if (smallest) {
+			res = get_linear_access_index(aAccessor.dimensions(), aAccessor.coords()) + 1;
+		}
+		/*if (
 			value <= aAccessor[typename TAccessor::diff_t(-1,-1)] &&
 			value <= aAccessor[typename TAccessor::diff_t(-1,0)] &&
 			value <= aAccessor[typename TAccessor::diff_t(-1,1)] &&
@@ -352,7 +360,7 @@ struct LocalMinimumLabel
 			res = get_linear_access_index(aAccessor.dimensions(), aAccessor.coords()) + 1;
 			//printf("val = %d - %d\n", value, res);
 			//return get_linear_access_index(aAccessor.dimensions(), aAccessor.coords()) + 1;
-		} /*else {
+		} *//*else {
 			return 0;
 		}*/
 		/*printf("vals = %d, %d: %d %d %d %d %d %d %d %d [%d, %d] - [%d, %d]\n", value, res,

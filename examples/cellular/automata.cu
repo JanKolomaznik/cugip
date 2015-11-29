@@ -224,8 +224,9 @@ public:
 	fillFromCurrentImage(host_image_view<element_rgb8_t, 2> aView) override;
 
 	CellularAutomaton<Grid<Value2, 2>, VonNeumannNeighborhood<2>, LocalMinimaConnectedComponentRule, LocalMinimaEquivalenceGlobalState> mLocalMinimumAutomaton;
-	CellularAutomaton<Grid<Value, 2>, MooreNeighborhood<2>, WatershedRule> mAutomaton;
+	CellularAutomaton<Grid<Value, 2>, MooreNeighborhood<2>, WatershedRule, WatershedConvergenceGlobalState> mAutomaton;
 	thrust::device_vector<int> mBuffer;
+	device_flag convergenceFlag;
 };
 
 
@@ -275,13 +276,16 @@ void WShedAutomatonWrapper::setStartImageView(const_host_image_view<const elemen
 
 	LocalMinimaEquivalenceGlobalState globalState;
 	globalState.manager = EquivalenceManager<int>(thrust::raw_pointer_cast(&mBuffer[0]), mBuffer.size());
+	globalState.mDeviceFlag = convergenceFlag.view();
 
 
 	mLocalMinimumAutomaton.initialize(nAryOperator(ZipGradientAndLabel(), const_view(deviceGradient), localMinima), globalState);
 	mLocalMinimumAutomaton.iterate(50);
 
 	auto wshed = nAryOperator(InitWatershed(), const_view(deviceGradient), getDimension(mLocalMinimumAutomaton.getCurrentState(), IntValue<1>()));
-	mAutomaton.initialize(wshed);
+
+	WatershedConvergenceGlobalState convergenceGlobalState{ convergenceFlag.view() };
+	mAutomaton.initialize(wshed, convergenceGlobalState);
 }
 
 void WShedAutomatonWrapper::fillFromCurrentImage(host_image_view<element_rgb8_t, 2> aView)
@@ -367,4 +371,3 @@ std::unique_ptr<AAutomatonWrapper>
 getWShedAutomaton2Wrapper() {
 	return std::unique_ptr<AAutomatonWrapper>(new WShedAutomaton2Wrapper());
 }
-

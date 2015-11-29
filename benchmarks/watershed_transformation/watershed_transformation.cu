@@ -49,6 +49,9 @@ watershedTransformation(
 
 		thrust::device_vector<int> buffer(elementCount(aData) + 1);
 		auto localMinima = unaryOperatorOnLocator(const_view(data), LocalMinimumLabel());
+		/*copy(localMinima, view(labelImage));
+		copy(view(labelImage), aLabels);
+		return;*/
 		LocalMinimaEquivalenceGlobalState globalState;
 		globalState.manager = EquivalenceManager<int>(thrust::raw_pointer_cast(&buffer[0]), buffer.size());
 		globalState.mDeviceFlag = convergenceFlag.view();
