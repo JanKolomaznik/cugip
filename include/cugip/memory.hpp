@@ -612,7 +612,14 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
 		}
 		void *devPtr = NULL;
-		CUGIP_CHECK_RESULT(cudaMallocPitch(&devPtr, &(this->mPitch), aExtents.get<0>() * sizeof(TType), aExtents.get<1>()));
+		size_t pitch = 0;
+		//D_PRINT(boost::str(boost::format("GPU allocation: 2D memory - width %1%, height %2%") % (aExtents[0] * sizeof(TType)) % aExtents[1]));
+		//D_PRINT(cudaMemoryInfoText());
+		CUGIP_CHECK_RESULT(cudaMallocPitch(&devPtr, &pitch, aExtents[0] * sizeof(TType), aExtents[1]));
+		if (!devPtr) {
+			CUGIP_THROW(ExceptionBase() << MessageErrorInfo("Failed to allocate enough GPU memory."));
+		}
+		this->mPitch = pitch;
 		this->mExtents = aExtents;
 		this->mData = reinterpret_cast<TType*>(devPtr);
 

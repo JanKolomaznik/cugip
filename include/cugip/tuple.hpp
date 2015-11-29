@@ -49,7 +49,7 @@ public:
 	CUGIP_DECL_HYBRID
 	TupleElem() {}
 
-	CUGIP_DECL_HYBRID
+	/*CUGIP_HD_WARNING_DISABLE*/ CUGIP_DECL_HYBRID
 	TupleElem(T aElement)
 		: elem(aElement)
 	{}
@@ -76,7 +76,7 @@ public:
 	CUGIP_DECL_HYBRID
 	TupleImpl() {}
 
-	CUGIP_DECL_HYBRID
+	/*CUGIP_HD_WARNING_DISABLE*/ CUGIP_DECL_HYBRID
 	TupleImpl(T... aItems)
 		: TupleElem<N, T>(aItems)...
 	{}
@@ -98,7 +98,7 @@ struct Tuple : TupleImpl<range<sizeof...(T)>, T...>
 	CUGIP_DECL_HYBRID
 	Tuple(){}
 
-	CUGIP_DECL_HYBRID
+	/*CUGIP_HD_WARNING_DISABLE*/ CUGIP_DECL_HYBRID
 	Tuple(T... aItems)
 		: Predecessor(aItems...)
 	{}
