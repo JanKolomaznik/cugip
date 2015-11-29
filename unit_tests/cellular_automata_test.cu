@@ -1,5 +1,6 @@
 #define BOOST_TEST_MODULE CellularAutomataTest
-#include <boost/test/unit_test.hpp>
+//#include <boost/test/unit_test.hpp>
+#include <boost/test/included/unit_test.hpp>
 
 #include <cuda.h>
 

@@ -1,10 +1,12 @@
 #define BOOST_TEST_MODULE UtilsTest
-#include <boost/test/unit_test.hpp>
+//#include <boost/test/unit_test.hpp>
+#include <boost/test/included/unit_test.hpp>
 
 #include <cuda.h>
 
 #include <cugip/utils.hpp>
 #include <cugip/tuple.hpp>
+#include <cugip/neighborhood.hpp>
 #include <cugip/math/symmetric_tensor.hpp>
 #include <cugip/math/eigen.hpp>
 #include <thrust/device_vector.h>
@@ -164,4 +166,32 @@ BOOST_AUTO_TEST_CASE(SymmetricTensor3x3EigenValues)
 	std::cout << eigen_vector<1, 2>(1.0f, tensor) << "\n";*/
 	std::cout << eigen_vectors(tensor, eigen_values(tensor)) << "\n";
 
+}
+
+BOOST_AUTO_TEST_CASE(VonNeumannNeighborhood2D)
+{
+	using namespace cugip;
+	VonNeumannNeighborhood<2> neighborhood;
+	for (int i = 0; i < 5; ++i) {
+		BOOST_CHECK_EQUAL(neighborhood.offset(i), neighborhood.offset2(i));
+	}
+}
+
+BOOST_AUTO_TEST_CASE(VonNeumannNeighborhood3D)
+{
+	using namespace cugip;
+	VonNeumannNeighborhood<3> neighborhood;
+	for (int i = 0; i < 7; ++i) {
+		BOOST_CHECK_EQUAL(neighborhood.offset(i), neighborhood.offset2(i));
+	}
+}
+
+BOOST_AUTO_TEST_CASE(MooreNeighborhood3D)
+{
+	using namespace cugip;
+	MooreNeighborhood<3> neighborhood;
+	for (int i = 0; i < 27; ++i) {
+		BOOST_CHECK_EQUAL(neighborhood.offset(i), neighborhood.offset2(i));
+		//std::cout << neighborhood.offset(i) << neighborhood.offset2(i) << std::endl;
+	}
 }
