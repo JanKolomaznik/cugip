@@ -63,8 +63,8 @@ watershedTransformation(
 		copy(getDimension(localMinimumAutomaton.getCurrentState(), IntValue<1>()), view(labelImage));
 	}
 
-	CellularAutomaton<Grid<Value, 3>, MooreNeighborhood<3>, WatershedRule, WatershedConvergenceGlobalState> automaton;
-	WatershedConvergenceGlobalState convergenceGlobalState{ convergenceFlag.view() };
+	CellularAutomaton<Grid<Value, 3>, MooreNeighborhood<3>, WatershedRule, ConvergenceFlag> automaton;
+	ConvergenceFlag convergenceGlobalState{ convergenceFlag.view() };
 
 	auto wshed = nAryOperator(InitWatershed(), const_view(data), const_view(labelImage));
 	automaton.initialize(wshed, convergenceGlobalState);

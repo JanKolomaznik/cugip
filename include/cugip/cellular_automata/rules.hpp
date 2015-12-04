@@ -5,6 +5,7 @@
 #include <cugip/cuda_utils.hpp>
 #include <cugip/neighborhood.hpp>
 #include <cugip/device_flag.hpp>
+#include <cugip/cellular_automata/global_state.hpp>
 
 
 namespace cugip {
@@ -183,7 +184,7 @@ struct LocalMinimaConnectedComponentRule
 	}
 };
 
-struct WatershedConvergenceGlobalState
+/*struct WatershedConvergenceGlobalState
 {
 	void
 	initialize(){
@@ -203,7 +204,7 @@ struct WatershedConvergenceGlobalState
 		mDeviceFlag.set_device();
 	}
 	device_flag_view mDeviceFlag;
-};
+};*/
 
 struct WatershedRule
 {
@@ -212,7 +213,7 @@ struct WatershedRule
 	//TODO - global state by reference
 	template<typename TNeighborhood>
 	CUGIP_DECL_DEVICE
-	auto operator()(int aIteration, TNeighborhood aNeighborhood, WatershedConvergenceGlobalState aConvergenceState) -> remove_reference<decltype(aNeighborhood[0])> const
+	auto operator()(int aIteration, TNeighborhood aNeighborhood, ConvergenceFlag aConvergenceState) -> remove_reference<decltype(aNeighborhood[0])> const
 	{
 		//input, label, distance
 		auto value = aNeighborhood[0];
