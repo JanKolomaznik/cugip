@@ -110,22 +110,37 @@ propagateFromVertex(int vertex, ParallelQueueView<int> &aVertices, TGraph &aGrap
 	}
 }
 
+struct NaiveWorkDistribution
+{
+	int start;
+	int count;
+	int gridSize;
+
+	CUGIP_DECL_HYBRID
+	NaiveWorkDistribution(int aStart, int aCount, int aGridSize)
+		: start(aStart)
+		, count(aCount)
+		, gridSize(aGridSize)
+	{}
+};
+
 template<typename TGraph, typename TPolicy>
-struct NaiveSweep
+struct NaiveSweepPass
 {
 	static CUGIP_DECL_DEVICE void
 	invoke(
 		TGraph &aGraph,
 		ParallelQueueView<int> &aVertices,
-		int aStart,
-		int aCount,
+		/*int aStart,
+		int aCount,*/
+		NaiveWorkDistribution aWorkDistribution,
 		int aCurrentLevel)
 	{
 		uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
 		int index = blockId * blockDim.x + threadIdx.x;
 
-		while (index < aCount) {
-			int vertex = aVertices.get_device(aStart + index);
+		while (index < aWorkDistribution.count) {
+			int vertex = aVertices.get_device(aWorkDistribution.start + index);
 			propagateFromVertex<TGraph, TPolicy>(vertex, aVertices, aGraph, aCurrentLevel);
 			index += blockDim.x * gridDim.x;
 		}
@@ -144,7 +159,7 @@ bfsNaivePropagationKernel(
 		int aCurrentLevel/*,
 		device_flag_view aPropagationSuccessfulFlag*/)
 {
-	NaiveSweep<TGraph, TPolicy>::invoke(
+	NaiveSweepPass<TGraph, TPolicy>::invoke(
 		aGraph,
 		aVertices,
 		aStart,
@@ -167,7 +182,7 @@ bfsNaivePropagationKernel_multi(
 	do {
 		__syncthreads();
 
-		NaiveSweep<TGraph, TPolicy>::invoke(
+		NaiveSweepPass<TGraph, TPolicy>::invoke(
 			aGraph,
 			aVertices,
 			aStart,
@@ -268,7 +283,7 @@ printWorkLimits(const WorkLimits &aLimits)
 		aLimits.outOfBounds);
 }
 
-
+template<int tScheduleGranularity>
 struct WorkDistribution
 {
 	int start;
@@ -280,12 +295,12 @@ struct WorkDistribution
 	int extraGrains;
 
 	CUGIP_DECL_HYBRID
-	WorkDistribution(int aStart, int aCount, int aGridSize, int aScheduleGranularity)
+	WorkDistribution(int aStart, int aCount, int aGridSize)
 		: start(aStart)
 		, count(aCount)
 		, gridSize(aGridSize)
 	{
-		totalGrains = (count + aScheduleGranularity -1) / aScheduleGranularity;
+		totalGrains = (count + tScheduleGranularity -1) / tScheduleGranularity;
 		grainsPerBlock = totalGrains / gridSize;
 		extraGrains = totalGrains - (grainsPerBlock * gridSize);
 		/*CUGIP_DFORMAT(
@@ -303,7 +318,7 @@ struct WorkDistribution
 			extraGrains);*/
 	}
 
-	template<int tTileSize, int tScheduleGranularity>
+	template<int tTileSize>
 	CUGIP_DECL_DEVICE WorkLimits
 	getWorkLimits() const
 	{
@@ -508,12 +523,12 @@ struct SweepPass
 	invoke(
 		TGraph &aGraph,
 		ParallelQueueView<int> &aVertices,
-		const WorkDistribution &aWorkDistribution,
+		const WorkDistribution<TPolicy::SCHEDULE_GRANULARITY> &aWorkDistribution,
 		int aCurrentLevel)
 	{
 		__shared__ typename TPolicy::SharedMemoryData sharedMemoryData;
 
-		WorkLimits workLimits = aWorkDistribution.template getWorkLimits<TPolicy::TILE_SIZE, TPolicy::SCHEDULE_GRANULARITY>();
+		WorkLimits workLimits = aWorkDistribution.template getWorkLimits<TPolicy::TILE_SIZE>();
 		/*__syncthreads();
 		printWorkLimits(workLimits);
 		__syncthreads();*/
@@ -543,11 +558,26 @@ template<typename TGraph, typename TPolicy>
 CUGIP_GLOBAL void
 bfsPropagationKernel_b40c(
 		ParallelQueueView<int> aVertices,
-		WorkDistribution aWorkDistribution,
+		WorkDistribution<TPolicy::SCHEDULE_GRANULARITY> aWorkDistribution,
 		TGraph aGraph,
 		int aCurrentLevel)
 {
 	SweepPass<TGraph, TPolicy>::invoke(
+			aGraph,
+			aVertices,
+			aWorkDistribution,
+			aCurrentLevel);
+}
+
+template<typename TGraph, typename TSweepOperator, typename TWorkDistribution>
+CUGIP_GLOBAL void
+bfsPropagationSingleIterationKernel(
+		ParallelQueueView<int> aVertices,
+		TWorkDistribution aWorkDistribution,
+		TGraph aGraph,
+		int aCurrentLevel)
+{
+	TSweepOperator::invoke(
 			aGraph,
 			aVertices,
 			aWorkDistribution,
@@ -571,15 +601,8 @@ bfsPropagationKernel_b40c_multi(
 		SweepPass<TGraph, TPolicy>::invoke(
 				aGraph,
 				aVertices,
-				WorkDistribution(aStart, aCount, gridDim.x, TPolicy::SCHEDULE_GRANULARITY),
+				WorkDistribution<TPolicy::SCHEDULE_GRANULARITY>(aStart, aCount, gridDim.x),
 				aCurrentLevel);
-
-		/*gatherScan<TFlow, 512>(
-			aGraph,
-			aVertices,
-			aStart + index,
-			aStart + aCount,
-			aCurrentLevel);*/
 		__syncthreads();
 		int size = aVertices.device_size();
 		aStart += aCount;
@@ -611,7 +634,7 @@ bfsPropagationKernel_b40c_dynamic(
 			dim3 levelGridSize1D(1 + (aCount - 1) / (blockSize1D.x), 1, 1);
 			bfsPropagationKernel_b40c<TGraphData, TPolicy><<<levelGridSize1D, blockSize1D>>>(
 				aVertices,
-				WorkDistribution(aStart, aCount, gridDim.x, TPolicy::SCHEDULE_GRANULARITY),
+				WorkDistribution<TPolicy::SCHEDULE_GRANULARITY>(aStart, aCount, gridDim.x),
 				aGraph,
 				aCurrentLevel);
 			cudaDeviceSynchronize();
@@ -644,7 +667,8 @@ struct Relabel
 				return aRelabel.bfs_multi_iteration(aGraph, aCurrentLevel, aLevelStarts, aVertexQueue);
 			} else {
 				//CUGIP_DFORMAT("SI frontier size: %1%", frontierSize);
-				return aRelabel.bfs_iteration(aGraph, aCurrentLevel, aLevelStarts, aVertexQueue);
+				return aRelabel.template bfs_iteration<SweepPass<TGraphData, TPolicy>, WorkDistribution<TPolicy::SCHEDULE_GRANULARITY>>(aGraph, aCurrentLevel, aLevelStarts, aVertexQueue);
+				//return aRelabel.bfs_iteration(aGraph, aCurrentLevel, aLevelStarts, aVertexQueue);
 			}
 		}
 	};
@@ -661,7 +685,8 @@ struct Relabel
 				return aRelabel.bfs_multi_naive_iteration(aGraph, aCurrentLevel, aLevelStarts, aVertexQueue);
 			} else {
 				//CUGIP_DFORMAT("SI frontier size: %1%", frontierSize);
-				return aRelabel.bfs_naive_iteration(aGraph, aCurrentLevel, aLevelStarts, aVertexQueue);
+				return aRelabel.template bfs_iteration<NaiveSweepPass<TGraphData, TPolicy>, NaiveWorkDistribution>(aGraph, aCurrentLevel, aLevelStarts, aVertexQueue);
+				//return aRelabel.bfs_naive_iteration(aGraph, aCurrentLevel, aLevelStarts, aVertexQueue);
 			}
 		}
 	};
@@ -885,7 +910,7 @@ struct Relabel
 
 		bfsPropagationKernel_b40c<TGraphData, TPolicy><<<levelGridSize1D, blockSize1D>>>(
 			aVertexQueue,
-			WorkDistribution(aLevelStarts[aCurrentLevel - 1], frontierSize, levelGridSize1D.x, TPolicy::SCHEDULE_GRANULARITY),
+			WorkDistribution<TPolicy::SCHEDULE_GRANULARITY>(aLevelStarts[aCurrentLevel - 1], frontierSize, levelGridSize1D.x),
 			aGraph,
 			aCurrentLevel + 1);
 		CUGIP_CHECK_RESULT(cudaThreadSynchronize());
@@ -899,6 +924,32 @@ struct Relabel
 		}
 		//CUGIP_DPRINT("Level " << (aCurrentLevel + 1) << " size: " << (lastLevelSize - aLevelStarts.back()));
 		//if (currentLevel == 2) break;
+		aLevelStarts.push_back(lastLevelSize);
+		return false;
+	}
+
+	template<typename TSweepOperator, typename TWorkDistribution>
+	bool
+	bfs_iteration(TGraphData &aGraph, int &aCurrentLevel, std::vector<int> &aLevelStarts, ParallelQueueView<int> &aVertexQueue)
+	{
+		int frontierSize = aLevelStarts[aCurrentLevel] - aLevelStarts[aCurrentLevel - 1];
+
+		dim3 blockSize1D(TPolicy::THREADS, 1, 1);
+		dim3 levelGridSize1D(1 + (frontierSize - 1) / (blockSize1D.x), 1, 1);
+		CUGIP_CHECK_ERROR_STATE("Before bfsPropagationKernel()");
+
+		bfsPropagationSingleIterationKernel<TGraphData, TSweepOperator, TWorkDistribution><<<levelGridSize1D, blockSize1D>>>(
+			aVertexQueue,
+			TWorkDistribution(aLevelStarts[aCurrentLevel - 1], frontierSize, levelGridSize1D.x),
+			aGraph,
+			aCurrentLevel + 1);
+		CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+		++aCurrentLevel;
+		CUGIP_CHECK_ERROR_STATE("After bfsPropagationKernel()");
+		int lastLevelSize = aVertexQueue.size();
+		if (lastLevelSize == aLevelStarts.back()) {
+			return true;
+		}
 		aLevelStarts.push_back(lastLevelSize);
 		return false;
 	}

@@ -146,7 +146,7 @@ struct TraceObject
 	void
 	computationFinished(float aFlow, const cugip::GraphCutData<float> &aData)
 	{
-		debug_fill_saturated(aData, saturated);
+		/*debug_fill_saturated(aData, saturated);
 
 		thrust::host_vector<float> tmp(aData.vertexCount());
 		thrust::device_ptr<float> ptr(aData.vertexExcess);
@@ -160,7 +160,7 @@ struct TraceObject
 			excess[i] = tmp[i] > 0.0f ? 255 : 0;
 			labels[i] = tmpLabels[i];
 			CUGIP_ASSERT(tmp[i] <= 0.0f || (labels[i] < 0 || labels[i] >= tmp.size()));
-		}
+		}*/
 	}
 	cugip::host_image_view<uint8_t, 3> saturated;
 	cugip::host_image_view<uint8_t, 3> excess;
