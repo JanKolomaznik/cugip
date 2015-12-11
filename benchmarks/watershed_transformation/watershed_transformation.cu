@@ -113,3 +113,43 @@ watershedTransformation2(
 	copy(getDimension(state, IntValue<1>()), view(labelImage));
 	copy(const_view(labelImage), aLabels);
 }
+
+void
+watershedTransformation3(
+	cugip::const_host_image_view<const float, 3> aData,
+	cugip::host_image_view<int, 3> aLabels,
+	Options aOptions)
+{
+	using namespace cugip;
+	typedef Tuple<float, int> Value;
+
+	device_image<float, 3> data(aData.dimensions());
+
+	{
+		device_image<float, 3> beforeLowerCompletion(aData.dimensions());
+		copy(aData, view(beforeLowerCompletion));
+
+		cheapLowerCompletion(const_view(beforeLowerCompletion), view(data));
+	}
+	device_image<int, 3> labelImage(aData.dimensions());
+
+
+	device_flag convergenceFlag;
+
+	Watershed2EquivalenceGlobalState globalState;
+	thrust::device_vector<int> buffer(elementCount(aData) + 1);
+	globalState.manager = EquivalenceManager<int>(thrust::raw_pointer_cast(buffer.data()), buffer.size());
+	globalState.mDeviceFlag = convergenceFlag.view();
+	CellularAutomaton<Grid<Value, 3>, MooreNeighborhood<3>, Watershed3Rule, Watershed2EquivalenceGlobalState> automaton;
+
+	auto wshed = zipViews(const_view(data), UniqueIdDeviceImageView<3>(aData.dimensions()));
+	automaton.initialize(wshed, globalState);
+	do {
+		convergenceFlag.reset_host();
+		automaton.iterate(1);
+	} while (convergenceFlag.check_host());
+
+	auto state = automaton.getCurrentState();
+	copy(getDimension(state, IntValue<1>()), view(labelImage));
+	copy(const_view(labelImage), aLabels);
+}
