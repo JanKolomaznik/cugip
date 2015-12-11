@@ -88,16 +88,6 @@ struct Grid
 	typedef TElement Element;
 };
 
-struct DummyGlobalState
-{
-	void
-	initialize(){}
-
-	template<typename TView>
-	void
-	postprocess(TView /*aView*/){}
-};
-
 
 template<typename TGrid, typename TNeighborhood, typename TRule, typename TGlobalState = DummyGlobalState/*, typename TOptions*/>
 class CellularAutomaton {

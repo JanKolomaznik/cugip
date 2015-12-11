@@ -386,6 +386,15 @@ struct HasSmallerNeighbor
 	operator()(TAccessor aAccessor) const
 	{
 		auto value = aAccessor[typename TAccessor::diff_t()];
+		MooreNeighborhood<dimension<TAccessor>::value> neighborhood;
+		bool haveSmaller = false;
+		for (int i = 1; i < neighborhood.size(); ++i) {
+			haveSmaller = haveSmaller || (value > aAccessor[neighborhood.offset(i)]);
+		}
+		return haveSmaller;
+		/*if (smalles) {
+			res = get_linear_access_index(aAccessor.dimensions(), aAccessor.coords()) + 1;
+		}
 		if (
 			value > aAccessor[typename TAccessor::diff_t(-1,-1)] ||
 			value > aAccessor[typename TAccessor::diff_t(-1,0)] ||
@@ -399,7 +408,7 @@ struct HasSmallerNeighbor
 			return 1;
 		} else {
 			return 0;
-		}
+		}*/
 	}
 };
 

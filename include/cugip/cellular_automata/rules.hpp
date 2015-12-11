@@ -236,7 +236,10 @@ struct WatershedRule
 	}
 };
 
-struct Watershed2EquivalenceGlobalState
+typedef LocalMinimaEquivalenceGlobalState Watershed2EquivalenceGlobalState;
+
+
+/*struct Watershed2EquivalenceGlobalState
 {
 	struct Relabel
 	{
@@ -265,7 +268,7 @@ struct Watershed2EquivalenceGlobalState
 	}
 
 	EquivalenceManager<int> manager;
-};
+};*/
 
 struct Watershed2Rule
 {
@@ -277,7 +280,7 @@ struct Watershed2Rule
 	CUGIP_DECL_DEVICE
 	auto operator()(int aIteration, TNeighborhood aNeighborhood, Watershed2EquivalenceGlobalState aEquivalence) -> remove_reference<decltype(aNeighborhood[0])> const
 	{
-		//input, label, distance
+		//input, label, has smaller neighbor
 		auto value = aNeighborhood[0];
 		int index = -1;
 		auto minValue = get<0>(value);
@@ -300,6 +303,7 @@ struct Watershed2Rule
 			{
 				if (get<1>(value) != get<1>(aNeighborhood[index])) {
 					aEquivalence.manager.merge(get<1>(value), get<1>(aNeighborhood[index]));
+					aEquivalence.signal();
 				}
 			}
 		}
