@@ -25,6 +25,19 @@ struct EdgeResidualsRecord
 	TFlow residuals[2];
 };
 
+
+__device__ __inline__ int32_t ld_gbl_cg(const int32_t *addr) {
+  int return_value;
+  asm("ld.global.cg.s32 %0, [%1];" : "=r"(return_value) : "l"(addr));
+  return return_value;
+}
+
+__device__ __inline__ double ld_gbl_cg(const double *addr) {
+  double return_value;
+  asm("ld.global.cg.f64 %0, [%1];" : "=d"(return_value) : "l"(addr));
+  return return_value;
+}
+
 template<typename TFlow>
 struct GraphCutData
 {
@@ -59,7 +72,10 @@ struct GraphCutData
 	CUGIP_DECL_DEVICE int
 	firstNeighborIndex(int aVertexId) const
 	{
+		//static_assert(sizeof(int) == 4, "Int is not 32bit");
 		//if (aVertexId < 0) printf("firstNeighborIndex()\n");
+		//return __ldg(neighbors + aVertexId);
+		//return ld_gbl_cg(neighbors + aVertexId);
 		return neighbors[aVertexId];
 	}
 

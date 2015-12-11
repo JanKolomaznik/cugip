@@ -90,6 +90,7 @@ struct MinCut
 			//CUGIP_DPRINT("Relabel");
 			aTraceObject.beginIteration(iteration);
 			relabel.compute(aGraph, aVertexQueue, aLevelStarts);
+			return 0.0f;
 			aTraceObject.afterRelabel(iteration, aLevelStarts);
 			//return 0.0f;
 			//assign_label_by_distance();

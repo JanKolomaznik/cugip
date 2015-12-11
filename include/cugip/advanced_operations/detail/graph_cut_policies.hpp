@@ -4,7 +4,8 @@ namespace cugip {
 
 enum class RelabelImplementation {
 	Default,
-	Naive
+	Naive,
+	OptimizedNaive
 };
 
 
@@ -12,7 +13,9 @@ struct GraphCutPolicy
 {
 	template<int tThreadCount = 512, int tGranularity = 64>
 	struct RelabelPolicy {
-		static constexpr RelabelImplementation cRelabelImplementation = RelabelImplementation::Default;
+		//static constexpr RelabelImplementation cRelabelImplementation = RelabelImplementation::Naive;
+		static constexpr RelabelImplementation cRelabelImplementation = RelabelImplementation::OptimizedNaive;
+		//static constexpr RelabelImplementation cRelabelImplementation = RelabelImplementation::Default;
 		enum {
 			INVALID_LABEL = 1 << 31,
 			THREADS = tThreadCount,
@@ -25,7 +28,7 @@ struct GraphCutPolicy
 		struct SharedMemoryData {
 			//cub::BlockScan<int, BLOCK_SIZE> temp_storage;
 			int offsetScratch[SCRATCH_ELEMENTS];
-			int incomming[SCRATCH_ELEMENTS];
+			//int incomming[SCRATCH_ELEMENTS];
 		};
 	};
 	struct PushPolicy {
