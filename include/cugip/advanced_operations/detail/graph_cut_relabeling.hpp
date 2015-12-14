@@ -851,8 +851,8 @@ struct Relabel
 		int currentLevel = 1;
 		bool finished = lastLevelSize == 0;
 
-		cudaProfilerStart();
-		while (!finished && currentLevel < 8) {
+		//cudaProfilerStart();
+		while (!finished /*&& currentLevel < 8*/) {
 
 			//finished = ComputationStep<RelabelImplementation::Naive, true>::compute(*this, aGraph, currentLevel, aLevelStarts, aVertexQueue);
 			finished = ComputationStep<TPolicy::cRelabelImplementation, true>::compute(*this, aGraph, currentLevel, aLevelStarts, aVertexQueue);
@@ -862,7 +862,7 @@ struct Relabel
 
 		CUGIP_CHECK_RESULT(cudaThreadSynchronize());
 
-		cudaProfilerStop();
+		//cudaProfilerStop();
 		/*thrust::device_vector<int> dev_tmp(
 					thrust::device_ptr<int>(aVertexQueue.mData),
 					thrust::device_ptr<int>(aVertexQueue.mData + aLevelStarts.back()));
