@@ -152,6 +152,8 @@ public:
 	CUGIP_HD_WARNING_DISABLE
 	CUGIP_DECL_HYBRID
 	value_type operator[](coord_t index) const {
+		//return get_zorder_access_index(this->dimensions(), index) + 1;
+		//return get_blocked_order_access_index(this->dimensions(), index) + 1;
 		return get_linear_access_index(this->dimensions(), index) + 1;
 	}
 

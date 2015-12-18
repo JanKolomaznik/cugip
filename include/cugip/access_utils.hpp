@@ -105,4 +105,55 @@ linear_access_view(TImageView aView)
 }
 
 
+// method to seperate bits from a given integer 3 positions apart
+inline uint64_t splitBy3(unsigned int a){
+	uint64_t x = a & 0x1fffff; // we only look at the first 21 bits
+	x = (x | x << 32) & 0x1f00000000ffff;  // shift left 32 bits, OR with self, and 00011111000000000000000000000000000000001111111111111111
+	x = (x | x << 16) & 0x1f0000ff0000ff;  // shift left 32 bits, OR with self, and 00011111000000000000000011111111000000000000000011111111
+	x = (x | x << 8) & 0x100f00f00f00f00f; // shift left 32 bits, OR with self, and 0001000000001111000000001111000000001111000000001111000000000000
+	x = (x | x << 4) & 0x10c30c30c30c30c3; // shift left 32 bits, OR with self, and 0001000011000011000011000011000011000011000011000011000100000000
+	x = (x | x << 2) & 0x1249249249249249;
+	return x;
+}
+
+template<typename TExtents, typename TCoordinates>
+CUGIP_DECL_HYBRID int
+get_zorder_access_index(
+		TExtents aExtents,
+		TCoordinates aCoordinates)
+{
+	static_assert(dimension<TExtents>::value == 3, "TODO: 2 dimensions");
+	uint64_t answer = splitBy3(aCoordinates[0]) | (splitBy3(aCoordinates[1]) << 1) | (splitBy3(aCoordinates[2]) << 2);
+	return answer;
+}
+
+
+template<typename TExtents, typename TCoordinates>
+CUGIP_DECL_HYBRID int
+get_blocked_order_access_index(
+		TExtents aExtents,
+		TCoordinates aCoordinates)
+{
+	static_assert(dimension<TExtents>::value == 3, "TODO: 2 dimensions");
+	TCoordinates corner = 2 * div(aCoordinates, 2);
+	int offset = aExtents[0] * aExtents[1] * corner[2];
+	int zMultiplier = 2;
+	if ((aExtents[2] % 2) && (aCoordinates[2] == (aExtents[2] - 1))) {
+		zMultiplier = 1;
+	}
+	offset += aExtents[0] * corner[1] * zMultiplier;
+
+	int yMultiplier = 2;
+	if ((aExtents[1] % 2) && (aCoordinates[1] == (aExtents[1] - 1))) {
+		yMultiplier = 1;
+	}
+	offset += corner[0] * zMultiplier * yMultiplier;
+
+	auto blockSize = min_per_element(Int3(2, 2, 2), aExtents - corner);
+	auto blockPos = aCoordinates - corner;
+	offset += blockPos[0] + blockPos[1] * blockSize[0] + blockPos[2] * blockSize[0] * blockSize[1];
+	return offset;
+}
+
+
 } //namespace cugip

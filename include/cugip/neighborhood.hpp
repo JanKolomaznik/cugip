@@ -155,37 +155,38 @@ struct MooreNeighborhood<3>
 	helperOffsetZ(int aIndex)
 	{
 		// -1 -1 -1 -1 -1 -1 -1 -1 -1 0 0 0 0
-		return aIndex < 0 ? 0 : aIndex / 9 - 1;
+		return aIndex < 0 ? 0 : (aIndex / 9 - 1);
 	}
 
 	CUGIP_DECL_HYBRID static constexpr int
 	helperOffsetY(int aIndex)
 	{
 		// -1 -1 -1 0 0 0 1 1 1 -1 -1 -1 0
-		return aIndex < 0 ? 0 : (aIndex / 3) % 3 - 1;
+		return aIndex < 0 ? 0 : ((aIndex / 3) % 3 - 1);
 	}
 
 	CUGIP_DECL_HYBRID static constexpr int
 	helperOffsetX(int aIndex)
 	{
 		// -1 0 1 -1 0 1 -1 0 1 -1 0 1 -1
-		return aIndex < 0 ? 0 : (aIndex % 3) - 1;
+		return aIndex < 0 ? 0 : ((aIndex % 3) - 1);
 	}
 
+	template<int tMultiplier>
 	CUGIP_DECL_HYBRID static constexpr Int3
 	hemisphereOffset(int aIndex)
 	{
 		return Int3(
-			helperOffsetX(aIndex - 1),
-			helperOffsetY(aIndex - 1),
-			helperOffsetZ(aIndex - 1)
+			tMultiplier * helperOffsetX(aIndex - 1),
+			tMultiplier * helperOffsetY(aIndex - 1),
+			tMultiplier * helperOffsetZ(aIndex - 1)
 			);
 	}
 
 	CUGIP_DECL_HYBRID constexpr Int3
 	offset2(int aIndex) const
 	{
-		return aIndex < 14 ? hemisphereOffset(aIndex) : (-1 * hemisphereOffset(27 - aIndex));
+		return aIndex < 14 ? hemisphereOffset<1>(aIndex) : hemisphereOffset<-1>(27 - aIndex);
 	}
 
 	CUGIP_DECL_HYBRID Int3

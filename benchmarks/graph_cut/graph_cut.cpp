@@ -42,6 +42,7 @@ computeCudaGraphCut(
 	for_each(
 		imageRegion,
 		[&](const Int3 &coordinate) {
+			//int centerIdx = get_blocked_order_access_index(size, coordinate);
 			int centerIdx = get_linear_access_index(size, coordinate);
 			float source_weight = aMarkers[coordinate] == 128 ? cTLinkWeight : 0.0f;
 			float sink_weight = aMarkers[coordinate] == 255 ? cTLinkWeight : 0.0f;
@@ -52,6 +53,7 @@ computeCudaGraphCut(
 			graphData.setTWeights(centerIdx, source_weight, sink_weight);
 			for (int n = 1; n < (neighborhood.size() + 1) / 2; ++n) {
 				Int3 neighbor = coordinate + neighborhood.offset(n);
+				//int neighborIdx = get_blocked_order_access_index(size, neighbor);
 				int neighborIdx = get_linear_access_index(size, neighbor);
 				if (isInsideRegion(aData.dimensions(), neighbor)) {
 					float weight =  std::exp(-sqr(aData[coordinate] - aData[neighbor]) / 2.0f * sqr(aSigma));

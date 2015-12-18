@@ -4,6 +4,7 @@
 #include <cugip/utils.hpp>
 #include <cugip/element.hpp>
 #include <cugip/tuple.hpp>
+#include <cugip/neighborhood.hpp>
 
 namespace cugip {
 
@@ -411,6 +412,28 @@ struct HasSmallerNeighbor
 		}*/
 	}
 };
+
+struct HandlePlateauBorder
+{
+	template<typename TAccessorIn, typename TAccessorOut>
+	CUGIP_DECL_HYBRID void
+	operator()(TAccessorIn aAccessor, TAccessorOut aOut) const
+	{
+		using namespace cugip;
+		auto value = aAccessor[typename TAccessorIn::diff_t()];
+		MooreNeighborhood<dimension<TAccessorIn>::value> neighborhood;
+		bool haveSmaller = false;
+		bool isPlateau = true;
+		for (int i = 1; i < neighborhood.size(); ++i) {
+			auto current = aAccessor[neighborhood.offset(i)];
+			isPlateau = isPlateau && value >= current;
+			haveSmaller =  haveSmaller || (value > current);
+		}
+		float offset = isPlateau && haveSmaller ? 1.0f : 0.0f;
+		aOut.get() = value + offset;
+	}
+};
+
 
 struct ZipValues
 {

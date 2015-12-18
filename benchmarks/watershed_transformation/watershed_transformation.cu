@@ -114,6 +114,16 @@ watershedTransformation2(
 	copy(const_view(labelImage), aLabels);
 }
 
+
+template<typename TInView, typename TOutView>
+void
+cheapLowerCompletion(TInView aInView, TOutView aOutView)
+{
+	cugip::for_each_locator(aInView, aOutView, cugip::HandlePlateauBorder());
+
+	CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+}
+
 void
 watershedTransformation3(
 	cugip::const_host_image_view<const float, 3> aData,

@@ -498,6 +498,24 @@ min(simple_vector<TType, tDimension> aValue) {
 	return minValue;
 }
 
+template<typename TType, int tDimension>
+inline CUGIP_DECL_HYBRID simple_vector<TType, tDimension>
+min_per_element(simple_vector<TType, tDimension> aVector1, const simple_vector<TType, tDimension> &aVector2) {
+	for (int i = 0; i < tDimension; ++i) {
+		aVector1[i] = min(aVector1[i], aVector2[i]);
+	}
+	return aVector1;
+}
+
+
+template<typename TType, int tDimension>
+inline CUGIP_DECL_HYBRID simple_vector<TType, tDimension>
+max_per_element(simple_vector<TType, tDimension> aVector1, const simple_vector<TType, tDimension> &aVector2) {
+	for (int i = 0; i < tDimension; ++i) {
+		aVector1[i] = max(aVector1[i], aVector2[i]);
+	}
+	return aVector1;
+}
 
 template<typename TType, int tDimension>
 inline CUGIP_DECL_HYBRID TType
@@ -512,6 +530,17 @@ sum(const simple_vector<TType, tDimension> &aVector)
 
 template<typename TType, int tDimension>
 inline CUGIP_DECL_HYBRID simple_vector<TType, tDimension>
+div(const simple_vector<TType, tDimension> &aVector1, TType aValue)
+{
+	simple_vector<TType, tDimension> result;
+	for (int i = 0; i < tDimension; ++i) {
+		result[i] = aVector1[i] / aValue;
+	}
+	return result;
+}
+
+template<typename TType, int tDimension>
+inline CUGIP_DECL_HYBRID simple_vector<TType, tDimension>
 div(const simple_vector<TType, tDimension> &aVector1, const simple_vector<TType, tDimension> &aVector2)
 {
 	simple_vector<TType, tDimension> result;
@@ -520,6 +549,7 @@ div(const simple_vector<TType, tDimension> &aVector1, const simple_vector<TType,
 	}
 	return result;
 }
+
 
 /// \return All vector elements product
 template<typename TType, int tDimension>

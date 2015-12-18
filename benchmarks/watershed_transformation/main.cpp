@@ -111,7 +111,7 @@ main(int argc, char* argv[])
 		BOOST_LOG_TRIVIAL(info) << "Running CUDA version of watershed transformation (topographical distance)...";
 		boost::timer::cpu_timer computationTimer;
 		computationTimer.start();
-		watershedTransformation(
+		watershedTransformation2(
 			cugip::const_view(*(image.GetPointer())),
 			cugip::view(*(outputImage.GetPointer())),
 			Options()

@@ -311,6 +311,38 @@ struct Watershed2Rule
 	}
 };
 
+struct Watershed3Rule
+{
+	template<typename T>
+	using remove_reference = typename std::remove_reference<T>::type;
+
+	//TODO - global state by reference
+	template<typename TNeighborhood>
+	CUGIP_DECL_DEVICE
+	auto operator()(int aIteration, TNeighborhood aNeighborhood, Watershed2EquivalenceGlobalState aEquivalence) -> remove_reference<decltype(aNeighborhood[0])> const
+	{
+		//input, label
+		auto value = aNeighborhood[0];
+		int index = -1;
+		auto minValue = get<0>(value);
+		auto minLabel = get<1>(value);
+		for (int i = 1; i < aNeighborhood.size(); ++i) {
+			auto current = get<0>(aNeighborhood[i]);
+			auto currentLabel = get<1>(aNeighborhood[i]);
+			//printf("%d %d - %d val = %d -> %d\n", threadIdx.x, threadIdx.y, i, aNeighborhood[0], aNeighborhood[i]);
+			if (current <= minValue && currentLabel < minLabel) {
+				index = i;
+				minValue = current;
+			}
+		}
+		if (index != -1) {
+			aEquivalence.manager.merge(get<1>(value), get<1>(aNeighborhood[index]));
+			aEquivalence.signal();
+		}
+		return value;
+	}
+};
+
 
 
 } // namespace cugip

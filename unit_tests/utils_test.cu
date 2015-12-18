@@ -7,6 +7,7 @@
 #include <cugip/utils.hpp>
 #include <cugip/tuple.hpp>
 #include <cugip/neighborhood.hpp>
+#include <cugip/access_utils.hpp>
 #include <cugip/math/symmetric_tensor.hpp>
 #include <cugip/math/eigen.hpp>
 #include <thrust/device_vector.h>
@@ -194,4 +195,16 @@ BOOST_AUTO_TEST_CASE(MooreNeighborhood3D)
 		BOOST_CHECK_EQUAL(neighborhood.offset(i), neighborhood.offset2(i));
 		//std::cout << neighborhood.offset(i) << neighborhood.offset2(i) << std::endl;
 	}
+}
+
+BOOST_AUTO_TEST_CASE(BlockedOrderAccessIndex)
+{
+	using namespace cugip;
+	BOOST_CHECK_EQUAL(0, get_blocked_order_access_index(Int3(5,5,5), Int3(0, 0, 0)));
+	BOOST_CHECK_EQUAL(7, get_blocked_order_access_index(Int3(5,5,5), Int3(1, 1, 1)));
+	BOOST_CHECK_EQUAL(57, get_blocked_order_access_index(Int3(5,5,5), Int3(1, 1, 3)));
+	BOOST_CHECK_EQUAL(8, get_blocked_order_access_index(Int3(5,5,5), Int3(2, 0, 0)));
+	BOOST_CHECK_EQUAL(28, get_blocked_order_access_index(Int3(5,5,5), Int3(2, 2, 0)));
+	BOOST_CHECK_EQUAL(78, get_blocked_order_access_index(Int3(5,5,5), Int3(2, 2, 2)));
+	BOOST_CHECK_EQUAL(124, get_blocked_order_access_index(Int3(5,5,5), Int3(4, 4, 4)));
 }
