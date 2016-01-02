@@ -9,6 +9,7 @@
 #include <cugip/math.hpp>
 #include <cugip/image.hpp>
 #include <cugip/copy.hpp>
+#include <cugip/texture.hpp>
 #include <cugip/host_image.hpp>
 #include <cugip/procedural_views.hpp>
 #include <thrust/device_vector.h>
@@ -82,4 +83,25 @@ BOOST_AUTO_TEST_CASE(MultiViewOperator)
 
 	auto result = nAryOperator(SumValuesFunctor(), const_view(deviceImage), const_view(deviceImage));
 	copy(result, view(deviceImage));
+}
+
+BOOST_AUTO_TEST_CASE(TextureView)
+{
+	host_image<int, 1> host_image1(10);
+	host_image<int, 1> host_image2(10);
+
+	auto hostView1 = view(host_image1);
+	for (int i = 0; i < hostView1.dimensions(); ++i) {
+		hostView1[i] = i;
+	}
+	texture_image<int, 1> texImage(10);
+
+	copy(const_view(host_image2), view(texImage));
+
+	/*copy(const_view(texImage), view(host_image2));
+
+	auto hostView2 = view(host_image1);
+	for (int i = 0; i < hostView2.dimensions(); ++i) {
+		BOOST_CHECK_EQUAL(hostView1[i], hostView2[i]);
+	}*/
 }
