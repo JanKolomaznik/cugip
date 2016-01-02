@@ -42,3 +42,6 @@ cuda_add_library(${PROJECT_NAME}_cuda_cut graph_cut.cu ${BK301_SOURCES})
 add_executable(${PROJECT_NAME} segmentation.cpp boykov_kolmogorov.cpp grid_cut.cpp graph_cut.cpp ${BK301_SOURCES})
 #cuda_add_executable(${PROJECT_NAME} segmentation.cpp boykov_kolmogorov.cpp grid_cut.cpp graph_cut.cpp graph_cut.cu ${BK301_SOURCES})
 target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_cuda_cut ${ITK_LIBRARIES} ${Boost_LIBRARIES})
+
+add_executable(region_graph region_graph.cpp regions_graph_construction.cpp)
+target_link_libraries(region_graph ${ITK_LIBRARIES} ${Boost_LIBRARIES})

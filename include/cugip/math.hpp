@@ -302,6 +302,13 @@ dot(const simple_vector<TCoordType, tDim> &aVector1, const simple_vector<TCoordT
 	return ret;
 }
 
+template<typename TType>
+CUGIP_DECL_HYBRID typename std::enable_if<std::is_fundamental<TType>::value, TType>::type
+dot(const TType &aValue1, const TType &aValue2)
+{
+	return aValue1 * aValue2;
+}
+
 template<typename TCoordType>
 inline CUGIP_DECL_HYBRID simple_vector<TCoordType, 3>
 cross(const simple_vector<TCoordType, 3> &aVector1, const simple_vector<TCoordType, 3> &aVector2)
@@ -425,7 +432,25 @@ struct dim_traits
 
 	extents_t create_extents_t(int v0 = 0, int v1 = 0, int v2 = 0, int v3 = 0)
 	{//TODO
+		CUGIP_ASSERT(false);
 		return extents_t(v0, v1/*, v2, v3*/);
+	}
+};
+
+template<>
+struct dim_traits<1>
+{
+	typedef int diff_t;
+
+	///Unsigned integral vector - used for defining sizes
+	typedef int extents_t;
+
+	///Signed integral coordinate vector
+	typedef int coord_t;
+
+	extents_t create_extents_t(int v0 = 0, int v1 = 0, int v2 = 0, int v3 = 0)
+	{//TODO
+		return extents_t(v0);
 	}
 };
 //-----------------------------------------------------------------------------
@@ -561,6 +586,13 @@ product(const simple_vector<TType, tDimension> &aVector)
 		result *= aVector[i];
 	}
 	return result;
+}
+
+template<typename TType>
+CUGIP_DECL_HYBRID typename std::enable_if<std::is_fundamental<TType>::value, TType>::type
+product(const TType &aValue)
+{
+	return aValue;
 }
 
 template<typename TCoordType, int tDim>

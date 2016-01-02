@@ -8,9 +8,14 @@ enum class RelabelImplementation {
 	OptimizedNaive
 };
 
+enum class PreflowInitialization {
+	Default,
+	Push
+};
 
 struct GraphCutPolicy
 {
+	static constexpr PreflowInitialization cPreflowInitialization = PreflowInitialization::Default;
 	template<int tThreadCount = 512, int tGranularity = 64>
 	struct RelabelPolicy {
 		//static constexpr RelabelImplementation cRelabelImplementation = RelabelImplementation::Naive;

@@ -24,6 +24,12 @@ inline Int3 stridesFromSize(Int3 size) {
 	return Int3(1, size[0], size[0] * size[1]);
 }
 
+/// \return Strides for memory without padding.
+CUGIP_DECL_HYBRID
+inline int stridesFromSize(int size) {
+	return 1;
+}
+
 
 
 CUGIP_HD_WARNING_DISABLE

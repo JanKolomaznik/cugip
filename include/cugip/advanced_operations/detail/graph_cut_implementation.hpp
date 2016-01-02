@@ -62,6 +62,52 @@ graphCutDataFromGraph(
 template<typename TGraphData, typename TPolicy, typename TTraceObject>
 struct MinCut
 {
+	template<PreflowInitialization tPreflowInitialization, bool tDummy>
+	struct PreflowInit;
+
+	template<bool tDummy>
+	struct PreflowInit<PreflowInitialization::Default, tDummy>
+	{
+		void
+		compute(
+			TGraphData &aGraph,
+			ParallelQueueView<int> &aVertexQueue,
+			std::vector<int> &aLevelStarts)
+		{
+			CUGIP_DPRINT("push_through_tlinks_from_source");
+
+			dim3 blockSize1D( 512 );
+			dim3 gridSize1D((aGraph.vertexCount() + blockSize1D.x - 1) / (blockSize1D.x) , 1);
+
+			pushThroughTLinksFromSourceKernel<<<gridSize1D, blockSize1D>>>(aGraph);
+
+			CUGIP_CHECK_ERROR_STATE("After pushThroughTLinksFromSourceKernel");
+			CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+		}
+	};
+
+	template<bool tDummy>
+	struct PreflowInit<PreflowInitialization::Push, tDummy>
+	{
+		void
+		compute(
+			TGraphData &aGraph,
+			ParallelQueueView<int> &aVertexQueue,
+			std::vector<int> &aLevelStarts)
+		{
+			CUGIP_DPRINT("push_through_tlinks_from_source");
+
+			dim3 blockSize1D( 512 );
+			dim3 gridSize1D((aGraph.vertexCount() + blockSize1D.x - 1) / (blockSize1D.x) , 1);
+
+			pushThroughTLinksFromSourceKernel<<<gridSize1D, blockSize1D>>>(aGraph);
+
+			CUGIP_CHECK_ERROR_STATE("After pushThroughTLinksFromSourceKernel");
+			CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+		}
+	};
+
+
 	static float
 	compute(
 		TGraphData &aGraph,
@@ -74,7 +120,9 @@ struct MinCut
 		//CUGIP_DPRINT("MAX FLOW");
 		//init_residuals(aGraph);
 		aTraceObject.computationStarted(aGraph);
-		push_through_tlinks_from_source(aGraph);
+		PreflowInit</*TGraphData, */TPolicy::cPreflowInitialization, true> preflowInit;
+		preflowInit.compute(aGraph, aVertexQueue, aLevelStarts);
+		//push_through_tlinks_from_source(aGraph);
 
 		//debug_print();
 		CUGIP_CHECK_ERROR_STATE("After max_flow init");
