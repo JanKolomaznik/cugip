@@ -104,6 +104,11 @@ struct MinCut
 
 			CUGIP_CHECK_ERROR_STATE("After pushThroughTLinksFromSourceKernel");
 			CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+
+			Relabel<TGraphData, typename TPolicy::RelabelPolicy<512, 64>> relabel;
+			Push<TGraphData, typename TPolicy::PushPolicy> push;
+			relabel.compute(aGraph, aVertexQueue, aLevelStarts);
+			push.compute(aGraph, aVertexQueue, aLevelStarts);
 		}
 	};
 
@@ -131,13 +136,13 @@ struct MinCut
 		bool done = false;
 		int iteration = 0;
 		//float flow = -1.0f;
-		Relabel<TGraphData, typename TPolicy::RelabelPolicy<512, 64>> relabel;
+		Relabel<TGraphData, typename TPolicy::RelabelPolicy> relabel;
 		Push<TGraphData, typename TPolicy::PushPolicy> push;
 		while(!done) {
 			timer.start();
 			//CUGIP_DPRINT("Relabel");
 			aTraceObject.beginIteration(iteration);
-			relabel.compute(aGraph, aVertexQueue, aLevelStarts);
+			relabel.compute(aGraph, aVertexQueue, aLevelStarts, typename TPolicy::RelabelPolicy());
 			//return 0.0f;
 			aTraceObject.afterRelabel(iteration, aLevelStarts);
 			//return 0.0f;
