@@ -57,7 +57,7 @@ initBFSKernel(ParallelQueueView<int> aVertices, TGraph aGraph)
 	int label = TPolicy::INVALID_LABEL;
 	if (index < aGraph.vertexCount()) {
 			//printf("checking %d - %d\n", index, aGraph.vertexCount());
-		if (aGraph.sinkTLinkCapacity(index) > 0.0) {
+		if (aGraph.tLinkCapacity<TPolicy::cStartTLinkType>(index) > 0.0) {
 			label = 1;
 			//aVertices.append(index);
 			//printf("adding %d\n", index);
@@ -79,6 +79,8 @@ initBFSKernel(ParallelQueueView<int> aVertices, TGraph aGraph)
 	}
 }
 
+
+
 template<typename TGraph, typename TPolicy>
 CUGIP_DECL_DEVICE void
 propagateFromVertex(int vertex, ParallelQueueView<int> &aVertices, TGraph &aGraph, int aCurrentLevel, const TPolicy &aPolicy)
@@ -93,10 +95,9 @@ propagateFromVertex(int vertex, ParallelQueueView<int> &aVertices, TGraph &aGrap
 		int label = aGraph.label(secondVertex);
 
 		int connectionId = aGraph.connectionIndex(i);
-		bool connectionSide = !aGraph.connectionSide(i);
+		bool connectionSide = aGraph.connectionSide(i);
 		auto residuals = aGraph.residuals(connectionId);
-		auto residual = residuals.getResidual(connectionSide);
-		bool isOpen = label == TPolicy::INVALID_LABEL && residual > 0.0f;
+		bool isOpen = label == TPolicy::INVALID_LABEL && aPolicy.edgeTraversalCheck.invoke(connectionSide, residuals);
 		if (isOpen && (TPolicy::INVALID_LABEL == atomicCAS(&(aGraph.label(secondVertex)), TPolicy::INVALID_LABEL, aCurrentLevel))) {
 			aVertices.append(secondVertex);
 		}
@@ -124,10 +125,9 @@ propagateFromVertex2(int vertex, const int *aStartEnd, ParallelQueueView<int> &a
 		int label = aGraph.label(secondVertex);
 
 		int connectionId = aGraph.connectionIndex(i);
-		bool connectionSide = !aGraph.connectionSide(i);
+		bool connectionSide = aGraph.connectionSide(i);
 		auto residuals = aGraph.residuals(connectionId);
-		auto residual = residuals.getResidual(connectionSide);
-		bool isOpen = label == TPolicy::INVALID_LABEL && residual > 0.0f;
+		bool isOpen = label == TPolicy::INVALID_LABEL && aPolicy.edgeTraversalCheck.invoke(connectionSide, residuals);
 		if (isOpen && (TPolicy::INVALID_LABEL == atomicCAS(&(aGraph.label(secondVertex)), TPolicy::INVALID_LABEL, aCurrentLevel))) {
 			aVertices.append(secondVertex);
 		}
@@ -485,12 +485,14 @@ struct TileProcessor
 		TGraph &aGraph,
 		ParallelQueueView<int> &aVertices,
 		int *aOffsetScratch,
-		int currentLevel
+		int currentLevel,
+		const TPolicy &aPolicy
 	)
 		: mGraph(aGraph)
 		, mVertices(aVertices)
 		, offsetScratch(aOffsetScratch)
 		, mCurrentLevel(currentLevel)
+		, mPolicy(aPolicy)
 	{
 		//assert(false && "offsetScratch not initialized");
 	}
@@ -581,10 +583,9 @@ struct TileProcessor
 		int connectionId = mGraph.connectionIndex(offsetScratch[scratchIndex]);
 		//int connectionId = mGraph.connectionIndex(neighborId);
 		//if (connectionId < 0 || connectionId >= mGraph.mEdgeCount) {printf("before residuals %d %d - %d\n", connectionId, neighborId, label); }
-		bool connectionSide = !mGraph.connectionSide(offsetScratch[scratchIndex]);
+		bool connectionSide = mGraph.connectionSide(offsetScratch[scratchIndex]);
 		auto residuals = mGraph.residuals(connectionId);
-		auto residual = residuals.getResidual(connectionSide);
-		bool isClosed = label != TPolicy::INVALID_LABEL || residual <= 0.0f;
+		bool isClosed = label != TPolicy::INVALID_LABEL || !mPolicy.edgeTraversalCheck.invoke(connectionSide, residuals);
 		if (isClosed || (TPolicy::INVALID_LABEL != atomicCAS(&(mGraph.label(neighborId)), TPolicy::INVALID_LABEL, mCurrentLevel))) {
 			return -1;
 		}
@@ -607,6 +608,8 @@ struct TileProcessor
 			++scratchOffset;
 		}
 	}
+
+	const TPolicy &mPolicy;
 };
 
 template<typename TGraph, typename TPolicy>
@@ -629,7 +632,7 @@ struct SweepPass
 			return;
 		}
 
-		TileProcessor<TGraph, TPolicy> tileProcessor(aGraph, aVertices, sharedMemoryData.offsetScratch, aCurrentLevel);
+		TileProcessor<TGraph, TPolicy> tileProcessor(aGraph, aVertices, sharedMemoryData.offsetScratch, aCurrentLevel, mPolicy);
 		//tileProcessor.incomming = sharedMemoryData.incomming;
 		while (workLimits.offset < workLimits.guardedOffset) {
 			tileProcessor.processTile(

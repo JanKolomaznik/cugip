@@ -207,8 +207,10 @@ Graph<TFlow>::set_vertex_count(int aCount)
 
 	mGraphData.vertexExcess = thrust::raw_pointer_cast(&mExcess[0]); // n
 	mGraphData.labels = thrust::raw_pointer_cast(&mLabels[0]);; // n
-	mGraphData.mSourceTLinks = thrust::raw_pointer_cast(&mSourceTLinks[0]);// n
-	mGraphData.mSinkTLinks = thrust::raw_pointer_cast(&mSinkTLinks[0]);// n
+	//mGraphData.mSourceTLinks = thrust::raw_pointer_cast(&mSourceTLinks[0]);// n
+	//mGraphData.mSinkTLinks = thrust::raw_pointer_cast(&mSinkTLinks[0]);// n
+	mGraphData.mTLinks[int(TLinkType::Source)] = thrust::raw_pointer_cast(&mSourceTLinks[0]);// n
+	mGraphData.mTLinks[int(TLinkType::Sink)] = thrust::raw_pointer_cast(&mSinkTLinks[0]);// n
 	mGraphData.mVertexCount = aCount;
 
 	mVertexQueue.reserve(aCount);

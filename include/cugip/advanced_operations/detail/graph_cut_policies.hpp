@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cugip/advanced_operations/detail/edge_record.hpp>
+
 namespace cugip {
 
 enum class RelabelImplementation {
@@ -13,11 +15,21 @@ enum class PreflowInitialization {
 	Push
 };
 
-template<int tThreadCount = 512, int tGranularity = 64>
+enum class TLinkType: int {
+	Source = 0,
+	Sink = 1
+};
+
+template<
+	int tThreadCount = 512,
+	int tGranularity = 64,
+	typename TEdgeCheck = EdgeReverseTraversable,
+	TLinkType tStartTLinkType = TLinkType::Sink>
 struct RelabelPolicy {
 	//static constexpr RelabelImplementation cRelabelImplementation = RelabelImplementation::Naive;
 	static constexpr RelabelImplementation cRelabelImplementation = RelabelImplementation::OptimizedNaive;
 	//static constexpr RelabelImplementation cRelabelImplementation = RelabelImplementation::Default;
+	static constexpr TLinkType cStartTLinkType = tStartTLinkType;
 	enum {
 		INVALID_LABEL = 1 << 31,
 		THREADS = tThreadCount,
@@ -32,6 +44,8 @@ struct RelabelPolicy {
 		int offsetScratch[SCRATCH_ELEMENTS];
 		//int incomming[SCRATCH_ELEMENTS];
 	};
+
+	TEdgeCheck edgeTraversalCheck;
 };
 
 struct PushPolicy {
@@ -43,8 +57,9 @@ struct PushPolicy {
 struct GraphCutPolicy
 {
 	static constexpr PreflowInitialization cPreflowInitialization = PreflowInitialization::Default;
+	//static constexpr PreflowInitialization cPreflowInitialization = PreflowInitialization::Push;
 
-	typedef RelabelPolicy<512, 64> RelabelPolicy;
+	typedef RelabelPolicy<512, 64, EdgeReverseTraversable> RelabelPolicy;
 	typedef PushPolicy PushPolicy;
 };
 

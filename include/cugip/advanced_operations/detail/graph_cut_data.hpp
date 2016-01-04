@@ -1,30 +1,9 @@
 #pragma once
 
+#include <cugip/advanced_operations/detail/edge_record.hpp>
+#include <cugip/advanced_operations/detail/graph_cut_policies.hpp>
 
 namespace cugip {
-
-enum {
-	CONNECTION_VERTEX = 1 << 31,
-	CONNECTION_INDEX_MASK = ~CONNECTION_VERTEX
-};
-
-template<typename TFlow>
-struct EdgeResidualsRecord
-{
-	CUGIP_DECL_HYBRID
-	EdgeResidualsRecord( TFlow aWeight = 0.0f )
-	{
-		residuals[0] = residuals[1] = aWeight;
-	}
-
-	CUGIP_DECL_HYBRID float &
-	getResidual( bool aFirst )
-	{
-		return aFirst ? residuals[0] : residuals[1];
-	}
-	TFlow residuals[2];
-};
-
 
 __device__ __inline__ int32_t ld_gbl_cg(const int32_t *addr) {
   int return_value;
@@ -104,14 +83,24 @@ struct GraphCutData
 	sourceTLinkCapacity(int aIndex) const
 	{
 		//if (aIndex < 0) printf("sourceTLinkCapacity()\n");
-		return mSourceTLinks[aIndex];
+		//return mSourceTLinks[aIndex];
+		return tLinkCapacity<TLinkType::Source>(aIndex);
 	}
 
 	CUGIP_DECL_DEVICE TFlow
 	sinkTLinkCapacity(int aIndex) const
 	{
 		//if (aIndex < 0) printf("sinkTLinkCapacity()\n");
-		return mSinkTLinks[aIndex];
+		//return mSinkTLinks[aIndex];
+		return tLinkCapacity<TLinkType::Sink>(aIndex);
+	}
+
+	template<TLinkType tTLinkType>
+	CUGIP_DECL_DEVICE TFlow
+	tLinkCapacity(int aIndex) const
+	{
+		//if (aIndex < 0) printf("sourceTLinkCapacity()\n");
+		return mTLinks[int(tTLinkType)][aIndex];
 	}
 
 	CUGIP_DECL_DEVICE EdgeResidualsRecord<TFlow> &
@@ -137,8 +126,10 @@ struct GraphCutData
 	int *labels; // n
 	int *neighbors; // n
 
-	TFlow *mSourceTLinks; // n
-	TFlow *mSinkTLinks; // n
+	//TFlow *mSourceTLinks; // n
+	//TFlow *mSinkTLinks; // n
+
+	TFlow *mTLinks[2]; //n
 
 	int *secondVertices; // 2 * m
 	int *connectionIndices; // 2 * m

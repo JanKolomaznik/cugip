@@ -46,8 +46,10 @@ graphCutDataFromGraph(
 {
 		aGraphData.vertexExcess = thrust::raw_pointer_cast(aGraph.mExcess.data()); // n
 		aGraphData.labels = thrust::raw_pointer_cast(aGraph.mLabels.data());; // n
-		aGraphData.mSourceTLinks = thrust::raw_pointer_cast(aGraph.mSourceTLinks.data());// n
-		aGraphData.mSinkTLinks = thrust::raw_pointer_cast(aGraph.mSinkTLinks.data());// n
+		//aGraphData.mSourceTLinks = thrust::raw_pointer_cast(aGraph.mSourceTLinks.data());// n
+		//aGraphData.mSinkTLinks = thrust::raw_pointer_cast(aGraph.mSinkTLinks.data());// n
+		aGraphData.mTLinks[int(TLinkType::Source)] = thrust::raw_pointer_cast(aGraph.mSourceTLinks.data());// n
+		aGraphData.mTLinks[int(TLinkType::Sink)] = thrust::raw_pointer_cast(aGraph.mSinkTLinks.data());// n
 
 		aGraphData.neighbors = thrust::raw_pointer_cast(aGraph.mNeighbors.data());
 		aGraphData.secondVertices = thrust::raw_pointer_cast(aGraph.mSecondVertices.data());
@@ -105,9 +107,12 @@ struct MinCut
 			CUGIP_CHECK_ERROR_STATE("After pushThroughTLinksFromSourceKernel");
 			CUGIP_CHECK_RESULT(cudaThreadSynchronize());
 
-			Relabel<TGraphData, typename TPolicy::RelabelPolicy<512, 64>> relabel;
-			Push<TGraphData, typename TPolicy::PushPolicy> push;
-			relabel.compute(aGraph, aVertexQueue, aLevelStarts);
+			typedef RelabelPolicy<512, 64, EdgeForwardTraversable, TLinkType::Source> PreflowRelabelPolicy;
+			typedef PushPolicy PreflowPushPolicy;
+
+			Relabel<TGraphData, PreflowRelabelPolicy> relabel;
+			Push<TGraphData, PreflowPushPolicy> push;
+			relabel.compute(aGraph, aVertexQueue, aLevelStarts, PreflowRelabelPolicy());
 			push.compute(aGraph, aVertexQueue, aLevelStarts);
 		}
 	};
@@ -235,8 +240,10 @@ public:
 		graphCutDataFromGraph(aGraph, mGraphData);
 		mGraphData.vertexExcess = thrust::raw_pointer_cast(aGraph.mExcess.data()); // n
 		mGraphData.labels = thrust::raw_pointer_cast(aGraph.mLabels.data());; // n
-		mGraphData.mSourceTLinks = thrust::raw_pointer_cast(aGraph.mSourceTLinks.data());// n
-		mGraphData.mSinkTLinks = thrust::raw_pointer_cast(aGraph.mSinkTLinks.data());// n
+		//mGraphData.mSourceTLinks = thrust::raw_pointer_cast(aGraph.mSourceTLinks.data());// n
+		//mGraphData.mSinkTLinks = thrust::raw_pointer_cast(aGraph.mSinkTLinks.data());// n
+		mGraphData.mTLinks[int(TLinkType::Source)] = thrust::raw_pointer_cast(aGraph.mSourceTLinks.data());// n
+		mGraphData.mTLinks[int(TLinkType::Sink)] = thrust::raw_pointer_cast(aGraph.mSinkTLinks.data());// n
 
 		mGraphData.neighbors = thrust::raw_pointer_cast(aGraph.mNeighbors.data());
 		mGraphData.secondVertices = thrust::raw_pointer_cast(aGraph.mSecondVertices.data());
