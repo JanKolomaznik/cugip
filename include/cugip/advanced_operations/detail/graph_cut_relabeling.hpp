@@ -683,6 +683,23 @@ bfsPropagationSingleIterationKernel(
 			aCurrentLevel);
 }
 
+template<typename TGraph, typename TSweepOperator, typename TWorkDistribution>
+CUGIP_GLOBAL void
+bfsPropagationSingleIterationKernel2(
+		ParallelQueueView<int> aVertices,
+		TWorkDistribution aWorkDistribution,
+		TGraph aGraph,
+		int aCurrentLevel,
+		TSweepOperator aSweepOperator
+	)
+{
+	aSweepOperator.invoke(
+			aGraph,
+			aVertices,
+			aWorkDistribution,
+			aCurrentLevel);
+}
+
 template<typename TGraph, typename TSweepOperator, typename TWorkDistribution, typename TPolicy>
 CUGIP_GLOBAL void
 bfsPropagationMultiIterationKernel(
@@ -746,6 +763,7 @@ bfsPropagationKernel_b40c_multi(
 	} while (m < TPolicy::MULTI_LEVEL_COUNT_LIMIT && aCount <= TPolicy::MULTI_LEVEL_LIMIT && aCount > 0);//(false);
 }*/
 
+/*
 #if __CUDA_ARCH__ >= 350
 template<typename TGraph, typename TPolicy>
 CUGIP_GLOBAL void
@@ -780,8 +798,99 @@ bfsPropagationKernel_b40c_dynamic(
 		++aCurrentLevel;
 		++m;
 	} while (m < TPolicy::MULTI_LEVEL_COUNT_LIMIT && aCount > 0);
+}*/
+
+template<typename TGraphData, typename TPolicy>
+CUGIP_GLOBAL void
+relabel_compute_dynamic(
+		TGraphData aGraph,
+		ParallelQueueView<int> aVertexQueue,
+		ParallelQueueView<int> aLevelStarts,
+		TPolicy aPolicy)
+
+		/*ParallelQueueView<int> aVertices,
+		int aStart,
+		int aCount,
+		ParallelQueueView<int> aLevelStarts,
+		TGraph aGraph,
+		int aCurrentLevel,
+		TPolicy aPolicy)*/
+{
+	#if __CUDA_ARCH__ >= 350
+
+	if (threadIdx.x == 0) {
+		typedef NaiveWorkDistribution JobDistribution;
+		NaiveSweepPass<TGraphData, TPolicy> sweepPass{aPolicy};
+
+		aLevelStarts.clear_device();
+		aLevelStarts.push_back(0);
+		aLevelStarts.push_back(aVertexQueue.size());
+
+		bool finished = false;
+		int currentLevel = 1;
+		while (!finished && currentLevel < aPolicy.maxLevels()) {
+			int frontierSize = aLevelStarts[currentLevel] - aLevelStarts[currentLevel - 1];
+
+			dim3 blockSize1D(TPolicy::THREADS, 1, 1);
+			dim3 levelGridSize1D(1 + (frontierSize - 1) / (blockSize1D.x), 1, 1);
+
+			bfsPropagationSingleIterationKernel2<TGraphData, NaiveSweepPass<TGraphData, TPolicy>, JobDistribution><<<levelGridSize1D, blockSize1D>>>(
+				aVertexQueue,
+				JobDistribution(aLevelStarts[currentLevel - 1], frontierSize, levelGridSize1D.x),
+				aGraph,
+				currentLevel + 1,
+				sweepPass
+			);
+			/*bfsPropagationSingleIterationKernel<TGraphData, NaiveSweepPass<TGraphData, TPolicy>, JobDistribution><<<levelGridSize1D, blockSize1D>>>(
+				aVertexQueue,
+				JobDistribution(aLevelStarts[currentLevel - 1], frontierSize, levelGridSize1D.x),
+				aGraph,
+				currentLevel + 1,
+				sweepPass);*/
+			//CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+			++currentLevel;
+
+
+			int lastLevelSize = aVertexQueue.size();
+			if (lastLevelSize == aLevelStarts.back()) {
+				break;
+			}
+			aLevelStarts.push_back(lastLevelSize);
+			//finished = ComputationStep<RelabelImplementation::Naive, true>::compute(*this, aGraph, currentLevel, aLevelStarts, aVertexQueue);
+			//finished = ComputationStep<TPolicy::cRelabelImplementation, true>::compute(*this, aGraph, currentLevel, aLevelStarts, aVertexQueue, aPolicy);
+			//finished = computation_step(aGraph, currentLevel, aLevelStarts, aVertexQueue);
+			//CUGIP_DPRINT("Level = " << currentLevel << "; " << aVertexQueue.size());
+		}
+		//TODO - return value
+		/*#else
+			static_assert(false, "Compute capability 3.5 needed.");
+		#endif  // __CUDA_ARCH__ >= 350*/
+		/*int m = 0;
+		do {
+			if (threadIdx.x == 0) {
+				dim3 blockSize1D(TPolicy::THREADS, 1, 1);
+				dim3 levelGridSize1D(1 + (aCount - 1) / (blockSize1D.x), 1, 1);
+				bfsPropagationKernel_b40c<TGraphData, TPolicy><<<levelGridSize1D, blockSize1D>>>(
+					aVertices,
+					WorkDistribution<TPolicy::SCHEDULE_GRANULARITY>(aStart, aCount, gridDim.x),
+					aGraph,
+					aCurrentLevel);
+				cudaDeviceSynchronize();
+
+				int size = aVertices.device_size();
+				aStart += aCount;
+				aCount = size - aStart;
+				aLevelStarts.append(size);
+			}
+			__syncthreads();
+			++aCurrentLevel;
+			++m;
+		} while (m < TPolicy::MULTI_LEVEL_COUNT_LIMIT && aCount > 0);*/
+		}
+	#else
+		assert(false && "__CUDA_ARCH__ not specified");
+	#endif  // __CUDA_ARCH__ >= 350
 }
-#endif  // __CUDA_ARCH__ >= 350
 
 
 template<typename TGraphData, typename TPolicy>
@@ -843,7 +952,6 @@ struct Relabel
 			}
 		}
 	};
-
 	void
 	compute(
 		TGraphData &aGraph,
@@ -851,14 +959,8 @@ struct Relabel
 		std::vector<int> &aLevelStarts,
 		const TPolicy &aPolicy)
 	{
-		dim3 blockSize1D(TPolicy::THREADS, 1, 1);
-		dim3 gridSize1D((aGraph.vertexCount() + blockSize1D.x - 1) / (blockSize1D.x), 1);
+		init_bfs(aGraph, aVertexQueue);
 
-		aVertexQueue.clear();
-		initBFSKernel<TGraphData, TPolicy><<<gridSize1D, blockSize1D>>>(aVertexQueue, aGraph);
-
-		CUGIP_CHECK_RESULT(cudaThreadSynchronize());
-		CUGIP_CHECK_ERROR_STATE("After initBFSKernel()");
 		int lastLevelSize = aVertexQueue.size();
 		//CUGIP_DPRINT("Level 1 size: " << lastLevelSize);
 		aLevelStarts.clear();
@@ -868,7 +970,7 @@ struct Relabel
 		bool finished = lastLevelSize == 0;
 
 		//cudaProfilerStart();
-		while (!finished /*&& currentLevel < 8*/) {
+		while (!finished && currentLevel < aPolicy.maxLevels()) {
 
 			//finished = ComputationStep<RelabelImplementation::Naive, true>::compute(*this, aGraph, currentLevel, aLevelStarts, aVertexQueue);
 			finished = ComputationStep<TPolicy::cRelabelImplementation, true>::compute(*this, aGraph, currentLevel, aLevelStarts, aVertexQueue, aPolicy);
@@ -879,98 +981,58 @@ struct Relabel
 		CUGIP_CHECK_RESULT(cudaThreadSynchronize());
 
 		//cudaProfilerStop();
-		/*thrust::device_vector<int> dev_tmp(
-					thrust::device_ptr<int>(aVertexQueue.mData),
-					thrust::device_ptr<int>(aVertexQueue.mData + aLevelStarts.back()));
-		thrust::host_vector<int> tmp = dev_tmp;
-		thrust::host_vector<float> excesses(aGraph.vertexCount());
-		thrust::copy(
-			thrust::device_ptr<float>(aGraph.vertexExcess),
-			thrust::device_ptr<float>(aGraph.vertexExcess + aGraph.vertexCount()),
-			excesses.begin());
-		thrust::host_vector<int> labels(aGraph.vertexCount());
-		thrust::copy(
-			thrust::device_ptr<int>(aGraph.labels),
-			thrust::device_ptr<int>(aGraph.labels + aGraph.vertexCount()),
-			labels.begin());
-		int lower = 0;
-		for (int i = 0; i < aLevelStarts.size(); ++i) {
-			std::sort(tmp.begin() + lower, tmp.begin() + aLevelStarts[i]);
-			for (int j = lower; j < aLevelStarts[i]; ++j) {
-				std::cout << labels[tmp[j]] << "-" << tmp[j] << ((excesses[tmp[j]] > 0.0f) ? std::string("* ") : std::string("; "));
-			}
-			std::cout << std::endl << (i+1) << "  ------------------------------------" << std::endl;
-			lower = aLevelStarts[i];
-		}*/
-		/*thrust::copy(
-			)),
-			tmp.begin(),
-			tmp.end());*/
-		//CUGIP_DPRINT("Active vertex count = " << aLevelStarts.back());
-		//CUGIP_CHECK_ERROR_STATE("After assign_label_by_distance()");
 	}
-#if 0
-	static bool
-	bfs_iteration2(TGraphData &aGraph, int &aCurrentLevel, std::vector<int> &aLevelStarts, ParallelQueueView<int> &aVertexQueue, TPolicy &aPolicy)
+
+
+	void
+	compute_dynamic(
+		TGraphData &aGraph,
+		ParallelQueueView<int> &aVertexQueue,
+		std::vector<int> &aLevelStarts,
+		const TPolicy &aPolicy)
 	{
-		int level = aCurrentLevel;
-		dim3 blockSize1D(TPolicy::THREADS, 1, 1);
-		int frontierSize = aLevelStarts[aCurrentLevel] - aLevelStarts[aCurrentLevel - 1];
-		dim3 levelGridSize1D(1 + (frontierSize - 1) / (blockSize1D.x), 1, 1);
-		CUGIP_CHECK_ERROR_STATE("Before bfsPropagationKernel()");
-		/*if (frontierSize <= blockSize1D.x) {
-			mLevelStartsQueue.clear();
-			bfsPropagationKernel3<<<levelGridSize1D, blockSize1D>>>(
-				mVertexQueue.view(),
-				aLevelStarts[aCurrentLevel - 1],
-				frontierSize,
-				mGraphData,
-				aCurrentLevel + 1,
-				mLevelStartsQueue.view());
-			cudaThreadSynchronize();
-			CUGIP_CHECK_ERROR_STATE("After bfsPropagationKernel3)");
-			thrust::host_vector<int> starts;
-			mLevelStartsQueue.fill_host(starts);
-			int originalStart = aLevelStarts.back();
-			int lastStart = originalStart;
-			for (int i = 0; i < starts.size(); ++i) {
-				if (starts[i] == lastStart) {
-					lastStart = -1;
-				} else {
-					lastStart = starts[i];
-				}
-				aLevelStarts.push_back(starts[i]);
-			}
-			aCurrentLevel = aLevelStarts.size() - 1;
-			//CUGIP_DPRINT("Level bundle " << (level + 1) << "-" << (aCurrentLevel + 1) << " size: " << (originalStart - aLevelStarts.back()));
-			return (lastStart == originalStart) || (lastStart == -1);
-		} else*/ {
-			bfsPropagationKernel2<TGraphData, TPolicy><<<levelGridSize1D, blockSize1D>>>(
-				aVertexQueue,
-				aLevelStarts[aCurrentLevel - 1],
-				frontierSize,
-				aGraph,
-				aCurrentLevel + 1);
-			++aCurrentLevel;
-			cudaThreadSynchronize();
-			CUGIP_CHECK_ERROR_STATE("After bfsPropagationKernel2()");
-			int lastLevelSize = aVertexQueue.size();
-			//CUGIP_DPRINT("LastLevelSize " << lastLevelSize);
-			if (lastLevelSize == aLevelStarts.back()) {
-				return true;
-			}
-			//CUGIP_DPRINT("Level " << (aCurrentLevel + 1) << " size: " << (lastLevelSize - aLevelStarts.back()));
-			//if (currentLevel == 2) break;
-			aLevelStarts.push_back(lastLevelSize);
+		ParallelQueue<int> levelStarts;
+		levelStarts.reserve(2000);
+
+		dim3 blockSize1D(32, 1, 1);
+		dim3 levelGridSize1D(1, 1, 1);
+		relabel_compute_dynamic<TGraphData, TPolicy><<<levelGridSize1D, blockSize1D>>>(
+			aGraph,
+			aVertexQueue,
+			levelStarts.view(),
+			aPolicy);
+		CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+		CUGIP_DPRINT("relabel compute dynamic done");
+
+		/*init_bfs(aGraph, aVertexQueue);
+		int lastLevelSize = aVertexQueue.size();
+		//CUGIP_DPRINT("Level 1 size: " << lastLevelSize);
+		aLevelStarts.clear();
+		aLevelStarts.push_back(0);
+		aLevelStarts.push_back(lastLevelSize);
+		int currentLevel = 1;
+		bool finished = lastLevelSize == 0;
+
+		//cudaProfilerStart();
+		while (!finished && currentLevel < aPolicy.maxLevels()) {
+
+			//finished = ComputationStep<RelabelImplementation::Naive, true>::compute(*this, aGraph, currentLevel, aLevelStarts, aVertexQueue);
+			finished = ComputationStep<TPolicy::cRelabelImplementation, true>::compute(*this, aGraph, currentLevel, aLevelStarts, aVertexQueue, aPolicy);
+			//finished = computation_step(aGraph, currentLevel, aLevelStarts, aVertexQueue);
+			//CUGIP_DPRINT("Level = " << currentLevel << "; " << aVertexQueue.size());
 		}
+		*/
 
-		return false;
+		//cudaProfilerStop();
 	}
-#endif
 
-#if __CUDA_ARCH__ >= 350
-	bool
-	bfs_multi_iteration_dynamic(TGraphData &aGraph, int &aCurrentLevel, std::vector<int> &aLevelStarts, ParallelQueueView<int> &aVertexQueue, TPolicy &aPolicy)
+	/*bool
+	bfs_multi_iteration_dynamic(
+		TGraphData &aGraph,
+		int &aCurrentLevel,
+		std::vector<int> &aLevelStarts,
+		ParallelQueueView<int> &aVertexQueue,
+		TPolicy &aPolicy)
 	{
 		mLevelStartsQueue.reserve(TPolicy::MULTI_LEVEL_COUNT_LIMIT);
 		dim3 blockSize1D(32, 1, 1);
@@ -1003,9 +1065,22 @@ struct Relabel
 		aCurrentLevel = aLevelStarts.size() - 1;
 		//CUGIP_DPRINT("Level bundle " << (level + 1) << "-" << (aCurrentLevel + 1) << " size: " << (originalStart - aLevelStarts.back()));
 		return (lastStart == originalStart) || (lastStart == -1);
-	}
-#endif  // __CUDA_ARCH__ >= 350
+	}*/
 
+	void
+	init_bfs(
+		TGraphData &aGraph,
+		ParallelQueueView<int> &aVertexQueue)
+	{
+		dim3 blockSize1D(TPolicy::THREADS, 1, 1);
+		dim3 gridSize1D((aGraph.vertexCount() + blockSize1D.x - 1) / (blockSize1D.x), 1);
+
+		aVertexQueue.clear();
+		initBFSKernel<TGraphData, TPolicy><<<gridSize1D, blockSize1D>>>(aVertexQueue, aGraph);
+
+		CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+		CUGIP_CHECK_ERROR_STATE("After initBFSKernel()");
+	}
 
 	template<typename TSweepOperator, typename TWorkDistribution>
 	bool

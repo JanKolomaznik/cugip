@@ -75,7 +75,7 @@ struct EdgeForwardTraversable
 	invoke(bool aConnectionSide, const TResiduals &aResiduals) const
 	{
 		auto residual = aResiduals.getResidual(aConnectionSide);
-		return residual > 0.1f;
+		return residual > 0.0f;
 	}
 };
 

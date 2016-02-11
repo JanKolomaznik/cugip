@@ -27,8 +27,8 @@ template<
 	TLinkType tStartTLinkType = TLinkType::Sink>
 struct RelabelPolicy {
 	//static constexpr RelabelImplementation cRelabelImplementation = RelabelImplementation::Naive;
-	static constexpr RelabelImplementation cRelabelImplementation = RelabelImplementation::OptimizedNaive;
-	//static constexpr RelabelImplementation cRelabelImplementation = RelabelImplementation::Default;
+	//static constexpr RelabelImplementation cRelabelImplementation = RelabelImplementation::OptimizedNaive;
+	static constexpr RelabelImplementation cRelabelImplementation = RelabelImplementation::Default;
 	static constexpr TLinkType cStartTLinkType = tStartTLinkType;
 	enum {
 		INVALID_LABEL = 1 << 31,
@@ -45,7 +45,18 @@ struct RelabelPolicy {
 		//int incomming[SCRATCH_ELEMENTS];
 	};
 
+	RelabelPolicy(int aMaxLevels = (1 << 30))
+		: maxAssignedLevels(aMaxLevels)
+	{}
+
+	CUGIP_DECL_HYBRID int
+	maxLevels() const
+	{
+		return maxAssignedLevels; //TODO
+	}
 	TEdgeCheck edgeTraversalCheck;
+
+	int maxAssignedLevels;
 };
 
 struct PushPolicy {

@@ -47,9 +47,9 @@ struct device_ptr : device_base_ptr<TType>
 	device_ptr(): device_base_ptr<TType>(0)
 	{ /*empty*/ }
 
-	CUGIP_DECL_HYBRID
+	/*CUGIP_DECL_HYBRID
 	device_ptr(const device_ptr &aArg): device_base_ptr<TType>(aArg.p)
-	{ /*empty*/ }
+	{ }*/
 
 	CUGIP_DECL_HYBRID
 	device_ptr(TType *aArg): device_base_ptr<TType>(aArg)

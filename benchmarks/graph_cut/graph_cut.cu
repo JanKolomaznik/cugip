@@ -171,6 +171,9 @@ struct TraceObject
 void
 computeCudaGraphCutImplementation(const cugip::GraphData<float> &aGraphData, cugip::host_image_view<uint8_t, 3> aOutput, uint8_t aMaskValue, CudacutConfig &aConfig)
 {
+	BOOST_LOG_TRIVIAL(info) << cugip::cudaMemoryInfoText();
+	BOOST_LOG_TRIVIAL(info) << cugip::cudaDeviceInfoText();
+
 	cugip::Graph<float> graph;
 	graph.set_vertex_count(aGraphData.tlinksSource.size());
 

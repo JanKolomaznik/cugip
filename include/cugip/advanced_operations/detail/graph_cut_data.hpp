@@ -52,7 +52,7 @@ struct GraphCutData
 	firstNeighborIndex(int aVertexId) const
 	{
 		//static_assert(sizeof(int) == 4, "Int is not 32bit");
-		//if (aVertexId < 0) printf("firstNeighborIndex()\n");
+		if (aVertexId < 0 || mVertexCount <= aVertexId) printf("firstNeighborIndex() %d\n", aVertexId);
 		//return __ldg(neighbors + aVertexId);
 		//return ld_gbl_cg(neighbors + aVertexId);
 		return neighbors[aVertexId];

@@ -147,7 +147,8 @@ struct MinCut
 			timer.start();
 			//CUGIP_DPRINT("Relabel");
 			aTraceObject.beginIteration(iteration);
-			relabel.compute(aGraph, aVertexQueue, aLevelStarts, typename TPolicy::RelabelPolicy());
+			//relabel.compute(aGraph, aVertexQueue, aLevelStarts, typename TPolicy::RelabelPolicy());
+			relabel.compute_dynamic(aGraph, aVertexQueue, aLevelStarts, typename TPolicy::RelabelPolicy());
 			//return 0.0f;
 			aTraceObject.afterRelabel(iteration, aLevelStarts);
 			//return 0.0f;
@@ -270,8 +271,10 @@ public:
 		CUGIP_ASSERT(mGraphData.labels != nullptr);
 		CUGIP_ASSERT(mGraphData.mResiduals != nullptr);
 		CUGIP_ASSERT(mGraphData.mSinkFlow != nullptr);
-		CUGIP_ASSERT(mGraphData.mSinkTLinks != nullptr);
-		CUGIP_ASSERT(mGraphData.mSourceTLinks != nullptr);
+		//CUGIP_ASSERT(mGraphData.mSinkTLinks != nullptr);
+		//CUGIP_ASSERT(mGraphData.mSourceTLinks != nullptr);
+		CUGIP_ASSERT(mGraphData.mTLinks[int(TLinkType::Source)] != nullptr);
+		CUGIP_ASSERT(mGraphData.mTLinks[int(TLinkType::Sink)] != nullptr);
 		CUGIP_ASSERT(mGraphData.neighbors != nullptr);
 		CUGIP_ASSERT(mGraphData.secondVertices != nullptr);
 		CUGIP_ASSERT(mGraphData.vertexExcess != nullptr);

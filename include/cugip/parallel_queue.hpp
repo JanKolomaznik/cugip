@@ -35,8 +35,24 @@ public:
 		return index;
 	}
 
-	CUGIP_DECL_HOST int
+	CUGIP_DECL_DEVICE int
+	push_back(const TType &aItem)
+	{
+		return append(aItem);
+	}
+
+	CUGIP_DECL_HYBRID int
 	size()
+	{
+		#if __CUDA_ARCH__
+			return device_size();
+		#else
+			return host_size();
+		#endif
+	}
+
+	CUGIP_DECL_HOST int
+	host_size()
 	{
 		cudaThreadSynchronize();
 		return mSize.retrieve_host();
@@ -52,6 +68,25 @@ public:
 	clear()
 	{
 		mSize.assign_host(0);
+	}
+
+	CUGIP_DECL_DEVICE void
+	clear_device()
+	{
+		mSize.assign_device(0);
+	}
+
+	CUGIP_DECL_DEVICE TType &
+	operator[](int aIndex)
+	{
+		return get_device(aIndex);
+	}
+
+	CUGIP_DECL_DEVICE TType &
+	back()
+	{
+		CUGIP_ASSERT(*mSize > 0);
+		return get_device((*mSize) - 1);
 	}
 
 
@@ -131,4 +166,3 @@ public:
 
 
 } // namespace cugip
-
