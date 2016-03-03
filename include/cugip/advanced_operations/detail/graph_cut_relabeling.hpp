@@ -188,11 +188,11 @@ struct NaiveSweepPass
 		int index = blockId * blockDim.x + threadIdx.x;
 
 			//__syncthreads();
-		//while (index < aWorkDistribution.count) {
-		while (blockId * blockDim.x/*index*/ < aWorkDistribution.count) {
+		while (index < aWorkDistribution.count) {
+		//while (blockId * blockDim.x/*index*/ < aWorkDistribution.count) {
 			if (index < aWorkDistribution.count) {
 				int vertex = aVertices.get_device(aWorkDistribution.start + index);
-				propagateFromVertex<TGraph, TPolicy>(vertex, aVertices, aGraph, aCurrentLevel, mPolicy);
+				propagateFromVertex2<TGraph, TPolicy>(vertex, aVertices, aGraph, aCurrentLevel, mPolicy);
 			}
 			//__syncthreads();
 			index += blockDim.x * gridDim.x;
