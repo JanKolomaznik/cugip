@@ -147,8 +147,8 @@ struct MinCut
 			timer.start();
 			//CUGIP_DPRINT("Relabel");
 			aTraceObject.beginIteration(iteration);
-			//relabel.compute(aGraph, aVertexQueue, aLevelStarts, typename TPolicy::RelabelPolicy());
-			relabel.compute_dynamic(aGraph, aVertexQueue, aLevelStarts, typename TPolicy::RelabelPolicy());
+			relabel.compute(aGraph, aVertexQueue, aLevelStarts, typename TPolicy::RelabelPolicy());
+			//relabel.compute_dynamic(aGraph, aVertexQueue, aLevelStarts, typename TPolicy::RelabelPolicy());
 			//return 0.0f;
 			aTraceObject.afterRelabel(iteration, aLevelStarts);
 			//return 0.0f;

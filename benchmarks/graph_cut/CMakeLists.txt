@@ -138,7 +138,7 @@ add_custom_command(
 			--output-file "${CMAKE_CURRENT_BINARY_DIR}/graph_cut.o"
 			-ccbin /usr/bin/gcc-4.9
 			--generate-line-info
-			-Xcompiler -fPIC
+			-Xcompiler "-O3 -fPIC"
 			-DBOOST_RESULT_OF_USE_TR1
 			-DBOOST_ALL_DYN_LINK
 		MAIN_DEPENDENCY "${CMAKE_CURRENT_SOURCE_DIR}/graph_cut.cu"

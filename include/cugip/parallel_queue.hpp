@@ -155,6 +155,13 @@ public:
 		v.resize(s);
 		thrust::copy(mBuffer.begin(), mBuffer.begin() + s, v.begin());
 	}
+	void
+	fill_host(std::vector<TType> &v)
+	{
+		int s = size();
+		v.resize(s);
+		thrust::copy(mBuffer.begin(), mBuffer.begin() + s, v.data());
+	}
 
 //protected:
 	ParallelQueue(const ParallelQueue &);

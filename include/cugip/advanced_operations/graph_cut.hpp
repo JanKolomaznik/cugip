@@ -234,7 +234,7 @@ Graph<TFlow>::set_nweights(
 		edges.at(edge.first).push_back(std::make_pair(int(i), edge.second));
 		edges.at(edge.second).push_back(std::make_pair(int(i), edge.first));
 	}
-	thrust::host_vector<int> neighbors(mLabels.size());
+	thrust::host_vector<int> neighbors(mLabels.size() + 1);
 	thrust::host_vector<int> secondVertices(2 * aEdgeCount);
 	thrust::host_vector<int> edgeIndex(2 * aEdgeCount);
 

@@ -307,6 +307,9 @@ struct Push
 		{
 			dim3 blockSize1D(512);
 			int count = aLevelEnd - aLevelStart;
+			if (count == 0) {
+				return;
+			}
 			CUGIP_ASSERT(count > 0);
 			/*if (count <= blockSize1D.x) {
 				starts.push_back(aLevelStarts[i]);
