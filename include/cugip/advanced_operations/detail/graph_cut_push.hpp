@@ -360,6 +360,9 @@ struct Push
 		//dim3 blockSize1D(512);
 		pushSuccessfulFlag.reset_host();
 		for (int i = aLevelStarts.size() - 1; i > 0; --i) {
+			/*if (aLevelStarts[i-1] == aLevelStarts[i]) {
+				continue;
+			}*/
 			PushIteration<TPolicy::PUSH_ITERATION_ALGORITHM>::compute(
 					aGraph,
 					aVertexQueue,

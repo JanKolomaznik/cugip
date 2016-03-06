@@ -149,6 +149,13 @@ public:
 	}
 
 	void
+	resize(int aSize)
+	{
+		device_ptr<int> size = mSizePointer.mData;
+		size.assign_host(aSize);
+	}
+
+	void
 	fill_host(thrust::host_vector<TType> &v)
 	{
 		int s = size();

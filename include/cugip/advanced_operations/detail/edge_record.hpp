@@ -59,13 +59,16 @@ struct EdgeResidualsRecord
 
 struct EdgeReverseTraversable
 {
+	EdgeReverseTraversable() : minimalResidual(0.0f) {}
+	
 	template<typename TResiduals>
 	CUGIP_DECL_DEVICE bool
 	invoke(bool aConnectionSide, const TResiduals &aResiduals) const
 	{
 		auto residual = aResiduals.getResidual(!aConnectionSide);
-		return residual > 0.0f;
+		return residual > minimalResidual;
 	}
+	float minimalResidual;
 };
 
 struct EdgeForwardTraversable

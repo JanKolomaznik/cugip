@@ -19,6 +19,7 @@
 #include "graph_cut_push.hpp"
 #include "graph_cut_relabeling.hpp"
 #include "graph_cut_policies.hpp"
+#include <cuda_profiler_api.h>
 
 //#define INVALID_LABEL (1 << 30)
 
@@ -141,16 +142,22 @@ struct MinCut
 		bool done = false;
 		int iteration = 0;
 		//float flow = -1.0f;
+		typename TPolicy::RelabelPolicy relabelPolicy;
+		//relabelPolicy.edgeTraversalCheck.minimalResidual = 0.7f;
 		Relabel<TGraphData, typename TPolicy::RelabelPolicy> relabel;
 		Push<TGraphData, typename TPolicy::PushPolicy> push;
 		while(!done) {
 			timer.start();
 			//CUGIP_DPRINT("Relabel");
 			aTraceObject.beginIteration(iteration);
-			relabel.compute(aGraph, aVertexQueue, aLevelStarts, typename TPolicy::RelabelPolicy());
+
+			//cudaProfilerStart();
+			relabel.compute(aGraph, aVertexQueue, aLevelStarts, relabelPolicy);
 			//relabel.compute_dynamic(aGraph, aVertexQueue, aLevelStarts, typename TPolicy::RelabelPolicy());
 			//return 0.0f;
 			aTraceObject.afterRelabel(iteration, aLevelStarts);
+
+			//cudaProfilerStop();
 			//return 0.0f;
 			//assign_label_by_distance();
 			/*for (int i = max<int>(0, aLevelStarts.size() - 40); i < aLevelStarts.size() - 1; ++i) {
@@ -178,7 +185,8 @@ struct MinCut
 			flow = flow2;*/
 			//CUGIP_DPRINT("**iteration " << iteration << ": " << timer.format(9, "%w"));
 			//CUGIP_DPRINT("Flow: " << computeFlowThroughSinkFrontier(aGraph));
-			//if (iteration == 35) break;
+			//if (iteration % 10 == 0)
+			//	relabelPolicy.edgeTraversalCheck.minimalResidual = 0.0f;
 			++iteration;
 		}
 		auto flow = computeFlowThroughSinkFrontier(aGraph);

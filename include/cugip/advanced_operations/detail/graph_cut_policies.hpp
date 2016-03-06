@@ -26,9 +26,9 @@ template<
 	typename TEdgeCheck = EdgeReverseTraversable,
 	TLinkType tStartTLinkType = TLinkType::Sink>
 struct RelabelPolicy {
-	//static constexpr RelabelImplementation cRelabelImplementation = RelabelImplementation::Naive;
+	static constexpr RelabelImplementation cRelabelImplementation = RelabelImplementation::Naive;
 	//static constexpr RelabelImplementation cRelabelImplementation = RelabelImplementation::OptimizedNaive;
-	static constexpr RelabelImplementation cRelabelImplementation = RelabelImplementation::Default;
+	//static constexpr RelabelImplementation cRelabelImplementation = RelabelImplementation::Default;
 	static constexpr TLinkType cStartTLinkType = tStartTLinkType;
 	enum {
 		INVALID_LABEL = 1 << 31,
