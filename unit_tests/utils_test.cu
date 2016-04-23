@@ -200,11 +200,15 @@ BOOST_AUTO_TEST_CASE(MooreNeighborhood3D)
 BOOST_AUTO_TEST_CASE(BlockedOrderAccessIndex)
 {
 	using namespace cugip;
-	BOOST_CHECK_EQUAL(0, get_blocked_order_access_index(Int3(5,5,5), Int3(0, 0, 0)));
-	BOOST_CHECK_EQUAL(7, get_blocked_order_access_index(Int3(5,5,5), Int3(1, 1, 1)));
-	BOOST_CHECK_EQUAL(57, get_blocked_order_access_index(Int3(5,5,5), Int3(1, 1, 3)));
-	BOOST_CHECK_EQUAL(8, get_blocked_order_access_index(Int3(5,5,5), Int3(2, 0, 0)));
-	BOOST_CHECK_EQUAL(28, get_blocked_order_access_index(Int3(5,5,5), Int3(2, 2, 0)));
-	BOOST_CHECK_EQUAL(78, get_blocked_order_access_index(Int3(5,5,5), Int3(2, 2, 2)));
-	BOOST_CHECK_EQUAL(124, get_blocked_order_access_index(Int3(5,5,5), Int3(4, 4, 4)));
+	BOOST_CHECK_EQUAL(0, get_blocked_order_access_index<2>(Int3(5,5,5), Int3(0, 0, 0)));
+	BOOST_CHECK_EQUAL(7, get_blocked_order_access_index<2>(Int3(5,5,5), Int3(1, 1, 1)));
+	BOOST_CHECK_EQUAL(57, get_blocked_order_access_index<2>(Int3(5,5,5), Int3(1, 1, 3)));
+	BOOST_CHECK_EQUAL(8, get_blocked_order_access_index<2>(Int3(5,5,5), Int3(2, 0, 0)));
+	BOOST_CHECK_EQUAL(28, get_blocked_order_access_index<2>(Int3(5,5,5), Int3(2, 2, 0)));
+	BOOST_CHECK_EQUAL(78, get_blocked_order_access_index<2>(Int3(5,5,5), Int3(2, 2, 2)));
+	BOOST_CHECK_EQUAL(124, get_blocked_order_access_index<2>(Int3(5,5,5), Int3(4, 4, 4)));
+
+	BOOST_CHECK_EQUAL(0, get_blocked_order_access_index<3>(Int3(5,5,5), Int3(0, 0, 0)));
+	BOOST_CHECK_EQUAL(26, get_blocked_order_access_index<3>(Int3(5,5,5), Int3(2, 2, 2)));
+	BOOST_CHECK_EQUAL(124, get_blocked_order_access_index<3>(Int3(5,5,5), Int3(4, 4, 4)));
 }

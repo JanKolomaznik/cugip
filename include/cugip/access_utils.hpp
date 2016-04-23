@@ -133,8 +133,7 @@ get_zorder_access_index(
 	return answer;
 }
 
-
-template<typename TExtents, typename TCoordinates>
+/*template<typename TExtents, typename TCoordinates>
 CUGIP_DECL_HYBRID int
 get_blocked_order_access_index(
 		TExtents aExtents,
@@ -157,6 +156,37 @@ get_blocked_order_access_index(
 
 	auto blockSize = min_per_element(Int3(2, 2, 2), aExtents - corner);
 	auto blockPos = aCoordinates - corner;
+	offset += blockPos[0] + blockPos[1] * blockSize[0] + blockPos[2] * blockSize[0] * blockSize[1];
+	return offset;
+}*/
+
+
+template<int tBlockSize, typename TExtents, typename TCoordinates>
+CUGIP_DECL_HYBRID int
+get_blocked_order_access_index(
+		TExtents aExtents,
+		TCoordinates aCoordinates)
+{
+	static_assert(dimension<TExtents>::value == 3, "TODO: 2 dimensions");
+	TCoordinates corner = tBlockSize * div(aCoordinates, tBlockSize);
+	int offset = aExtents[0] * aExtents[1] * corner[2];
+	/*int zMultiplier = 2;
+	if ((aExtents[2] % 2) && (aCoordinates[2] == (aExtents[2] - 1))) {
+		zMultiplier = 1;
+	}
+	offset += aExtents[0] * corner[1] * zMultiplier;
+
+	int yMultiplier = 2;
+	if ((aExtents[1] % 2) && (aCoordinates[1] == (aExtents[1] - 1))) {
+		yMultiplier = 1;
+	}
+	offset += corner[0] * zMultiplier * yMultiplier;*/
+
+	auto blockSize = min_per_element(Int3(tBlockSize, tBlockSize, tBlockSize), aExtents - corner);
+	auto blockPos = aCoordinates - corner;
+
+	offset += aExtents[0] * corner[1] * blockSize[2];
+	offset += corner[0] * blockSize[1] * blockSize[2];
 	offset += blockPos[0] + blockPos[1] * blockSize[0] + blockPos[2] * blockSize[0] * blockSize[1];
 	return offset;
 }

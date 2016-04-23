@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cugip/parallel_queue.hpp>
+#include <cub/grid/grid_barrier.cuh>
 
 namespace cugip {
 
@@ -232,10 +233,10 @@ pushImplementation(
 }*/
 
 
-template<typename TFlow>
+template<typename TGraph, typename TPolicy>
 CUGIP_GLOBAL void
 pushKernel(
-		GraphCutData<TFlow> aGraph,
+		TGraph aGraph,
 		ParallelQueueView<int> aVertices,
 		int aLevelStart,
 		int aLevelEnd,
@@ -251,11 +252,76 @@ pushKernel(
 	}
 }
 
+template<typename TGraph, typename TPolicy>
+CUGIP_GLOBAL void
+pushKernelMultiLevel(
+		TGraph aGraph,
+		ParallelQueueView<int> aVertices,
+		int *aLevelStarts,
+		int aLevelCount,
+		int aCurrentLevel,
+		device_ptr<int> aLastProcessedLevel,
+		device_flag_view aPushSuccessfulFlag)
+{
+	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
+	int levelStart = aLevelStarts[aCurrentLevel - 1];
+	int levelEnd = aLevelStarts[aCurrentLevel];
+	do {
+		int index = levelStart + blockId * blockDim.x + threadIdx.x;
+		while (index < levelEnd) {
+			pushImplementation(aGraph, aVertices, index, aCurrentLevel, aPushSuccessfulFlag);
+			index += blockDim.x * gridDim.x;
+		}
+		--aCurrentLevel;
+		levelStart = aLevelStarts[aCurrentLevel - 1];
+		levelEnd = aLevelStarts[aCurrentLevel];
+		__syncthreads();
+	} while (aCurrentLevel > 0 && (levelEnd - levelStart) <= TPolicy::MULTI_LEVEL_LIMIT);
+	if (threadIdx.x == 0) {
+		aLastProcessedLevel.assign_device(aCurrentLevel);
+	}
+}
 
-template<typename TFlow>
+template<typename TGraph, typename TPolicy>
+CUGIP_GLOBAL void
+pushKernelMultiLevelGlobalSync(
+		TGraph aGraph,
+		ParallelQueueView<int> aVertices,
+		int *aLevelStarts,
+		int aLevelCount,
+		int aCurrentLevel,
+		device_ptr<int> aLastProcessedLevel,
+		device_flag_view aPushSuccessfulFlag,
+		cub::GridBarrier barrier)
+{
+	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
+	int levelStart = aLevelStarts[aCurrentLevel - 1];
+	int levelEnd = aLevelStarts[aCurrentLevel];
+	do {
+		__syncthreads();
+		barrier.Sync();
+		int index = levelStart + blockId * blockDim.x + threadIdx.x;
+		while (index < levelEnd) {
+			pushImplementation(aGraph, aVertices, index, aCurrentLevel, aPushSuccessfulFlag);
+			index += blockDim.x * gridDim.x;
+		}
+		__syncthreads();
+		barrier.Sync();
+		--aCurrentLevel;
+		levelStart = aLevelStarts[aCurrentLevel - 1];
+		levelEnd = aLevelStarts[aCurrentLevel];
+		__syncthreads();
+	} while (aCurrentLevel > 0 && (levelEnd - levelStart) <= TPolicy::MULTI_LEVEL_GLOBAL_SYNC_LIMIT);
+	if (threadIdx.x == 0 && blockIdx.x == 0) {
+		aLastProcessedLevel.assign_device(aCurrentLevel);
+	}
+}
+
+
+template<typename TGraph>
 CUGIP_GLOBAL void
 pushKernel2(
-		GraphCutData<TFlow> aGraph,
+		TGraph aGraph,
 		ParallelQueueView<int> aVertices,
 		int *aLevelStarts,
 		int aLevelCount,
@@ -294,55 +360,101 @@ pushKernel2(
 template<typename TGraphData, typename TPolicy>
 struct Push
 {
+	Push()
+	{
+		lastProcessedLevel.reallocate(1);// = device_memory_1d_owner<int>(1);
+	}
+	/*template<int tImplementationId>
+	struct PushIteration2
+	{
+		static void compute(
+			TGraphData &aGraph,
+			ParallelQueueView<int> &aVertexQueue,
+			thrust::host_vector<int> &aLevels,
+			int &aCurrentLevel,
+			device_flag_view aPushSuccessfulFlag)
+		{
+			dim3 blockSize1D(TPolicy::THREADS);
+			int count = aLevels[aCurrentLevel] - aLevels[aCurrentLevel-1];
+			if (count == 0) {
+				return;
+			}
+			CUGIP_ASSERT(count > 0);
+			dim3 gridSize1D((count + blockSize1D.x - 1) / (blockSize1D.x), 1);
+			pushKernel<<<gridSize1D, blockSize1D>>>(
+					aGraph,
+					aVertexQueue,
+					aLevels[aCurrentLevel - 1],
+					aLevels[aCurrentLevel],
+					aCurrentLevel,
+					aPushSuccessfulFlag);
+			CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+			--aCurrentLevel;
+		}
+	};*/
 	template<int tImplementationId>
 	struct PushIteration
 	{
 		static void compute(
 			TGraphData &aGraph,
 			ParallelQueueView<int> &aVertexQueue,
-			int aLevelStart,
-			int aLevelEnd,
-			int aCurrentLevel,
+			thrust::host_vector<int> &aLevels,
+			thrust::device_vector<int> &aDeviceLevels,
+			int &aCurrentLevel,
+			device_ptr<int> lastProcessedLevel,
 			device_flag_view aPushSuccessfulFlag)
 		{
-			dim3 blockSize1D(512);
-			int count = aLevelEnd - aLevelStart;
+			dim3 blockSize1D(TPolicy::THREADS);
+			int count = aLevels[aCurrentLevel] - aLevels[aCurrentLevel-1];
+			//CUGIP_DFORMAT("AAA %1% - %2%", count, aCurrentLevel);
 			if (count == 0) {
 				return;
 			}
 			CUGIP_ASSERT(count > 0);
-			/*if (count <= blockSize1D.x) {
-				starts.push_back(aLevelStarts[i]);
-				while (i > 0 && (aLevelStarts[i] - aLevelStarts[i-1]) <= blockSize1D.x) {
-					starts.push_back(aLevelStarts[i-1]);
-					//CUGIP_DPRINT(i << " - " << aLevelStarts[i-1]);
-					--i;
-				}
-				++i;
-				//CUGIP_DPRINT("-------------------------------");
-				device_starts = starts;
-				dim3 gridSize1D(1);
-				pushKernel2<<<gridSize1D, blockSize1D>>>(
+			if (count <= TPolicy::MULTI_LEVEL_LIMIT) {
+				dim3 gridSize1D(1, 1, 1);
+				//CUGIP_DFORMAT("AAA %1% - %2% - %3%", count, aCurrentLevel, lastProcessedLevel.retrieve_host());
+				pushKernelMultiLevel<TGraphData, TPolicy><<<gridSize1D, blockSize1D>>>(
 						aGraph,
 						aVertexQueue,
-						thrust::raw_pointer_cast(device_starts.data()),
-						device_starts.size(),
-						pushSuccessfulFlag.view());
-
-			} else */{
-				//CUGIP_DFORMAT("level %1%", i-1);
-				dim3 gridSize1D((count + blockSize1D.x - 1) / (blockSize1D.x), 1);
-				pushKernel<<<gridSize1D, blockSize1D>>>(
-						aGraph,
-						aVertexQueue,
-						aLevelStart,
-						aLevelEnd,
+						thrust::raw_pointer_cast(aDeviceLevels.data()),
+						aDeviceLevels.size(),
 						aCurrentLevel,
+						lastProcessedLevel,
 						aPushSuccessfulFlag);
-			}
-			CUGIP_CHECK_RESULT(cudaThreadSynchronize());
-			//CUGIP_DPRINT("-------------------------------");
+				CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+				aCurrentLevel = lastProcessedLevel.retrieve_host();
+				//CUGIP_DFORMAT("AAA %1% - %2%", count, aCurrentLevel);
+			} else {
+				if (count < TPolicy::MULTI_LEVEL_GLOBAL_SYNC_LIMIT) {
+					dim3 gridSize1D(TPolicy::MULTI_LEVEL_GLOBAL_SYNC_BLOCK_COUNT, 1, 1);
 
+					cub::GridBarrierLifetime barrier;
+					barrier.Setup(gridSize1D.x);
+					pushKernelMultiLevelGlobalSync<TGraphData, TPolicy><<<gridSize1D, blockSize1D>>>(
+							aGraph,
+							aVertexQueue,
+							thrust::raw_pointer_cast(aDeviceLevels.data()),
+							aDeviceLevels.size(),
+							aCurrentLevel,
+							lastProcessedLevel,
+							aPushSuccessfulFlag,
+							barrier);
+					CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+					aCurrentLevel = lastProcessedLevel.retrieve_host();
+				} else {
+					dim3 gridSize1D((count + blockSize1D.x - 1) / (blockSize1D.x), 1);
+					pushKernel<TGraphData, TPolicy><<<gridSize1D, blockSize1D>>>(
+							aGraph,
+							aVertexQueue,
+							aLevels[aCurrentLevel - 1],
+							aLevels[aCurrentLevel],
+							aCurrentLevel,
+							aPushSuccessfulFlag);
+					CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+					--aCurrentLevel;
+				}
+			}
 		}
 	};
 
@@ -350,19 +462,42 @@ struct Push
 	compute(
 		TGraphData &aGraph,
 		ParallelQueueView<int> &aVertexQueue,
-		std::vector<int> &aLevelStarts)
+		thrust::host_vector<int> &aLevelStarts)
 	{
-		/*thrust::host_vector<int> starts;
-		starts.reserve(1000);
-		thrust::device_vector<int> device_starts;
-		device_starts.reserve(1000);*/
+		levelStarts = aLevelStarts;
+		pushSuccessfulFlag.reset_host();
+		int currentLevel = aLevelStarts.size() - 1;
+		while (currentLevel) {
+			PushIteration<TPolicy::PUSH_ITERATION_ALGORITHM>::compute(
+					aGraph,
+					aVertexQueue,
+					aLevelStarts,
+					levelStarts,
+					currentLevel,
+					lastProcessedLevel.mData,
+					pushSuccessfulFlag.view());
+		}
+		CUGIP_CHECK_ERROR_STATE("After push()");
+		return pushSuccessfulFlag.check_host();
+	}
+	/*bool
+	compute2(
+		TGraphData &aGraph,
+		ParallelQueueView<int> &aVertexQueue,
+		thrust::host_vector<int> &aLevelStarts)
+	{
+		//thrust::host_vector<int> starts;
+		//starts.reserve(1000);
+		//thrust::device_vector<int> device_starts;
+		//device_starts.reserve(1000);
 		//CUGIP_DPRINT("push()");
 		//dim3 blockSize1D(512);
 		pushSuccessfulFlag.reset_host();
+		int currentLevel = aLevelStarts.size() - 1;
 		for (int i = aLevelStarts.size() - 1; i > 0; --i) {
-			/*if (aLevelStarts[i-1] == aLevelStarts[i]) {
-				continue;
-			}*/
+			//if (aLevelStarts[i-1] == aLevelStarts[i]) {
+			//	continue;
+			//}
 			PushIteration<TPolicy::PUSH_ITERATION_ALGORITHM>::compute(
 					aGraph,
 					aVertexQueue,
@@ -373,8 +508,11 @@ struct Push
 		}
 		CUGIP_CHECK_ERROR_STATE("After push()");
 		return pushSuccessfulFlag.check_host();
-	}
+	}*/
 	device_flag pushSuccessfulFlag;
+	device_memory_1d_owner<int> lastProcessedLevel;
+
+	thrust::device_vector<int> levelStarts;
 };
 
 

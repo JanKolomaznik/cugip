@@ -33,7 +33,7 @@ struct DummyTraceObject
 	beginIteration(int aIteration) {}
 
 	void
-	afterRelabel(int aIteration, const std::vector<int> &aLevelStarts) {}
+	afterRelabel(int aIteration, const thrust::host_vector<int> &aLevelStarts) {}
 
 	template <typename TFlow>
 	void

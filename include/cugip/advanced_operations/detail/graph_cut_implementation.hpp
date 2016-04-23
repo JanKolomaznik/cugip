@@ -75,7 +75,7 @@ struct MinCut
 		compute(
 			TGraphData &aGraph,
 			ParallelQueueView<int> &aVertexQueue,
-			std::vector<int> &aLevelStarts)
+			thrust::host_vector<int> &aLevelStarts)
 		{
 			CUGIP_DPRINT("push_through_tlinks_from_source");
 
@@ -96,7 +96,7 @@ struct MinCut
 		compute(
 			TGraphData &aGraph,
 			ParallelQueueView<int> &aVertexQueue,
-			std::vector<int> &aLevelStarts)
+			thrust::host_vector<int> &aLevelStarts)
 		{
 			CUGIP_DPRINT("push_through_tlinks_from_source");
 
@@ -109,7 +109,7 @@ struct MinCut
 			CUGIP_CHECK_RESULT(cudaThreadSynchronize());
 
 			typedef RelabelPolicy<512, 64, EdgeForwardTraversable, TLinkType::Source> PreflowRelabelPolicy;
-			typedef PushPolicy PreflowPushPolicy;
+			typedef PushPolicy<512> PreflowPushPolicy;
 
 			Relabel<TGraphData, PreflowRelabelPolicy> relabel;
 			Push<TGraphData, PreflowPushPolicy> push;
@@ -123,7 +123,7 @@ struct MinCut
 	compute(
 		TGraphData &aGraph,
 		ParallelQueueView<int> &aVertexQueue,
-		std::vector<int> &aLevelStarts,
+		thrust::host_vector<int> &aLevelStarts,
 		TTraceObject &aTraceObject)
 	{
 		boost::timer::cpu_timer timer;
@@ -317,7 +317,7 @@ protected:
 	TGraph *mGraph;
 	GraphCutData<Flow> mGraphData;
 	ParallelQueue<int> mVertexQueue;
-	std::vector<int> mLevelStarts;
+	thrust::host_vector<int> mLevelStarts;
 };
 
 

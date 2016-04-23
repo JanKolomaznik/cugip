@@ -36,8 +36,11 @@ struct RelabelPolicy {
 		SCRATCH_ELEMENTS = THREADS,
 		TILE_SIZE = THREADS,
 		SCHEDULE_GRANULARITY = tGranularity,
-		MULTI_LEVEL_LIMIT = 1024,
+		MULTI_LEVEL_LIMIT = 4*THREADS,
 		MULTI_LEVEL_COUNT_LIMIT = 1000,
+
+		MULTI_LEVEL_GLOBAL_SYNC_BLOCK_COUNT =15,
+		MULTI_LEVEL_GLOBAL_SYNC_LIMIT = MULTI_LEVEL_GLOBAL_SYNC_BLOCK_COUNT * MULTI_LEVEL_LIMIT,
 	};
 	struct SharedMemoryData {
 		//cub::BlockScan<int, BLOCK_SIZE> temp_storage;
@@ -59,8 +62,17 @@ struct RelabelPolicy {
 	int maxAssignedLevels;
 };
 
+template<
+	int tThreadCount = 512>
 struct PushPolicy {
 	enum {
+		THREADS = tThreadCount,
+		MULTI_LEVEL_LIMIT = 4*THREADS,
+		MULTI_LEVEL_COUNT_LIMIT = 1000,
+
+		MULTI_LEVEL_GLOBAL_SYNC_BLOCK_COUNT = 15,
+		MULTI_LEVEL_GLOBAL_SYNC_LIMIT = MULTI_LEVEL_GLOBAL_SYNC_BLOCK_COUNT * MULTI_LEVEL_LIMIT,
+
 		PUSH_ITERATION_ALGORITHM = 0 //TODO - define constants for each variant
 	};
 };
@@ -71,7 +83,7 @@ struct GraphCutPolicy
 	//static constexpr PreflowInitialization cPreflowInitialization = PreflowInitialization::Push;
 
 	typedef RelabelPolicy<512, 64, EdgeReverseTraversable> RelabelPolicy;
-	typedef PushPolicy PushPolicy;
+	typedef PushPolicy<512> PushPolicy;
 };
 
 } // namespace cugip
