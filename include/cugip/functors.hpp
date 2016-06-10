@@ -201,6 +201,43 @@ struct SquareRootFunctor {
 	}
 };
 
+struct MinFunctor {
+	template<typename T>
+	CUGIP_DECL_HYBRID
+	T operator()(T value1, T value2) const
+	{
+		if (value1 < value2) {
+			return value1;
+		}
+		return value2;
+	}
+
+	template<typename T, int tDimension>
+	CUGIP_DECL_HYBRID
+	simple_vector<T, tDimension> operator()(const simple_vector<T, tDimension> &value1, const simple_vector<T, tDimension> &value2) const
+	{
+		return min_per_element(value1, value2);
+	}
+};
+
+struct MaxFunctor {
+	template<typename T>
+	CUGIP_DECL_HYBRID
+	T operator()(T value1, T value2) const
+	{
+		if (value1 < value2) {
+			return value2;
+		}
+		return value1;
+	}
+
+	template<typename T, int tDimension>
+	CUGIP_DECL_HYBRID
+	simple_vector<T, tDimension> operator()(const simple_vector<T, tDimension> &value1, const simple_vector<T, tDimension> &value2) const
+	{
+		return max_per_element(value1, value2);
+	}
+};
 
 /// Multiplies passed value by factor specified in constructor.
 /// Usable in device/host code.
@@ -237,10 +274,17 @@ struct AddValueFunctor {
 };
 
 struct SumValuesFunctor {
-	template<typename T1, typename T2>
+	template<typename T>
 	CUGIP_DECL_HYBRID
-	auto operator()(T1 value1, T2 value2) const -> decltype(std::declval<T1>() + std::declval<T2>()) {
-		return value1 + value2;
+	T operator()(T value) const
+	{
+		return value;
+	}
+
+	template<typename T1, typename ...TRest>
+	CUGIP_DECL_HYBRID
+	auto operator()(T1 value, TRest... values) const -> decltype(std::declval<T1>() + operator()(values...)) {
+		return value + operator()(values...);
 	}
 };
 
@@ -264,8 +308,8 @@ struct ChannelSumFunctor {
 /// Returns maximum of passed value and specified limit value
 /// Usable in device/host code.
 template<typename TType>
-struct MaxFunctor {
-	explicit MaxFunctor(TType limit) :
+struct LowerLimitFunctor {
+	explicit LowerLimitFunctor(TType limit) :
 		limit_(limit)
 	{}
 
@@ -280,8 +324,8 @@ struct MaxFunctor {
 /// Returns minumum of passed value and specified limit value
 /// Usable in device/host code.
 template<typename TType>
-struct MinFunctor {
-	explicit MinFunctor(TType limit) :
+struct UpperLimitFunctor {
+	explicit UpperLimitFunctor(TType limit) :
 		limit_(limit)
 	{}
 
@@ -297,8 +341,8 @@ struct MinFunctor {
 /// If passed value is smaller than the limit return replacement value
 /// Usable in device/host code.
 template<typename TType>
-struct LowerLimitFunctor {
-	LowerLimitFunctor(TType limit, TType replacement) :
+struct LowerLimitReplacementFunctor {
+	LowerLimitReplacementFunctor(TType limit, TType replacement) :
 		limit_(limit),
 		replacement_(replacement)
 	{}
@@ -315,8 +359,8 @@ struct LowerLimitFunctor {
 /// If passed value is bigger than the limit return replacement value
 /// Usable in device/host code.
 template<typename TType>
-struct UpperLimitFunctor {
-	UpperLimitFunctor(TType limit, TType replacement) :
+struct UpperLimitReplacementFunctor {
+	UpperLimitReplacementFunctor(TType limit, TType replacement) :
 		limit_(limit),
 		replacement_(replacement)
 	{}
@@ -443,6 +487,18 @@ struct ZipValues
 	{
 		return Tuple<TTypes...>(aArgs...);
 	}
+};
+
+template<int tChannel>
+struct GetChannel
+{
+	template<typename TValue>
+	CUGIP_DECL_HYBRID auto
+	operator()(TValue aArg) const -> typename std::decay<decltype(get<tChannel>(aArg))>::type
+	{
+		return get<tChannel>(aArg);
+	}
+
 };
 
 }//namespace cugip

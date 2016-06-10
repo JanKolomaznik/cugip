@@ -15,6 +15,8 @@ AutomatonView::AutomatonView(QWidget *parent)
 	mAutomatonCombo->addItem("Watersheds");
 	mAutomataWrappers.push_back(getWShedAutomaton2Wrapper());
 	mAutomatonCombo->addItem("Watersheds 2");
+	mAutomataWrappers.push_back(getReactionDiffusionWrapper());
+	mAutomatonCombo->addItem("Reaction-Diffusion");
 
 	mAutomatonCombo->setCurrentIndex(0);
 	QGraphicsScene *scene = new QGraphicsScene (this);
@@ -22,7 +24,6 @@ AutomatonView::AutomatonView(QWidget *parent)
 
 	mGraphicsItem = new QGraphicsPixmapItem();
 	scene->addItem(mGraphicsItem);
-
 }
 
 void AutomatonView::runIterations(int aIterationCount)

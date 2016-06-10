@@ -14,8 +14,13 @@ if(MSVC)
 	add_definitions(/MP)
 endif(MSVC)
 
+add_definitions(
+	-D_MWAITXINTRIN_H_INCLUDED
+	-D__STRICT_ANSI__)
+
 set(CUDA_HOST_COMPILER "/usr/bin/gcc-4.8")
-set(CUDA_NVCC_FLAGS "--std=c++11 -gencode arch=compute_20,code=sm_20 -gencode arch=compute_30,code=sm_30 --use_fast_math --generate-line-info")
+#set(CUDA_NVCC_FLAGS "--std=c++11 -gencode arch=compute_20,code=sm_20 -gencode arch=compute_30,code=sm_30 --use_fast_math --generate-line-info")
+set(CUDA_NVCC_FLAGS "-gencode arch=compute_20,code=sm_20 -gencode arch=compute_30,code=sm_30 --use_fast_math --generate-line-info")
 
 find_package(CUDA)
 

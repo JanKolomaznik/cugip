@@ -6,7 +6,7 @@
 #include <cugip/host_image.hpp>
 #include <cugip/copy.hpp>
 #include <cugip/tuple.hpp>
-
+#include <cugip/reduce.hpp>
 #include <thrust/device_vector.h>
 
 using namespace cugip;
@@ -259,7 +259,6 @@ struct ZipGradientAndLabel
 
 void WShedAutomatonWrapper::setStartImageView(const_host_image_view<const element_rgb8_t, 2> aView)
 {
-	mBuffer.resize(elementCount(aView) + 1);
 	CUGIP_CHECK_RESULT(cudaThreadSynchronize());
 	host_image<int, 2> hostGrayscale(aView.dimensions());
 	copy(unaryOperator(aView, ChannelSumFunctor()/*grayscale_ftor()*/), view(hostGrayscale));
@@ -275,16 +274,19 @@ void WShedAutomatonWrapper::setStartImageView(const_host_image_view<const elemen
 	auto localMinima = unaryOperatorOnLocator(const_view(deviceGradient), LocalMinimumLabel());
 
 	LocalMinimaEquivalenceGlobalState globalState;
+	mBuffer.resize(elementCount(aView) + 1);
 	globalState.manager = EquivalenceManager<int>(thrust::raw_pointer_cast(&mBuffer[0]), mBuffer.size());
 	globalState.mDeviceFlag = convergenceFlag.view();
-
+	globalState.manager.initialize();
 
 	mLocalMinimumAutomaton.initialize(nAryOperator(ZipGradientAndLabel(), const_view(deviceGradient), localMinima), globalState);
-	mLocalMinimumAutomaton.iterate(50);
+	mLocalMinimumAutomaton.iterate(500);
 
 	auto wshed = nAryOperator(InitWatershed(), const_view(deviceGradient), getDimension(mLocalMinimumAutomaton.getCurrentState(), IntValue<1>()));
 
-	ConvergenceFlag convergenceGlobalState{ convergenceFlag.view() };
+	//ConvergenceFlag convergenceGlobalState{ convergenceFlag.view() };
+	ConvergenceFlag convergenceGlobalState;
+	convergenceGlobalState.mDeviceFlag = convergenceFlag.view();
 	mAutomaton.initialize(wshed, convergenceGlobalState);
 }
 
@@ -323,6 +325,8 @@ public:
 
 	CellularAutomaton<Grid<Value, 2>, MooreNeighborhood<2>, Watershed2Rule, Watershed2EquivalenceGlobalState> mAutomaton;
 	thrust::device_vector<int> mBuffer;
+	device_flag convergenceFlag;
+	Watershed2EquivalenceGlobalState globalState;
 };
 
 
@@ -349,8 +353,10 @@ void WShedAutomaton2Wrapper::setStartImageView(const_host_image_view<const eleme
 	}
 	auto smallerNeighbor = unaryOperatorOnLocator(const_view(deviceGradient), HasSmallerNeighbor());
 
-	Watershed2EquivalenceGlobalState globalState;
-	globalState.manager = EquivalenceManager<int>(thrust::raw_pointer_cast(&mBuffer[0]), mBuffer.size());
+	//Watershed2EquivalenceGlobalState globalState;
+	globalState.manager = EquivalenceManager<int>(thrust::raw_pointer_cast(mBuffer.data()), mBuffer.size());
+	globalState.mDeviceFlag = convergenceFlag.view();
+	globalState.manager.initialize();
 
 	auto wshed = zipViews(const_view(deviceGradient), UniqueIdDeviceImageView<2>(aView.dimensions()), smallerNeighbor);
 	mAutomaton.initialize(wshed, globalState);
@@ -370,4 +376,86 @@ void WShedAutomaton2Wrapper::fillFromCurrentImage(host_image_view<element_rgb8_t
 std::unique_ptr<AAutomatonWrapper>
 getWShedAutomaton2Wrapper() {
 	return std::unique_ptr<AAutomatonWrapper>(new WShedAutomaton2Wrapper());
+}
+
+
+
+//******************************************************************************************
+
+class ReactionDiffusionWrapper: public AutomatonWrapper
+{
+public:
+	typedef vect2f_t Value;
+
+	void
+	runIterations(int aIterationCount) override;
+
+	virtual void
+	setStartImageView(const_host_image_view<const element_rgb8_t, 2> aView) override;
+
+	virtual void
+	fillFromCurrentImage(host_image_view<element_rgb8_t, 2> aView) override;
+
+	CellularAutomaton<Grid<Value, 2>, VonNeumannNeighborhood<2>, ReactionDiffusionRule> mAutomaton;
+};
+
+
+void
+ReactionDiffusionWrapper::runIterations(int aIterationCount)
+{
+	mAutomaton.iterate(aIterationCount);
+}
+
+struct ColorToReaction
+{
+	CUGIP_DECL_HYBRID
+	vect2f_t
+	operator()(element_rgb8_t value) const
+	{
+		return vect2f_t(value.data[0] / 255.0f, value.data[1] / 255.0f);
+	}
+};
+
+
+void ReactionDiffusionWrapper::setStartImageView(const_host_image_view<const element_rgb8_t, 2> aView)
+{
+	host_image<Value, 2> hostReaction(aView.dimensions());
+	copy(unaryOperator(aView, ColorToReaction()), view(hostReaction));
+	/*device_image<Value, 2> (aView.dimensions());
+	copy(const_view(hostGrayscale), view(deviceGradient));*/
+
+	//mAutomaton.initialize(unaryOperator(aView, ColorToReaction()));
+	mAutomaton.initialize(view(hostReaction));
+}
+
+struct ReactionToColor
+{
+	CUGIP_DECL_HYBRID
+	element_rgb8_t
+	operator()(vect2f_t value) const
+	{
+		value -= minVal;
+		value = div(value, (maxVal - minVal));
+		return element_rgb8_t{ uint8_t(255 * value[0]), 0, uint8_t(255 * value[1]) };
+	}
+	vect2f_t minVal;
+	vect2f_t maxVal;
+};
+
+void ReactionDiffusionWrapper::fillFromCurrentImage(host_image_view<element_rgb8_t, 2> aView)
+{
+	auto state = mAutomaton.getCurrentState();
+
+	auto maxVal = max(state);
+	auto minVal = min(state);
+	auto colorConverted = unaryOperator(state, ReactionToColor{minVal, maxVal});
+	device_image<element_rgb8_t, 2> deviceImage(state.dimensions());
+
+	copy(colorConverted, view(deviceImage));
+	copy(const_view(deviceImage), aView);
+}
+
+std::unique_ptr<AAutomatonWrapper>
+getReactionDiffusionWrapper() {
+	return std::unique_ptr<AAutomatonWrapper>(new ReactionDiffusionWrapper());
 }

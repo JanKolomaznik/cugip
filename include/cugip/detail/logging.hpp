@@ -21,10 +21,15 @@ void formatHelper(boost::format &aFormat, T &&aValue, TArgs &&...aArgs) {
 
 
 
+#ifndef NDEBUG
 #define CUGIP_DPRINT(...)\
 	do { \
 		CUGIP_DEBUG_LOGGER << __VA_ARGS__ << std::endl; \
 	} while (false);
+
+#else
+#define CUGIP_DPRINT(...)
+#endif //NDEBUG
 
 #define CUGIP_TPRINT(...)\
 	do { \
@@ -49,12 +54,18 @@ void formatHelper(boost::format &aFormat, T &&aValue, TArgs &&...aArgs) {
 			<< format << std::endl; \
 	} while (0)
 
+#ifndef NDEBUG
 /**
  * Logging with boost::format syntax.
  * CUGIP_DFORMAT("Format string arg1 = %1%; arg2 = %2%", 1, "two");
  **/
 #define CUGIP_DFORMAT(format_string, ...) \
 	CUGIP_LOG_FORMAT(CUGIP_DEBUG_LOGGER, format_string, __VA_ARGS__)
+	
+#else
+#define CUGIP_DFORMAT(...)
+#endif //NDEBUG
+
 
 #define CUGIP_TFORMAT(format_string, ...) \
 	CUGIP_LOG_FORMAT(CUGIP_TRACE_LOGGER, format_string, __VA_ARGS__)

@@ -38,11 +38,25 @@ template<typename TClassId>
 class EquivalenceManager
 {
 public:
-	EquivalenceManager(TClassId *aBuffer = nullptr, int aClassCount = 0)
+	explicit EquivalenceManager(TClassId *aBuffer = nullptr, int aClassCount = 0)
 		: mBuffer(aBuffer)
 		, mSize(aClassCount)
 	{
 		CUGIP_DFORMAT("EquivalenceManager buffer ptr: %p size: %d", uintptr_t(mBuffer), mSize);
+	}
+
+	CUGIP_DECL_HYBRID
+	EquivalenceManager(const EquivalenceManager &aOther)
+		: mBuffer(aOther.mBuffer)
+		, mSize(aOther.mSize)
+	{}
+
+	EquivalenceManager &
+	operator=(const EquivalenceManager &aOther)
+	{
+		mBuffer = aOther.mBuffer;
+		mSize = aOther.mSize;
+		return *this;
 	}
 
 	CUGIP_DECL_DEVICE
@@ -56,6 +70,10 @@ public:
 	void
 	merge(TClassId aFirst, TClassId aSecond)
 	{
+		CUGIP_ASSERT(mBuffer != nullptr);
+		CUGIP_ASSERT(mSize > 0);
+		CUGIP_ASSERT(aFirst < mSize);
+		CUGIP_ASSERT(aSecond < mSize);
 		TClassId minId = min(aFirst, aSecond);
 		TClassId maxId = max(aFirst, aSecond);
 		if (mBuffer[maxId] > minId) {

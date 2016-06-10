@@ -33,10 +33,10 @@ class IncompatibleViewSizes: public ExceptionBase {};
 	#define CUGIP_CHECK_RESULT_MSG( aErrorMessage, ... ) \
 	do {\
 		cudaError_t err = __VA_ARGS__ ;\
-		/*if( cudaSuccess != err ) {\
+		if( cudaSuccess != err ) {\
 			CUGIP_EFORMAT("%1% (%2%) %3%", aErrorMessage, cugip::get_error_enum_name(err), cudaGetErrorString(err)); \
 			CUGIP_THROW(ExceptionBase() << MessageErrorInfo(aErrorMessage) << CudaErrorCodeInfo(err));\
-		}*/\
+		}\
 	} while(0);
 
 	#define CUGIP_CHECK_RESULT( ... ) \

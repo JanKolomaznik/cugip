@@ -30,6 +30,9 @@ public slots:
 	openImage();
 
 	void
+	openImage(QString aPath);
+
+	void
 	toggleRun(bool aRun);
 
 	void

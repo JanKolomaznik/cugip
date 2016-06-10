@@ -5,6 +5,8 @@
 #include <cugip/tuple.hpp>
 #include <cugip/detail/view_declaration_utils.hpp>
 
+#include <cugip/image_locator.hpp>
+
 namespace cugip {
 
 template<int tDimension>
@@ -438,16 +440,16 @@ padView(
 /// View which allows mirror access to another view
 /// TODO(johny) - specialization for memory based views - only stride and pointer reordering
 template<typename TView, typename TOperator>
-class UnaryOperatorDeviceImageView
+class UnaryOperatorImageView
 	: public device_image_view_crtp<
 		dimension<TView>::value,
-		UnaryOperatorDeviceImageView<TView, TOperator>>
+		UnaryOperatorImageView<TView, TOperator>>
 {
 public:
 	typedef typename TView::extents_t extents_t;
 	typedef typename TView::coord_t coord_t;
 	typedef typename TView::diff_t diff_t;
-	typedef UnaryOperatorDeviceImageView<TView, TOperator> this_t;
+	typedef UnaryOperatorImageView<TView, TOperator> this_t;
 	typedef device_image_view_crtp<dimension<TView>::value, this_t> predecessor_type;
 	typedef typename TView::value_type Input;
 	typedef decltype(std::declval<TOperator>()(std::declval<Input>())) result_type;
@@ -455,7 +457,7 @@ public:
 	typedef const result_type const_value_type;
 	typedef result_type accessed_type;
 
-	UnaryOperatorDeviceImageView(TView view, TOperator unary_operator) :
+	UnaryOperatorImageView(TView view, TOperator unary_operator) :
 		predecessor_type(view.dimensions()),
 		mView(view),
 		mUnaryOperator(unary_operator)
@@ -472,75 +474,75 @@ protected:
 	TOperator mUnaryOperator;
 };
 
-//CUGIP_DECLARE_DEVICE_VIEW_TRAITS((UnaryOperatorDeviceImageView<TView, TOperator>), dimension<TView>::value, typename TView, typename TOperator);
-CUGIP_DECLARE_HYBRID_VIEW_TRAITS((UnaryOperatorDeviceImageView<TView, TOperator>), dimension<TView>::value, typename TView, typename TOperator);
+//CUGIP_DECLARE_DEVICE_VIEW_TRAITS((UnaryOperatorImageView<TView, TOperator>), dimension<TView>::value, typename TView, typename TOperator);
+CUGIP_DECLARE_HYBRID_VIEW_TRAITS((UnaryOperatorImageView<TView, TOperator>), dimension<TView>::value, typename TView, typename TOperator);
 
 /// Creates view which returns squared values from the original view
 template<typename TView>
-UnaryOperatorDeviceImageView<TView, SquareFunctor>
+UnaryOperatorImageView<TView, SquareFunctor>
 square(TView view) {
-	return UnaryOperatorDeviceImageView<TView, SquareFunctor>(view, SquareFunctor());
+	return UnaryOperatorImageView<TView, SquareFunctor>(view, SquareFunctor());
 }
 
 
 /// Creates view which returns square root of the values from the original view
 template<typename TView>
-UnaryOperatorDeviceImageView<TView, SquareRootFunctor>
+UnaryOperatorImageView<TView, SquareRootFunctor>
 squareRoot(TView view) {
-	return UnaryOperatorDeviceImageView<TView, SquareRootFunctor>(view, SquareRootFunctor());
+	return UnaryOperatorImageView<TView, SquareRootFunctor>(view, SquareRootFunctor());
 }
 
 
 /// Utility function to create multiplied view without the need to specify template parameters.
 template<typename TFactor, typename TView>
-UnaryOperatorDeviceImageView<TView, MultiplyByFactorFunctor<TFactor>>
+UnaryOperatorImageView<TView, MultiplyByFactorFunctor<TFactor>>
 multiplyByFactor(TFactor factor, TView view) {
-	return UnaryOperatorDeviceImageView<TView, MultiplyByFactorFunctor<TFactor>>(view, MultiplyByFactorFunctor<TFactor>(factor));
+	return UnaryOperatorImageView<TView, MultiplyByFactorFunctor<TFactor>>(view, MultiplyByFactorFunctor<TFactor>(factor));
 }
 
 /// Creates view returning values from the original view with value added.
 template<typename TType, typename TView>
-UnaryOperatorDeviceImageView<TView, AddValueFunctor<TType>>
+UnaryOperatorImageView<TView, AddValueFunctor<TType>>
 addValue(TType value, TView view) {
-	return UnaryOperatorDeviceImageView<TView, AddValueFunctor<TType>>(view, AddValueFunctor<TType>(value));
+	return UnaryOperatorImageView<TView, AddValueFunctor<TType>>(view, AddValueFunctor<TType>(value));
 }
 
 
 /// Returns view returning values from the original view with values lower then limit replaced by the limit
 template<typename TType, typename TView>
-UnaryOperatorDeviceImageView<TView, MaxFunctor<TType>>
+UnaryOperatorImageView<TView, LowerLimitFunctor<TType>>
 lowerLimit(TType limit, TView view) {
-	return UnaryOperatorDeviceImageView<TView, MaxFunctor<TType>>(view, MaxFunctor<TType>(limit));
+	return UnaryOperatorImageView<TView, LowerLimitFunctor<TType>>(view, LowerLimitFunctor<TType>(limit));
 }
 
 
 /// Returns view returning values from the original view with values lower then limit replaced by the specified replacement
 template<typename TType, typename TView>
-UnaryOperatorDeviceImageView<TView, LowerLimitFunctor<TType>>
+UnaryOperatorImageView<TView, LowerLimitReplacementFunctor<TType>>
 lowerLimit(TType limit, TType replacement, TView view) {
-	return UnaryOperatorDeviceImageView<TView, LowerLimitFunctor<TType>>(view, LowerLimitFunctor<TType>(limit, replacement));
+	return UnaryOperatorImageView<TView, LowerLimitReplacementFunctor<TType>>(view, LowerLimitReplacementFunctor<TType>(limit, replacement));
 }
 
 
 /// Returns view returning values from the original view with values bigger then limit replaced by the limit
 template<typename TType, typename TView>
-UnaryOperatorDeviceImageView<TView, MinFunctor<TType>>
+UnaryOperatorImageView<TView, UpperLimitFunctor<TType>>
 upperLimit(TType limit, TView view) {
-	return UnaryOperatorDeviceImageView<TView, MinFunctor<TType>>(view, MinFunctor<TType>(limit));
+	return UnaryOperatorImageView<TView, UpperLimitFunctor<TType>>(view, UpperLimitFunctor<TType>(limit));
 }
 
 
 /// Returns view returning values from the original view with values bigger then limit replaced by the specified replacement
 template<typename TType, typename TView>
-UnaryOperatorDeviceImageView<TView, UpperLimitFunctor<TType>>
+UnaryOperatorImageView<TView, UpperLimitReplacementFunctor<TType>>
 upperLimit(TType limit, TType replacement, TView view) {
-	return UnaryOperatorDeviceImageView<TView, UpperLimitFunctor<TType>>(view, UpperLimitFunctor<TType>(limit, replacement));
+	return UnaryOperatorImageView<TView, UpperLimitReplacementFunctor<TType>>(view, UpperLimitReplacementFunctor<TType>(limit, replacement));
 }
 
 template<typename TFunctor, typename TView>
-UnaryOperatorDeviceImageView<TView, TFunctor>
+UnaryOperatorImageView<TView, TFunctor>
 unaryOperator(TView view, TFunctor functor) {
-	return UnaryOperatorDeviceImageView<TView, TFunctor>(view, functor);
+	return UnaryOperatorImageView<TView, TFunctor>(view, functor);
 }
 
 template<typename TView, typename TOperator>
@@ -589,16 +591,16 @@ unaryOperatorOnPosition(TView view, TFunctor functor) {
 }
 
 template<typename TView, typename TOperator, typename TBorderHandling = cugip::border_handling_repeat_t>
-class UnaryOperatorOnLocatorDeviceImageView
+class UnaryOperatorOnLocatorImageView
 	: public device_image_view_crtp<
 		dimension<TView>::value,
-		UnaryOperatorOnLocatorDeviceImageView<TView, TOperator, TBorderHandling>>
+		UnaryOperatorOnLocatorImageView<TView, TOperator, TBorderHandling>>
 {
 public:
 	typedef typename TView::extents_t extents_t;
 	typedef typename TView::coord_t coord_t;
 	typedef typename TView::diff_t diff_t;
-	typedef UnaryOperatorOnLocatorDeviceImageView<TView, TOperator, TBorderHandling> this_t;
+	typedef UnaryOperatorOnLocatorImageView<TView, TOperator, TBorderHandling> this_t;
 	typedef device_image_view_crtp<dimension<TView>::value, this_t> predecessor_type;
 	typedef typename TView::value_type Input;
 	typedef decltype(std::declval<TOperator>()(std::declval<image_locator<TView, TBorderHandling>>())) result_type;
@@ -606,7 +608,7 @@ public:
 	typedef const result_type const_value_type;
 	typedef result_type accessed_type;
 	//TODO - support border handling
-	UnaryOperatorOnLocatorDeviceImageView(TView view, TOperator unary_operator) :
+	UnaryOperatorOnLocatorImageView(TView view, TOperator unary_operator) :
 		predecessor_type(view.dimensions()),
 		mView(view),
 		mUnaryOperator(unary_operator)
@@ -622,15 +624,15 @@ protected:
 	TView mView;
 	TOperator mUnaryOperator;
 };
-
+// TODO get is_device/is_host from wrapped image
 //CUGIP_DECLARE_DEVICE_VIEW_TRAITS((UnaryOperatorDeviceImageView<TView, TOperator>), dimension<TView>::value, typename TView, typename TOperator);
-CUGIP_DECLARE_HYBRID_VIEW_TRAITS((UnaryOperatorOnLocatorDeviceImageView<TView, TOperator>), dimension<TView>::value, typename TView, typename TOperator);
+CUGIP_DECLARE_HYBRID_VIEW_TRAITS((UnaryOperatorOnLocatorImageView<TView, TOperator>), dimension<TView>::value, typename TView, typename TOperator);
 
 
 template<typename TFunctor, typename TView>
-UnaryOperatorOnLocatorDeviceImageView<TView, TFunctor>
+UnaryOperatorOnLocatorImageView<TView, TFunctor>
 unaryOperatorOnLocator(TView view, TFunctor functor) {
-	return UnaryOperatorOnLocatorDeviceImageView<TView, TFunctor>(view, functor);
+	return UnaryOperatorOnLocatorImageView<TView, TFunctor>(view, functor);
 }
 /// View returning single coordinate mapping from grid
 /// Inspired by Matlab function 'meshgrid'

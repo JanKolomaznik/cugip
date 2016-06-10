@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cugip/math.hpp>
+#include <cugip/image_locator.hpp>
 
 namespace cugip {
 
@@ -249,6 +250,11 @@ struct NeighborhoodAccessor
 	operator[](int aIndex)
 	{
 		return mLocator[mNeighborhood.offset(aIndex)];
+	}
+
+	CUGIP_DECL_HYBRID typename TLocator::coord_t
+	coords() const {
+		return mLocator.coords();
 	}
 
 	TLocator mLocator;

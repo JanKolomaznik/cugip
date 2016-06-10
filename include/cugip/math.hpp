@@ -302,6 +302,18 @@ dot(const simple_vector<TCoordType, tDim> &aVector1, const simple_vector<TCoordT
 	return ret;
 }
 
+template<typename TCoordType, int tDim>
+inline CUGIP_DECL_HYBRID simple_vector<TCoordType, tDim>
+product(simple_vector<TCoordType, tDim> aVector1, const simple_vector<TCoordType, tDim> &aVector2)
+{
+	//TODO - optimize
+	for (int i = 0; i < tDim; ++i) {
+		aVector1[i] *= aVector2[i];
+	}
+	return aVector1;
+}
+
+
 template<typename TType>
 CUGIP_DECL_HYBRID typename std::enable_if<std::is_fundamental<TType>::value, TType>::type
 dot(const TType &aValue1, const TType &aValue2)
@@ -381,6 +393,9 @@ typedef simple_vector<double, 2> intervald_t;
 
 typedef simple_vector<float, 2> vect2f_t;
 typedef simple_vector<float, 3> vect3f_t;
+
+typedef simple_vector<int, 2> vect2i_t;
+typedef simple_vector<int, 3> vect3i_t;
 
 typedef simple_vector<int, 2> size2_t;
 typedef simple_vector<int, 3> size3_t;

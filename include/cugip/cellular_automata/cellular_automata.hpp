@@ -2,9 +2,11 @@
 
 #include <cugip/image.hpp>
 #include <cugip/for_each.hpp>
+#include <cugip/transform.hpp>
 
 #include <cugip/equivalence_management.hpp>
 #include <cugip/neighborhood.hpp>
+#include <cugip/functors.hpp>
 #include <cugip/cellular_automata/rules.hpp>
 
 namespace cugip {
@@ -135,9 +137,10 @@ public:
 	void
 	iterate(int aIterationCount)
 	{
+		CUGIP_CHECK_ERROR_STATE("Cellular automaton before iteration");
 		for (int i = 0; i < aIterationCount; ++i) {
 			CUGIP_DFORMAT("Cellular automaton iteration [%1%]", mIteration+1);
-			for_each_locator(const_view(mImages[mIteration % 2]), view(mImages[(mIteration + 1) % 2]), CellOperation<TNeighborhood, TRule, TGlobalState>(mIteration, mRule, mGlobalState));
+			transform_locator(const_view(mImages[mIteration % 2]), view(mImages[(mIteration + 1) % 2]), CellOperation<TNeighborhood, TRule, TGlobalState>(mIteration, mRule, mGlobalState));
 			mGlobalState.postprocess(view(mImages[(mIteration + 1) % 2]));
 			++mIteration;
 			CUGIP_DFORMAT("Cellular automaton iteration [%1%] finished.", mIteration);
@@ -155,7 +158,7 @@ public:
 	int
 	run_until_equilibrium();
 
-protected:
+//protected:
 	int mIteration;
 	std::array<State, 2> mImages;
 

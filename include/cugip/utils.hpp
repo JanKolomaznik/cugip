@@ -85,14 +85,14 @@ get(TType &aArg)
 
 //*****************************************************************
 //Extensions for built-in types
-template<typename TType>
+/*template<typename TType>
 CUGIP_DECL_HOST void
 swap(TType &aArg1, TType &aArg2)
 {
 	TType tmp = aArg1;
 	aArg1 = aArg2;
 	aArg2 = tmp;
-}
+}*/
 
 /** \defgroup auxiliary_function
  *

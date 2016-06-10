@@ -617,7 +617,7 @@ struct device_memory_1d_owner: public device_memory_1d<TType>
 	{
 		if (this->mData) {
 			CUGIP_DPRINT("Releasing memory at: " << this->mData);
-			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
+			CUGIP_CHECK_RESULT(cudaFree(this->mData.p));
 		}
 	}
 
@@ -626,7 +626,7 @@ struct device_memory_1d_owner: public device_memory_1d<TType>
 	{
 		if (this->mData) {
 			CUGIP_DPRINT("Releasing memory at: " << this->mData);
-			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
+			CUGIP_CHECK_RESULT(cudaFree(this->mData.p));
 		}
 		void *devPtr = nullptr;
 		CUGIP_CHECK_RESULT(cudaMalloc(&devPtr, aExtents * sizeof(TType)));
@@ -666,7 +666,7 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 	~device_memory_2d_owner()
 	{
 		if (this->mData) {
-			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
+			CUGIP_CHECK_RESULT(cudaFree(this->mData.p));
 		}
 	}
 
@@ -674,7 +674,7 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 	reallocate(extents_t aExtents)
 	{
 		if (this->mData) {
-			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
+			CUGIP_CHECK_RESULT(cudaFree(this->mData.p));
 		}
 		void *devPtr = NULL;
 		size_t pitch = 0;
@@ -718,8 +718,8 @@ struct device_memory_3d_owner: public device_memory_3d<TType>
 
 	~device_memory_3d_owner()
 	{
-		if (this->mData) {
-			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
+		if (this->mData.p) {
+			CUGIP_CHECK_RESULT(cudaFree(this->mData.p));
 		}
 	}
 
@@ -735,7 +735,7 @@ struct device_memory_3d_owner: public device_memory_3d<TType>
 	reallocate(extents_t aExtents)
 	{
 		if (this->mData) {
-			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
+			CUGIP_CHECK_RESULT(cudaFree(this->mData.p));
 		}
 		cudaPitchedPtr pitchedDevPtr = {0};
 		CUGIP_CHECK_RESULT(cudaMalloc3D(&pitchedDevPtr, make_cudaExtent(aExtents[0] * sizeof(TType), aExtents[1], aExtents[2])));

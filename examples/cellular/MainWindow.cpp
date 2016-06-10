@@ -16,6 +16,8 @@ MainWindow::MainWindow(QWidget *parent)
 	AutomatonView *view = new AutomatonView();
 	ui->mdiArea->addSubWindow(view);
 	mAutomataViews.push_back(view);
+
+	openImage("/home/johny/_ellipse.png");
 }
 
 MainWindow::~MainWindow()
@@ -38,16 +40,21 @@ void MainWindow::openImage()
 	//QString file = QFileDialog::getOpenFileName(nullptr, QString("Open Image"), QString(), QString());
 	if (mFileDialog.exec()) {
 		QStringList fileNames = mFileDialog.selectedFiles();
-		mInputImage = QImage(fileNames.front());
-		if (mInputImage.format() != QImage::Format_RGB888) {
-			mInputImage = mInputImage.convertToFormat(QImage::Format_RGB888);
-		}
-		//mGraphicsItem->setPixmap(QPixmap::fromImage(mInputImage));
-		//ui->mGraphicsView->scene()->addPixmap(QPixmap::fromImage(mImage));
-		//mOutputImage = QImage(mInputImage.width(), mInputImage.height(), QImage::Format_RGB888);
-
-		setImageToAutomata();
+		openImage(fileNames.front());
 	}
+}
+
+void MainWindow::openImage(QString aPath)
+{
+	mInputImage = QImage(aPath);
+	if (mInputImage.format() != QImage::Format_RGB888) {
+		mInputImage = mInputImage.convertToFormat(QImage::Format_RGB888);
+	}
+	//mGraphicsItem->setPixmap(QPixmap::fromImage(mInputImage));
+	//ui->mGraphicsView->scene()->addPixmap(QPixmap::fromImage(mImage));
+	//mOutputImage = QImage(mInputImage.width(), mInputImage.height(), QImage::Format_RGB888);
+
+	setImageToAutomata();
 }
 
 void MainWindow::toggleRun(bool aRun)

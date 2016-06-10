@@ -6,6 +6,7 @@
 #include <cugip/access_utils.hpp>
 #include <cugip/math.hpp>
 #include <cugip/memory_view.hpp>
+#include <cugip/meta_algorithm.hpp>
 
 namespace cugip {
 
@@ -241,7 +242,7 @@ CUGIP_GLOBAL void copyKernel(
 	TFromView from_view,
 	TToView to_view)
 {
-	int element_count = elementCount(from_view);
+	/*int element_count = elementCount(from_view);
 	int tid = threadIdx.x;
 	int index = blockIdx.x * blockDim.x + tid;
 	int grid_size = blockDim.x * gridDim.x;
@@ -250,7 +251,13 @@ CUGIP_GLOBAL void copyKernel(
 		linear_access(to_view, index) = linear_access(from_view, index);
 		index += grid_size;
 	}
-	__syncthreads();
+	__syncthreads();*/
+	auto coord = mapBlockIdxAndThreadIdxToViewCoordinates<dimension<TFromView>::value>();
+	auto extents = from_view.dimensions();
+
+	if (coord < extents) {
+		to_view[coord] = from_view[coord];
+	}
 }
 
 
@@ -261,12 +268,18 @@ void copyDeviceToDeviceAsync(
 	cudaStream_t cuda_stream)
 {
 	// TODO(johny) - use memcpy for memory based views
-	constexpr int cBucketSize = 4;  // Bundle more computation in one block
+	/*constexpr int cBucketSize = 4;  // Bundle more computation in one block
 
 	dim3 block(512, 1, 1);
 	dim3 grid(1 + (elementCount(from_view) - 1) / (block.x * cBucketSize), 1, 1);
 
-	copyKernel<TFromView, TToView><<<grid, block, 0, cuda_stream>>>(from_view, to_view);
+	*/
+
+	dim3 blockSize = detail::defaultBlockDimForDimension<dimension<TFromView>::value>();
+	dim3 gridSize = detail::defaultGridSizeForBlockDim(from_view.dimensions(), blockSize);
+
+	copyKernel<TFromView, TToView><<<gridSize, blockSize, 0, cuda_stream>>>(from_view, to_view);
+
 	CUGIP_CHECK_ERROR_STATE("After CopyKernel");
 }
 

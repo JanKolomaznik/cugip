@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 class AAutomatonWrapper
 {
@@ -21,6 +22,12 @@ public:
 	enablePreprocessing(bool aEnable)
 	{
 		mPreprocessingEnabled = aEnable;
+	}
+
+	virtual std::string
+	getInfoOnPosition(int aX, int aY) const
+	{
+		return std::to_string(aX) + std::string(" x ") + std::to_string(aY);
 	}
 
 	virtual void
@@ -47,3 +54,5 @@ getWShedAutomatonWrapper();
 std::unique_ptr<AAutomatonWrapper>
 getWShedAutomaton2Wrapper();
 
+std::unique_ptr<AAutomatonWrapper>
+getReactionDiffusionWrapper();

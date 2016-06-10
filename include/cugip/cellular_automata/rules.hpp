@@ -6,6 +6,7 @@
 #include <cugip/neighborhood.hpp>
 #include <cugip/device_flag.hpp>
 #include <cugip/cellular_automata/global_state.hpp>
+#include <cugip/equivalence_management.hpp>
 
 
 namespace cugip {
@@ -115,6 +116,10 @@ struct LocalMinimaEquivalenceGlobalState
 		CUGIP_DECL_DEVICE
 		TValue operator()(TValue aLabel) const
 		{
+			/*if (aLabel >= manager.mSize) {
+				printf("AAAAAAAAAAAAAAAA\n");
+				return 0;
+			}*/
 			get<1>(aLabel) =  manager.get(get<1>(aLabel));
 			return aLabel;
 		}
@@ -157,26 +162,26 @@ struct LocalMinimaConnectedComponentRule
 	auto operator()(int aIteration, TNeighborhood aNeighborhood, LocalMinimaEquivalenceGlobalState aEquivalence) -> remove_reference<decltype(aNeighborhood[0])> const
 	{
 		auto value = aNeighborhood[0];
-		auto minValue = get<1>(value);
-		if (get<1>(value)) {
+		auto minLabel = get<1>(value);
+		if (minLabel) {
 			for (int i = 1; i < aNeighborhood.size(); ++i) {
 				//printf("Value %d - %d: neighbor %d: %d = %d, [%d, %d]\n", get<0>(value), get<1>(value), i, get<0>(aNeighborhood[i]), get<1>(aNeighborhood[i]), threadIdx.x, threadIdx.y);
 				//printf("%d %d - %d val = %d -> %d\n", threadIdx.x, threadIdx.y, i, aNeighborhood[0], aNeighborhood[i]);
-				if (get<1>(aNeighborhood[i]) > 0 && get<1>(aNeighborhood[i]) < minValue) {
-					minValue = get<1>(aNeighborhood[i]);
+				if (get<1>(aNeighborhood[i]) > 0 && get<1>(aNeighborhood[i]) < minLabel) {
+					minLabel = get<1>(aNeighborhood[i]);
 				}
 				if (get<0>(aNeighborhood[i]) < get<0>(value)) {
-					minValue = 0;
+					minLabel = 0;
 				}
 				if (get<1>(aNeighborhood[i]) == 0 && get<0>(value) == get<0>(aNeighborhood[i])) {
 					//printf("Value %d - %d: neighbor %d: %d = %d\n", get<0>(value), get<1>(value), i, get<0>(aNeighborhood[i]), get<1>(aNeighborhood[i]));
-					minValue = 0;
+					minLabel = 0;
 				}
 			}
-			if (minValue < get<1>(value)) {
-				aEquivalence.manager.merge(minValue, get<1>(value));
+			if (minLabel < get<1>(value)) {
+				aEquivalence.manager.merge(minLabel, get<1>(value));
 				//printf("%d %d\n", minValue, get<1>(value));
-				get<1>(value) = minValue;
+				get<1>(value) = minLabel;
 				aEquivalence.signal();
 			}
 		}
@@ -284,28 +289,38 @@ struct Watershed2Rule
 		auto value = aNeighborhood[0];
 		int index = -1;
 		auto minValue = get<0>(value);
+		int plateauIndex = -1;
+		int plateauLabel = get<1>(value);
+
+		//printf("%d - %d; ", get<0>(value), get<1>(value));
 		for (int i = 1; i < aNeighborhood.size(); ++i) {
 			auto current = get<0>(aNeighborhood[i]);
-			//printf("%d %d - %d val = %d -> %d\n", threadIdx.x, threadIdx.y, i, aNeighborhood[0], aNeighborhood[i]);
+			//printf("%d %d - %d val = %d -> %d\n", threadIdx.x, threadIdx.y, i, get<1>(aNeighborhood[0]), get<1>(aNeighborhood[i]));
 			if (current < minValue) {
 				index = i;
 				minValue = current;
 			} else {
-				if (current == minValue && current == get<0>(value) && get<2>(aNeighborhood[i]) == 0) {
-					index = i;
-					minValue = current;
+				if (
+					current == get<0>(value) &&
+					get<2>(aNeighborhood[i]) == 0 &&
+					get<1>(aNeighborhood[i]) < plateauLabel
+				) {
+					plateauIndex = i;
+					plateauLabel = get<1>(aNeighborhood[i]);
 				}
 			}
 		}
 		if (index != -1) {
-			if (minValue < get<0>(value)
-				|| ((minValue == get<0>(value)) && (0 == get<2>(aNeighborhood[index]))))
-			{
-				if (get<1>(value) != get<1>(aNeighborhood[index])) {
-					aEquivalence.manager.merge(get<1>(value), get<1>(aNeighborhood[index]));
-					aEquivalence.signal();
-				}
+			if (get<1>(value) != get<1>(aNeighborhood[index])) {
+				//printf("AAAA %d %d\n", get<1>(value), get<1>(aNeighborhood[index]));
+				aEquivalence.manager.merge(get<1>(value), get<1>(aNeighborhood[index]));
+				aEquivalence.signal();
+				get<1>(value) = get<1>(aNeighborhood[index]);
 			}
+		} else if (plateauIndex != -1){
+			aEquivalence.manager.merge(get<1>(value), plateauLabel);
+			aEquivalence.signal();
+			get<1>(value) = plateauLabel;
 		}
 		return value;
 	}
@@ -341,6 +356,51 @@ struct Watershed3Rule
 		}
 		return value;
 	}
+};
+
+struct ReactionDiffusionRule
+{
+	template<typename T>
+	using remove_reference = typename std::remove_reference<T>::type;
+
+	template<typename TValue>
+	CUGIP_DECL_DEVICE
+	float f(const TValue &aValue) const {
+		return - aValue[0]*sqr(aValue[1]);
+		//return alpha * (1.0f - aValue[0]) - aValue[0]*sqr(aValue[1]);
+	}
+
+	template<typename TValue>
+	CUGIP_DECL_DEVICE
+	float g(const TValue &aValue) const {
+		return aValue[0]*sqr(aValue[1]);
+		//return aValue[0]*sqr(aValue[1]) - ((alpha + beta) * aValue[0]) / (1.0f + aValue[0] + aValue[1]);
+	}
+
+
+	//TODO - global state by reference
+	template<typename TNeighborhood>
+	CUGIP_DECL_DEVICE
+	auto operator()(int aIteration, TNeighborhood aNeighborhood) -> remove_reference<decltype(aNeighborhood[0])> const
+	{
+		auto value = aNeighborhood[0];
+		auto laplace = -1.0f * (aNeighborhood.size() - 1) * value;
+		for (int i = 1; i < aNeighborhood.size(); ++i) {
+			laplace += aNeighborhood[i];
+		}
+		/*value += product(k, sum);
+		//return value;
+		value[0] += f(aNeighborhood[0]);
+		value[1] += g(aNeighborhood[0]);*/
+		auto delta = product(k, laplace);
+		delta[0] += f(value);
+		delta[1] += g(value);
+		return value + timestep * delta;
+	}
+	float timestep = 0.2;
+	float alpha = 1.0f;
+	float beta = 1.0f;
+	vect2f_t k = vect2f_t(0.64f, 0.32f);
 };
 
 

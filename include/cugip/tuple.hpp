@@ -110,7 +110,7 @@ struct Tuple : TupleImpl<range<sizeof...(T)>, T...>
 template<int tIdx, typename... TType>
 struct get_policy<tIdx, const Tuple<TType...>>
 {
-	typedef const choose<tIdx, TType...> & return_type;
+	typedef const typename Choose<tIdx, TType...>::type & return_type;
 	typedef const Tuple<TType...> & value_t;
 
 	static CUGIP_DECL_HYBRID auto
@@ -123,7 +123,7 @@ struct get_policy<tIdx, const Tuple<TType...>>
 template<int tIdx, typename... TType>
 struct get_policy<tIdx, Tuple<TType...>>
 {
-	typedef choose<tIdx, TType...> & return_type;
+	typedef typename Choose<tIdx, TType...>::type & return_type;
 	typedef Tuple<TType...> & value_t;
 
 	static CUGIP_DECL_HYBRID auto
