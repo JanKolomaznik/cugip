@@ -366,14 +366,14 @@ struct ReactionDiffusionRule
 	template<typename TValue>
 	CUGIP_DECL_DEVICE
 	float f(const TValue &aValue) const {
-		return - aValue[0]*sqr(aValue[1]);
-		//return alpha * (1.0f - aValue[0]) - aValue[0]*sqr(aValue[1]);
+		//return - aValue[0]*sqr(aValue[1]);
+		return alpha * aValue[0] - aValue[0]*sqr(aValue[1]);
 	}
 
 	template<typename TValue>
 	CUGIP_DECL_DEVICE
 	float g(const TValue &aValue) const {
-		return aValue[0]*sqr(aValue[1]);
+		return aValue[0]*sqr(aValue[1]) - beta * aValue[1];
 		//return aValue[0]*sqr(aValue[1]) - ((alpha + beta) * aValue[0]) / (1.0f + aValue[0] + aValue[1]);
 	}
 
@@ -398,8 +398,8 @@ struct ReactionDiffusionRule
 		return value + timestep * delta;
 	}
 	float timestep = 0.2;
-	float alpha = 1.0f;
-	float beta = 1.0f;
+	float alpha = 0.1f;
+	float beta = 0.1f;
 	vect2f_t k = vect2f_t(0.64f, 0.32f);
 };
 

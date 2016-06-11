@@ -1,8 +1,21 @@
 #pragma once
 
 #include <cugip/detail/defines.hpp>
+#include <cugip/math.hpp>
+#include <cugip/image_locator.hpp>
+
 
 #define REMOVE_PARENTHESES(...) __VA_ARGS__
+
+#define CUGIP_DECLARE_VIEW_TRAITS(CLASS, DIMENSION, IS_DEVICE, IS_HOST, ...)\
+	template<__VA_ARGS__>\
+	struct is_image_view<REMOVE_PARENTHESES CLASS> : public std::true_type {};\
+	template<__VA_ARGS__>\
+	struct is_device_view<REMOVE_PARENTHESES CLASS> : public std::integral_constant<bool, IS_DEVICE> {};\
+	template<__VA_ARGS__>\
+	struct is_host_view<REMOVE_PARENTHESES CLASS> : public std::integral_constant<bool, IS_HOST> {};\
+	template<__VA_ARGS__>\
+	struct dimension<REMOVE_PARENTHESES CLASS>: dimension_helper<DIMENSION> {};
 
 #define CUGIP_DECLARE_DEVICE_VIEW_TRAITS(CLASS, DIMENSION,...)\
 	template<__VA_ARGS__>\
@@ -59,5 +72,70 @@ elementCount(const TView &aView)
 {
 	return product(aView.dimensions());
 }
+
+template<int tDimension>
+class device_image_view_base
+{
+public:
+	typedef typename dim_traits<tDimension>::extents_t extents_t;
+
+	device_image_view_base(extents_t dimensions)
+		: mDimensions(dimensions)
+	{}
+
+	CUGIP_DECL_HYBRID extents_t
+	dimensions() const
+	{ return mDimensions; }
+
+	extents_t mDimensions;
+};
+
+template<int tDimension, typename TDerived>
+class device_image_view_crtp
+{
+public:
+	typedef typename dim_traits<tDimension>::extents_t extents_t;
+	typedef typename dim_traits<tDimension>::coord_t coord_t;
+	typedef typename dim_traits<tDimension>::diff_t diff_t;
+
+	device_image_view_crtp(extents_t dimensions)
+		: mDimensions(dimensions)
+	{}
+
+	template<typename TBorderHandling>
+	CUGIP_DECL_HYBRID image_locator<TDerived, TBorderHandling>
+	locator(coord_t aCoordinates) const
+	{
+		return image_locator<TDerived, TBorderHandling>(*const_cast<TDerived *>(static_cast<const TDerived *>(this)), aCoordinates);
+	}
+
+	CUGIP_DECL_HYBRID extents_t
+	dimensions() const
+	{ return mDimensions; }
+
+	extents_t mDimensions;
+};
+
+template<int tDim>
+struct dimension<device_image_view_base<tDim>>: dimension_helper<tDim> {};
+
+#define CUGIP_VIEW_TYPEDEFS_VALUE(ElementType, aDimension)\
+	typedef typename dim_traits<aDimension>::extents_t extents_t;\
+	typedef typename dim_traits<aDimension>::coord_t coord_t;\
+	typedef typename dim_traits<aDimension>::diff_t diff_t;\
+	typedef ElementType value_type;\
+	typedef const ElementType const_value_type;\
+	typedef value_type accessed_type;
+
+#define CUGIP_VIEW_TYPEDEFS_REFERENCE(ElementType, aDimension)\
+	typedef typename dim_traits<aDimension>::extents_t extents_t;\
+	typedef typename dim_traits<aDimension>::coord_t coord_t;\
+	typedef typename dim_traits<aDimension>::diff_t diff_t;\
+	typedef ElementType value_type;\
+	typedef const ElementType const_value_type;\
+	typedef value_type &accessed_type;
+
+
+
 
 }//namespace cugip

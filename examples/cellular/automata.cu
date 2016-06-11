@@ -3,6 +3,7 @@
 
 #include <cugip/cellular_automata/cellular_automata.hpp>
 #include <cugip/procedural_views.hpp>
+#include <cugip/view_arithmetics.hpp>
 #include <cugip/host_image.hpp>
 #include <cugip/copy.hpp>
 #include <cugip/tuple.hpp>
@@ -412,7 +413,7 @@ struct ColorToReaction
 	vect2f_t
 	operator()(element_rgb8_t value) const
 	{
-		return vect2f_t(value.data[0] / 255.0f, value.data[1] / 255.0f);
+		return vect2f_t(value.data[0] / 255.0f, value.data[2] / 255.0f);
 	}
 };
 
