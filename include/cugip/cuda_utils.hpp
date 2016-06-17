@@ -77,6 +77,13 @@ mapBlockIdxAndThreadIdxToViewCoordinates<3>()
 	return cugip::simple_vector<int, 3>(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y, blockIdx.z * blockDim.z + threadIdx.z);
 }
 
+CUGIP_DECL_DEVICE
+inline int threadOrderFromIndex()
+{
+	return threadIdx.x
+		+ threadIdx.y * blockDim.x
+		+ threadIdx.z * blockDim.x * blockDim.y;
+}
 
 }//namespace cugip
 

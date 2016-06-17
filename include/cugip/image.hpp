@@ -52,6 +52,12 @@ public:
 		: mData(typename dim_traits<tDim>::extents_t(aS0, aS1, aS2))
 	{}
 
+	device_image(device_image &&aOther) = default;
+	device_image & operator=(device_image &&aOther) = default;
+
+	device_image & operator=(const device_image &) = delete;
+	device_image(const device_image &) = delete;
+
 	CUGIP_DECL_HYBRID extents_t
 	dimensions() const
 	{ return mData.dimensions(); }
@@ -79,10 +85,8 @@ public:
 	{
 		mData.reallocate(aExtents);
 	}
-	
+
 protected:
-	device_image & operator=(const device_image &);
-	device_image(const device_image &);
 
 	typename memory_management<TElement, tDim>::device_memory_owner mData;
 	//device_ptr<element_t> mData;

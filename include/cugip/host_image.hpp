@@ -63,6 +63,12 @@ public:
                 reallocate(extents_t(aS0, aS1, aS2));
         }
 
+	host_image(host_image &&aOther) = default;
+	host_image & operator=(host_image &&aOther) = default;
+
+	host_image & operator=(const host_image &) = delete;
+	host_image(const host_image &) = delete;
+
 	extents_t
 	dimensions() const
 	{ return mSize; }
@@ -91,9 +97,6 @@ public:
 		return mStrides;
 	}
 protected:
-	host_image & operator=(const host_image &);
-	host_image(const host_image &);
-
         void reallocate(const extents_t &aSize)
         {
                 mHostPtr.reset(new value_type[product(aSize)]);

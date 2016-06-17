@@ -41,20 +41,14 @@ protected:
 template<typename TFactor1, typename TView1, typename TFactor2, typename TView2>
 class LinearCombinationImageView : public BinaryOperatorDeviceImageView<TView1, TView2> {
 public:
-	typedef typename TView1::extents_t extents_t;
-	typedef typename TView1::coord_t coord_t;
-	typedef typename TView1::diff_t diff_t;
 	typedef BinaryOperatorDeviceImageView<TView1, TView2> predecessor_type;
 
 	typedef typename TView1::value_type value1_type;
 	typedef typename TView2::value_type value2_type;
-
-
 	typedef typename std::common_type<TFactor1, value1_type>::type result1_type;
 	typedef typename std::common_type<TFactor2, value2_type>::type result2_type;
-	typedef typename std::common_type<result1_type, result2_type>::type value_type;
-	typedef const value_type const_value_type;
-	typedef value_type accessed_type;
+	typedef typename std::common_type<result1_type, result2_type>::type result_type;
+	CUGIP_VIEW_TYPEDEFS_VALUE(result_type, dimension<TView1>::value)
 
 	LinearCombinationImageView(TFactor1 factor1, TView1 view1, TFactor2 factor2, TView2 view2) :
 		predecessor_type(view1, view2),
@@ -108,47 +102,48 @@ subtract(TView1 view1, TView2 view2) {
 /// Image view, which returns per element multiplication.
 /// R = I1 .* I2
 template<typename TView1, typename TView2>
-class MultiplicationDeviceImageView : public BinaryOperatorDeviceImageView<TView1, TView2> {
+class MultiplicationImageView : public BinaryOperatorDeviceImageView<TView1, TView2> {
 public:
-	typedef simple_vector<int, dimension<TView1>::value> extents_t;
-	typedef simple_vector<int, dimension<TView1>::value> coord_t;
 	typedef BinaryOperatorDeviceImageView<TView1, TView2> predecessor_type;
+	typedef typename TView1::value_type value_type1;
+	typedef typename TView2::value_type value_type2;
+	typedef decltype(std::declval<value_type1>() * std::declval<value_type2>()) result_type;
+	CUGIP_VIEW_TYPEDEFS_VALUE(result_type, dimension<TView1>::value)
 
-	typedef typename TView1::Element Element1;
-	typedef typename TView2::Element Element2;
-
-
-	typedef decltype(std::declval<Element1>() * std::declval<Element2>()) Element;
-	typedef Element AccessType;
-
-	MultiplicationDeviceImageView(TView1 view1, TView2 view2) :
+	MultiplicationImageView(TView1 view1, TView2 view2) :
 		predecessor_type(view1, view2)
 	{}
 
 	CUGIP_DECL_DEVICE
-	Element operator[](coord_t index) const {
+	accessed_type operator[](coord_t index) const {
 		return this->view1_[index] * this->view2_[index];
 	}
 };
 
+CUGIP_DECLARE_VIEW_TRAITS(
+	(MultiplicationImageView<TView1, TView2>),
+	dimension<TView1>::value,
+	(is_device_view<TView1>::value && is_device_view<TView2>::value),
+	(is_host_view<TView1>::value && is_host_view<TView2>::value),
+	typename TView1, typename TView2);
 
-/// Utility function to create MultiplicationDeviceImageView without the need to specify template parameters.
+/// Utility function to create MultiplicationImageView without the need to specify template parameters.
 template<typename TView1, typename TView2>
-MultiplicationDeviceImageView<TView1, TView2>
+MultiplicationImageView<TView1, TView2>
 multiply(TView1 view1, TView2 view2) {
-	return MultiplicationDeviceImageView<TView1, TView2>(view1, view2);
+	return MultiplicationImageView<TView1, TView2>(view1, view2);
 }
 
 /// Image view, which returns per element division.
 /// R = I1 ./ I2
 template<typename TView1, typename TView2>
-class DivisionDeviceImageView : public BinaryOperatorDeviceImageView<TView1, TView2> {
+class DivisionImageView : public BinaryOperatorDeviceImageView<TView1, TView2> {
 public:
-	static const bool kIsDeviceView = true;
-	static const int kDimension = TView1::kDimension;
-	typedef simple_vector<int, kDimension> extents_t;
-	typedef simple_vector<int, kDimension> coord_t;
 	typedef BinaryOperatorDeviceImageView<TView1, TView2> predecessor_type;
+	typedef typename TView1::value_type value_type1;
+	typedef typename TView2::value_type value_type2;
+	typedef decltype(std::declval<value_type1>() / std::declval<value_type2>()) result_type;
+	CUGIP_VIEW_TYPEDEFS_VALUE(result_type, dimension<TView1>::value)
 
 	typedef typename TView1::Element Element1;
 	typedef typename TView2::Element Element2;
@@ -157,7 +152,7 @@ public:
 	typedef typename std::common_type<Element1, Element2>::type Element;
 	typedef Element AccessType;
 
-	DivisionDeviceImageView(TView1 view1, TView2 view2) :
+	DivisionImageView(TView1 view1, TView2 view2) :
 		predecessor_type(view1, view2)
 	{}
 
@@ -167,43 +162,46 @@ public:
 	}
 };
 
+CUGIP_DECLARE_VIEW_TRAITS(
+	(DivisionImageView<TView1, TView2>),
+	dimension<TView1>::value,
+	(is_device_view<TView1>::value && is_device_view<TView2>::value),
+	(is_host_view<TView1>::value && is_host_view<TView2>::value),
+	typename TView1, typename TView2);
 
-/// Utility function to create DivisionDeviceImageView without the need to specify template parameters.
+
+/// Utility function to create DivisionImageView without the need to specify template parameters.
 template<typename TView1, typename TView2>
-DivisionDeviceImageView<TView1, TView2>
+DivisionImageView<TView1, TView2>
 divide(TView1 view1, TView2 view2) {
-	return DivisionDeviceImageView<TView1, TView2>(view1, view2);
+	return DivisionImageView<TView1, TView2>(view1, view2);
 }
 
 
 /// View which allows mirror access to another view
 /// TODO(johny) - specialization for memory based views - only stride and pointer reordering
 template<typename TView>
-class MirrorImageView : public device_image_view_base<TView::kDimension> {
+class MirrorImageView : public device_image_view_base<dimension<TView>::value> {
 public:
-	static const bool kIsDeviceView = true;
-	static const int kDimension = TView::kDimension;
-	typedef typename TView::extents_t extents_t;
-	typedef typename TView::coord_t coord_t;
-	typedef device_image_view_base<TView::kDimension> predecessor_type;
-	typedef typename TView::Element Element;
-	typedef typename TView::AccessType AccessType;
+	typedef device_image_view_base<dimension<TView>::value> predecessor_type;
+	// TODO - if possible reference access
+	CUGIP_VIEW_TYPEDEFS_VALUE(typename TView::value_type, dimension<TView>::value)
 
-	MirrorImageView(TView view, simple_vector<bool, kDimension> flips) :
+	MirrorImageView(TView view, simple_vector<bool, cDimension> flips) :
 		predecessor_type(view.dimensions()),
 		view_(view),
 		flips_(flips)
 	{}
 
 	CUGIP_DECL_HYBRID
-	AccessType operator[](coord_t index) const {
-		return view_[FlipCoordinates(index, this->dimensions(), flips_)];
+	accessed_type operator[](coord_t index) const {
+		return view_[flipCoordinates(index, this->dimensions(), flips_)];
 	}
 
 protected:
 	CUGIP_DECL_HYBRID
-	static coord_t FlipCoordinates(coord_t index, extents_t size, simple_vector<bool, kDimension> flips) {
-		for (int i = 0; i < kDimension; ++i) {
+	static coord_t flipCoordinates(coord_t index, extents_t size, simple_vector<bool, cDimension> flips) {
+		for (int i = 0; i < cDimension; ++i) {
 			if (flips[i]) {
 				index[i] = size[i] - index[i] - 1;
 			}
@@ -212,8 +210,16 @@ protected:
 	}
 
 	TView view_;
-	simple_vector<bool, kDimension> flips_;
+	simple_vector<bool, cDimension> flips_;
 };
+
+CUGIP_DECLARE_VIEW_TRAITS(
+	(MirrorImageView<TView>),
+	dimension<TView>::value,
+	(is_device_view<TView>::value),
+	(is_host_view<TView>::value),
+	typename TView);
+
 
 
 /// Create mirror views with fliped axes specification
@@ -227,17 +233,12 @@ mirror(TView view, simple_vector<bool, TView::kDimension> flips) {
 /// View which pads another image view
 /// TODO(johny) - do also tapper padding
 template<typename TView/*, bool tIsPeriodic*/>
-class PaddedDeviceImageView : public device_image_view_base<TView::kDimension> {
+class PaddedImageView : public device_image_view_base<dimension<TView>::value> {
 public:
-	static const bool kIsDeviceView = true;
-	static const int kDimension = TView::kDimension;
-	typedef typename TView::extents_t extents_t;
-	typedef typename TView::coord_t coord_t;
-	typedef device_image_view_base<TView::kDimension> predecessor_type;
-	typedef typename TView::Element Element;
-	typedef typename TView::Element AccessType;
+	typedef device_image_view_base<dimension<TView>::value> predecessor_type;
+	CUGIP_VIEW_TYPEDEFS_VALUE(typename TView::value_type, dimension<TView>::value)
 
-	PaddedDeviceImageView(TView view, const extents_t &size, const extents_t &offset, Element fill_value) :
+	PaddedImageView(TView view, const extents_t &size, const extents_t &offset, value_type fill_value) :
 		predecessor_type(size),
 		view_(view),
 		offset_(offset),
@@ -245,7 +246,7 @@ public:
 	{}
 
 	CUGIP_DECL_DEVICE
-	AccessType operator[](coord_t index) const {
+	accessed_type operator[](coord_t index) const {
 		index = ModPeriodic(index - offset_, this->dimensions());
 		if (view_.IsIndexInside(index)) {
 			return view_[index];
@@ -255,21 +256,28 @@ public:
 
 protected:
 	TView view_;
-	simple_vector<int, kDimension> offset_;
-	Element fill_value_;
+	simple_vector<int, cDimension> offset_;
+	value_type fill_value_;
 };
+
+CUGIP_DECLARE_VIEW_TRAITS(
+	(PaddedImageView<TView>),
+	dimension<TView>::value,
+	(is_device_view<TView>::value),
+	(is_host_view<TView>::value),
+	typename TView);
 
 
 /// Create padded view
 template<typename TView>
-PaddedDeviceImageView<TView>
+PaddedImageView<TView>
 padView(
 	TView view,
-	simple_vector<int, TView::kDimension> size,
-	simple_vector<int, TView::kDimension> offset,
-	typename TView::Element fill_value)
+	simple_vector<int, dimension<TView>::value> size,
+	simple_vector<int, dimension<TView>::value> offset,
+	typename TView::value_type fill_value)
 {
-	return PaddedDeviceImageView<TView>(view, size, offset, fill_value);
+	return PaddedImageView<TView>(view, size, offset, fill_value);
 }
 
 
@@ -282,16 +290,11 @@ class UnaryOperatorImageView
 		UnaryOperatorImageView<TView, TOperator>>
 {
 public:
-	typedef typename TView::extents_t extents_t;
-	typedef typename TView::coord_t coord_t;
-	typedef typename TView::diff_t diff_t;
 	typedef UnaryOperatorImageView<TView, TOperator> this_t;
 	typedef device_image_view_crtp<dimension<TView>::value, this_t> predecessor_type;
 	typedef typename TView::value_type Input;
 	typedef decltype(std::declval<TOperator>()(std::declval<Input>())) result_type;
-	typedef result_type value_type;
-	typedef const result_type const_value_type;
-	typedef result_type accessed_type;
+	CUGIP_VIEW_TYPEDEFS_VALUE(result_type, dimension<TView>::value)
 
 	UnaryOperatorImageView(TView view, TOperator unary_operator) :
 		predecessor_type(view.dimensions()),
@@ -310,8 +313,12 @@ protected:
 	TOperator mUnaryOperator;
 };
 
-//CUGIP_DECLARE_DEVICE_VIEW_TRAITS((UnaryOperatorImageView<TView, TOperator>), dimension<TView>::value, typename TView, typename TOperator);
-CUGIP_DECLARE_HYBRID_VIEW_TRAITS((UnaryOperatorImageView<TView, TOperator>), dimension<TView>::value, typename TView, typename TOperator);
+CUGIP_DECLARE_VIEW_TRAITS(
+	(UnaryOperatorImageView<TView, TOperator>),
+	dimension<TView>::value,
+	(is_device_view<TView>::value),
+	(is_host_view<TView>::value),
+	typename TView, typename TOperator);
 
 /// Creates view which returns squared values from the original view
 template<typename TView>
@@ -382,24 +389,19 @@ unaryOperator(TView view, TFunctor functor) {
 }
 
 template<typename TView, typename TOperator>
-class UnaryOperatorOnPositionDeviceImageView
+class UnaryOperatorOnPositionImageView
 	: public device_image_view_crtp<
 		dimension<TView>::value,
-		UnaryOperatorOnPositionDeviceImageView<TView, TOperator>>
+		UnaryOperatorOnPositionImageView<TView, TOperator>>
 {
 public:
-	typedef typename TView::extents_t extents_t;
-	typedef typename TView::coord_t coord_t;
-	typedef typename TView::diff_t diff_t;
-	typedef UnaryOperatorOnPositionDeviceImageView<TView, TOperator> this_t;
+	typedef UnaryOperatorOnPositionImageView<TView, TOperator> this_t;
 	typedef device_image_view_crtp<dimension<TView>::value, this_t> predecessor_type;
 	typedef typename TView::value_type Input;
-	typedef decltype(std::declval<TOperator>()(std::declval<Input>(), coord_t())) result_type;
-	typedef result_type value_type;
-	typedef const result_type const_value_type;
-	typedef result_type accessed_type;
+	typedef decltype(std::declval<TOperator>()(std::declval<Input>(), typename TView::coord_t())) result_type;
+	CUGIP_VIEW_TYPEDEFS_VALUE(result_type, dimension<TView>::value)
 
-	UnaryOperatorOnPositionDeviceImageView(TView view, TOperator unary_operator) :
+	UnaryOperatorOnPositionImageView(TView view, TOperator unary_operator) :
 		predecessor_type(view.dimensions()),
 		mView(view),
 		mUnaryOperator(unary_operator)
@@ -416,14 +418,18 @@ protected:
 	TOperator mUnaryOperator;
 };
 
-//CUGIP_DECLARE_DEVICE_VIEW_TRAITS((UnaryOperatorDeviceImageView<TView, TOperator>), dimension<TView>::value, typename TView, typename TOperator);
-CUGIP_DECLARE_HYBRID_VIEW_TRAITS((UnaryOperatorOnPositionDeviceImageView<TView, TOperator>), dimension<TView>::value, typename TView, typename TOperator);
+CUGIP_DECLARE_VIEW_TRAITS(
+	(UnaryOperatorOnPositionImageView<TView, TOperator>),
+	dimension<TView>::value,
+	(is_device_view<TView>::value),
+	(is_host_view<TView>::value),
+	typename TView, typename TOperator);
 
 
 template<typename TFunctor, typename TView>
-UnaryOperatorOnPositionDeviceImageView<TView, TFunctor>
+UnaryOperatorOnPositionImageView<TView, TFunctor>
 unaryOperatorOnPosition(TView view, TFunctor functor) {
-	return UnaryOperatorOnPositionDeviceImageView<TView, TFunctor>(view, functor);
+	return UnaryOperatorOnPositionImageView<TView, TFunctor>(view, functor);
 }
 
 template<typename TView, typename TOperator, typename TBorderHandling = cugip::border_handling_repeat_t>
@@ -433,16 +439,12 @@ class UnaryOperatorOnLocatorImageView
 		UnaryOperatorOnLocatorImageView<TView, TOperator, TBorderHandling>>
 {
 public:
-	typedef typename TView::extents_t extents_t;
-	typedef typename TView::coord_t coord_t;
-	typedef typename TView::diff_t diff_t;
 	typedef UnaryOperatorOnLocatorImageView<TView, TOperator, TBorderHandling> this_t;
 	typedef device_image_view_crtp<dimension<TView>::value, this_t> predecessor_type;
 	typedef typename TView::value_type Input;
 	typedef decltype(std::declval<TOperator>()(std::declval<image_locator<TView, TBorderHandling>>())) result_type;
-	typedef result_type value_type;
-	typedef const result_type const_value_type;
-	typedef result_type accessed_type;
+	CUGIP_VIEW_TYPEDEFS_VALUE(result_type, dimension<TView>::value)
+
 	//TODO - support border handling
 	UnaryOperatorOnLocatorImageView(TView view, TOperator unary_operator) :
 		predecessor_type(view.dimensions()),
@@ -460,9 +462,14 @@ protected:
 	TView mView;
 	TOperator mUnaryOperator;
 };
-// TODO get is_device/is_host from wrapped image
-//CUGIP_DECLARE_DEVICE_VIEW_TRAITS((UnaryOperatorDeviceImageView<TView, TOperator>), dimension<TView>::value, typename TView, typename TOperator);
-CUGIP_DECLARE_HYBRID_VIEW_TRAITS((UnaryOperatorOnLocatorImageView<TView, TOperator>), dimension<TView>::value, typename TView, typename TOperator);
+
+CUGIP_DECLARE_VIEW_TRAITS(
+	(UnaryOperatorOnLocatorImageView<TView, TOperator, TBorderHandling>),
+	dimension<TView>::value,
+	(is_device_view<TView>::value),
+	(is_host_view<TView>::value),
+	typename TView, typename TOperator, typename TBorderHandling);
+
 
 
 template<typename TFunctor, typename TView>
@@ -479,6 +486,8 @@ struct MultiViewTraits
 	typedef typename TFirstView::extents_t extents_t;
 	typedef typename TFirstView::coord_t coord_t;
 	typedef typename TFirstView::diff_t diff_t;
+	static const bool cIsDeviceView = fold_and<is_device_view, TFirstView, TViews...>::value;
+	static const bool cIsHostView = fold_and<is_host_view, TFirstView, TViews...>::value;
 };
 
 /*CUGIP_HD_WARNING_DISABLE
@@ -497,7 +506,7 @@ class NAryOperatorDeviceImageView
 		NAryOperatorDeviceImageView<TOperator, TView, TViews...>>
 {
 public:
-	typedef MultiViewTraits<TViews...> MultiTraits;
+	typedef MultiViewTraits<TView, TViews...> MultiTraits;
 
 	typedef typename MultiTraits::extents_t extents_t;
 	typedef typename MultiTraits::coord_t coord_t;
@@ -541,7 +550,12 @@ protected:
 };
 
 
-CUGIP_DECLARE_HYBRID_VIEW_TRAITS((NAryOperatorDeviceImageView<TOperator, TView, TViews...>), dimension<TView>::value, typename TOperator, typename TView, typename... TViews);
+CUGIP_DECLARE_VIEW_TRAITS(
+	(NAryOperatorDeviceImageView<TOperator, TView, TViews...>),
+	dimension<TView>::value,
+	(MultiViewTraits<TView, TViews...>::cIsDeviceView),
+	(MultiViewTraits<TView, TViews...>::cIsHostView),
+	typename TOperator, typename TView, typename... TViews);
 
 
 template<typename TFunctor, typename TView, typename... TViews>
@@ -558,16 +572,16 @@ zipViews(TView view, TViews... views) {
 
 
 template<typename TView, int tIndex>
-class AccessDimensionDeviceImageView
+class AccessDimensionImageView
 	: public device_image_view_crtp<
 		dimension<TView>::value,
-		AccessDimensionDeviceImageView<TView, tIndex>>
+		AccessDimensionImageView<TView, tIndex>>
 {
 public:
 	typedef typename TView::extents_t extents_t;
 	typedef typename TView::coord_t coord_t;
 	typedef typename TView::diff_t diff_t;
-	typedef AccessDimensionDeviceImageView<TView, tIndex> this_t;
+	typedef AccessDimensionImageView<TView, tIndex> this_t;
 	typedef device_image_view_crtp<dimension<TView>::value, this_t> predecessor_type;
 	typedef typename TView::value_type Input;
 	typedef decltype(get<tIndex>(std::declval<TView>()[coord_t()])) result_type;
@@ -575,7 +589,7 @@ public:
 	typedef const result_type const_value_type;
 	typedef result_type accessed_type;
 
-	AccessDimensionDeviceImageView(TView view) :
+	AccessDimensionImageView(TView view) :
 		predecessor_type(view.dimensions()),
 		mView(view)
 	{}
@@ -590,13 +604,20 @@ protected:
 	TView mView;
 };
 
-CUGIP_DECLARE_HYBRID_VIEW_TRAITS((AccessDimensionDeviceImageView<TView, tIndex>), dimension<TView>::value, typename TView, int tIndex);
+CUGIP_DECLARE_VIEW_TRAITS(
+	(AccessDimensionImageView<TView, tIndex>),
+	dimension<TView>::value,
+	(is_device_view<TView>::value),
+	(is_host_view<TView>::value),
+	typename TView, int tIndex);
+
+
 
 /// Creates view which returns squared values from the original view
 template<typename TView, typename TDimension>
-AccessDimensionDeviceImageView<TView, TDimension::value>
+AccessDimensionImageView<TView, TDimension::value>
 getDimension(TView view, TDimension /*aIndex*/) {
-	return AccessDimensionDeviceImageView<TView, TDimension::value>(view);
+	return AccessDimensionImageView<TView, TDimension::value>(view);
 }
 
 } // namespace cugip

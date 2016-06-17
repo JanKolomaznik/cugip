@@ -91,6 +91,11 @@ public:
 		}
 	}
 
+	CUGIP_DECL_HYBRID /*constexpr*/
+	simple_vector(std::initializer_list<TCoordinateType> aList)
+		: mValues(aList)
+	{}
+
 	template<typename TOtherCoordType>
 	inline CUGIP_DECL_HYBRID simple_vector &
 	operator=(const simple_vector<TOtherCoordType, tDim> &aArg)

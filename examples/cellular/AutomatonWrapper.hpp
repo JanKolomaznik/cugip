@@ -2,6 +2,9 @@
 
 #include <memory>
 #include <string>
+#include <map>
+#include <vector>
+#include <functional>
 
 class AAutomatonWrapper
 {
@@ -39,20 +42,7 @@ public:
 	bool mPreprocessingEnabled = true;
 };
 
-std::unique_ptr<AAutomatonWrapper>
-getConwaysAutomatonWrapper();
+typedef std::vector<std::pair<std::string, std::function<std::unique_ptr<AAutomatonWrapper>()>>> AutomatonFactoryMap;
+//typedef std::map<std::string, std::function<std::unique_ptr<AAutomatonWrapper>()>> AutomatonFactoryMap;
 
-std::unique_ptr<AAutomatonWrapper>
-getCCLAutomatonWrapper();
-
-std::unique_ptr<AAutomatonWrapper>
-getCCLAutomatonWrapper2();
-
-std::unique_ptr<AAutomatonWrapper>
-getWShedAutomatonWrapper();
-
-std::unique_ptr<AAutomatonWrapper>
-getWShedAutomaton2Wrapper();
-
-std::unique_ptr<AAutomatonWrapper>
-getReactionDiffusionWrapper();
+const AutomatonFactoryMap & automatonFactoryMap();

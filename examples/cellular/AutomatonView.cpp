@@ -5,7 +5,11 @@ AutomatonView::AutomatonView(QWidget *parent)
 {
 	setupUi(this);
 
-	mAutomataWrappers.push_back(getConwaysAutomatonWrapper());
+	for (const auto &item : automatonFactoryMap()) {
+		mAutomataWrappers.push_back(item.second());
+		mAutomatonCombo->addItem(item.first.c_str());
+	}
+	/*mAutomataWrappers.push_back(getConwaysAutomatonWrapper());
 	mAutomatonCombo->addItem("Conway's Game of Life");
 	mAutomataWrappers.push_back(getCCLAutomatonWrapper());
 	mAutomatonCombo->addItem("CCL");
@@ -16,7 +20,7 @@ AutomatonView::AutomatonView(QWidget *parent)
 	mAutomataWrappers.push_back(getWShedAutomaton2Wrapper());
 	mAutomatonCombo->addItem("Watersheds 2");
 	mAutomataWrappers.push_back(getReactionDiffusionWrapper());
-	mAutomatonCombo->addItem("Reaction-Diffusion");
+	mAutomatonCombo->addItem("Reaction-Diffusion");*/
 
 	mAutomatonCombo->setCurrentIndex(0);
 	QGraphicsScene *scene = new QGraphicsScene (this);

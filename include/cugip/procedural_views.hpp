@@ -13,9 +13,9 @@ namespace cugip {
 template<typename TElement, int tDimension>
 class ConstantDeviceImageView : public device_image_view_base<tDimension> {
 public:
-	CUGIP_VIEW_TYPEDEFS_VALUE(TElement, tDimension)
 	typedef ConstantDeviceImageView<TElement, tDimension> this_t;
 	typedef device_image_view_base<tDimension> predecessor_type;
+	CUGIP_VIEW_TYPEDEFS_VALUE(TElement, tDimension)
 
 	ConstantDeviceImageView(TElement element, extents_t size) :
 		predecessor_type(size),
@@ -45,9 +45,9 @@ constantImage(TElement value, simple_vector<int, tDimension> size)
 template<typename TElement, int tDimension>
 class CheckerBoardImageView : public device_image_view_base<tDimension> {
 public:
-	CUGIP_VIEW_TYPEDEFS_VALUE(TElement, tDimension)
 	typedef CheckerBoardImageView<TElement, tDimension> this_t;
 	typedef device_image_view_base<tDimension> predecessor_type;
+	CUGIP_VIEW_TYPEDEFS_VALUE(TElement, tDimension)
 
 	CheckerBoardImageView(TElement white, TElement black, extents_t tile_size, extents_t size)
 		: predecessor_type(size)
@@ -93,7 +93,7 @@ public:
 	//TODO - bigger int
 	typedef UniqueIdDeviceImageView<tDimension> this_t;
 	typedef device_image_view_crtp<tDimension, this_t> predecessor_type;
-	CUGIP_VIEW_TYPEDEFS_VALUE(int, tDimension);
+	CUGIP_VIEW_TYPEDEFS_VALUE(int, tDimension)
 
 	UniqueIdDeviceImageView(extents_t aSize)
 		: predecessor_type(aSize)
@@ -118,10 +118,8 @@ CUGIP_DECLARE_HYBRID_VIEW_TRAITS((UniqueIdDeviceImageView<tDimension>), tDimensi
 template<int tDimension>
 class MeshGridView: public device_image_view_base<tDimension> {
 public:
-	typedef simple_vector<int, tDimension> extents_t;
-	typedef simple_vector<int, tDimension> coord_t;
 	typedef device_image_view_base<tDimension> predecessor_type;
-	CUGIP_VIEW_TYPEDEFS_VALUE(int, tDimension);
+	CUGIP_VIEW_TYPEDEFS_VALUE(int, tDimension)
 
 	MeshGridView() :
 		predecessor_type(extents_t()),
@@ -138,7 +136,7 @@ public:
 	{}
 
 	CUGIP_DECL_DEVICE
-	access_type operator[](coord_t index) const {
+	accessed_type operator[](coord_t index) const {
 		return mStart + index[mDimension] * mIncrement;
 	}
 

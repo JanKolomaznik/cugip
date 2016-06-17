@@ -120,6 +120,7 @@ template<int tDim>
 struct dimension<device_image_view_base<tDim>>: dimension_helper<tDim> {};
 
 #define CUGIP_VIEW_TYPEDEFS_VALUE(ElementType, aDimension)\
+	static constexpr int cDimension = aDimension;\
 	typedef typename dim_traits<aDimension>::extents_t extents_t;\
 	typedef typename dim_traits<aDimension>::coord_t coord_t;\
 	typedef typename dim_traits<aDimension>::diff_t diff_t;\
@@ -128,6 +129,7 @@ struct dimension<device_image_view_base<tDim>>: dimension_helper<tDim> {};
 	typedef value_type accessed_type;
 
 #define CUGIP_VIEW_TYPEDEFS_REFERENCE(ElementType, aDimension)\
+	static constexpr int cDimension = aDimension;\
 	typedef typename dim_traits<aDimension>::extents_t extents_t;\
 	typedef typename dim_traits<aDimension>::coord_t coord_t;\
 	typedef typename dim_traits<aDimension>::diff_t diff_t;\

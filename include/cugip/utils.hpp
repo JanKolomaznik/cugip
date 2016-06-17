@@ -111,4 +111,14 @@ atomicFloatCAS(float *address, float old, float val)
 
 #endif //__CUDACC__
 
+template<template<class> class TBoolTrait, typename THead, typename ...TTail>
+struct fold_and {
+	static constexpr bool value = TBoolTrait<THead>::value && fold_and<TBoolTrait, TTail...>::value;
+};
+
+template<template<class> class TBoolTrait, typename THead>
+struct fold_and<TBoolTrait, THead> {
+	static constexpr bool value = TBoolTrait<THead>::value;
+};
+
 }//namespace cugip

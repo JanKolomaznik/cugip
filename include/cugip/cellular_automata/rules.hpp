@@ -11,7 +11,6 @@
 
 namespace cugip {
 
-
 struct ConwayRule
 {
 	template<typename TNeighborhood>
@@ -275,15 +274,14 @@ typedef LocalMinimaEquivalenceGlobalState Watershed2EquivalenceGlobalState;
 	EquivalenceManager<int> manager;
 };*/
 
-struct Watershed2Rule
+struct Watershed2RuleBase
 {
 	template<typename T>
 	using remove_reference = typename std::remove_reference<T>::type;
 
-	//TODO - global state by reference
 	template<typename TNeighborhood>
 	CUGIP_DECL_DEVICE
-	auto operator()(int aIteration, TNeighborhood aNeighborhood, Watershed2EquivalenceGlobalState aEquivalence) -> remove_reference<decltype(aNeighborhood[0])> const
+	int findNeighborForMerge(TNeighborhood aNeighborhood)
 	{
 		//input, label, has smaller neighbor
 		auto value = aNeighborhood[0];
@@ -310,17 +308,49 @@ struct Watershed2Rule
 				}
 			}
 		}
-		if (index != -1) {
-			if (get<1>(value) != get<1>(aNeighborhood[index])) {
-				//printf("AAAA %d %d\n", get<1>(value), get<1>(aNeighborhood[index]));
+		return index != -1 ? index : plateauIndex;
+	}
+};
+
+struct Watershed2Rule : Watershed2RuleBase
+{
+	template<typename T>
+	using remove_reference = typename std::remove_reference<T>::type;
+
+	//TODO - global state by reference
+	template<typename TNeighborhood>
+	CUGIP_DECL_DEVICE
+	auto operator()(int aIteration, TNeighborhood aNeighborhood) -> remove_reference<decltype(aNeighborhood[0])> const
+	{
+		//input, label, has smaller neighbor
+		auto value = aNeighborhood[0];
+		int index = findNeighborForMerge(aNeighborhood);
+		if (index != -1 && get<1>(value) != get<1>(aNeighborhood[index])) {
+			get<1>(value) = get<1>(aNeighborhood[index]);
+		}
+		return value;
+	}
+};
+
+struct Watershed2GlobalStateRule : Watershed2RuleBase
+{
+	template<typename T>
+	using remove_reference = typename std::remove_reference<T>::type;
+
+	//TODO - global state by reference
+	template<typename TNeighborhood>
+	CUGIP_DECL_DEVICE
+	auto operator()(int aIteration, TNeighborhood aNeighborhood, Watershed2EquivalenceGlobalState aEquivalence) -> remove_reference<decltype(aNeighborhood[0])> const
+	{
+		//input, label, has smaller neighbor
+		auto value = aNeighborhood[0];
+		int index = findNeighborForMerge(aNeighborhood);
+		if (index != -1 && get<1>(value) != get<1>(aNeighborhood[index])) {
 				aEquivalence.manager.merge(get<1>(value), get<1>(aNeighborhood[index]));
 				aEquivalence.signal();
-				get<1>(value) = get<1>(aNeighborhood[index]);
-			}
-		} else if (plateauIndex != -1){
-			aEquivalence.manager.merge(get<1>(value), plateauLabel);
-			aEquivalence.signal();
-			get<1>(value) = plateauLabel;
+				if (get<1>(value) > get<1>(aNeighborhood[index])) {
+					get<1>(value) = get<1>(aNeighborhood[index]);
+				}
 		}
 		return value;
 	}

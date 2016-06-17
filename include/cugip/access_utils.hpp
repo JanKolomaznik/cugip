@@ -62,7 +62,7 @@ get_linear_access_index(
 	return idx;
 }
 
-//TODO handle constness, add static assertions
+//TODO handle constness, add static assertions, compatible with array view
 template<typename TImageView>
 struct device_linear_access_view
 {
