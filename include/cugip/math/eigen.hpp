@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cugip/math.hpp>
 #include <cugip/math/symmetric_tensor.hpp>
+#include <cugip/math/matrix.hpp>
 
 namespace cugip {
 // TODO handle constants properly
@@ -88,17 +90,18 @@ eigen_vector(float aEigenValue, const symmetric_tensor<float, 3> &aMatrix, const
 /**
  * Based on implementation for paper: 'Efficient numerical diagonalization of hermitian 3x3 matrices' by Joachim Kopp
  **/
-simple_vector<simple_vector<float, 3>, 3>
+//simple_vector<simple_vector<float, 3>, 3>
+matrix<float, 3, 3>
 eigen_vectors(const symmetric_tensor<float, 3> &aTensor, const simple_vector<float, 3> &aEigenValues)
 {
-	simple_vector<simple_vector<float, 3>, 3> result;
+	matrix<float, 3, 3> result;
 
 	auto maxEigenValue = max(abs(aEigenValues));
 	auto threshold = 8.0f * EPSILON * maxEigenValue;
 
-	result[0] = eigen_vector<0, 1>(aEigenValues[0], aTensor, sqr(threshold));
+	result.column(0) = eigen_vector<0, 1>(aEigenValues[0], aTensor, sqr(threshold));
 	if (abs(aEigenValues[0] - aEigenValues[1]) > threshold) {
-		result[1] = eigen_vector<0, 1>(aEigenValues[1], aTensor, sqr(threshold));
+		result.column(1) = eigen_vector<0, 1>(aEigenValues[1], aTensor, sqr(threshold));
 	} else {
 		// For degenerate eigenvalue, calculate second eigenvector according to
 		//   v[1] = v[0] x (A - w[1]).e[i]
@@ -107,25 +110,39 @@ eigen_vectors(const symmetric_tensor<float, 3> &aTensor, const simple_vector<flo
 			auto v = aTensor.column(i);
 			auto n0 = squared_magnitude(v);
 			if (n0 > sqr(threshold)) {
-				result[1] = cross(result[0], v);
-				auto norm = squared_magnitude(result[1]);
+				result.column(1) = cross(result.column(0), v);
+				auto norm = squared_magnitude(result.column(1));
 				// Accept cross product only if the angle between
 				// the two vectors was not too small
 				if (norm > sqr(256.0f * EPSILON) * n0) {
 					norm = sqrt(1.0f / norm);
-					result[1] = norm * result[1];
+					result.column(1) = norm * result.column(1);
 					break;
 				}
 			}
 		}
 		if (i == 3) {
-			result[1] = find_orthonormal(result[0]);
+			result.column(1) = find_orthonormal(result.column(0));
 		}
 	}
 
-	result[2] = cross(result[0], result[1]);
+	result.column(2) = cross(result.column(0), result.column(1));
 	return result;
 }
 
+symmetric_tensor<float, 3>
+matrix_from_eigen_vectors_and_values(const matrix<float, 3, 3> &aEigenVectors, const simple_vector<float, 3> &aEigenValues)
+{
+	symmetric_tensor<float, 3> result;
+
+	// E * D * E'
+	for (int i = 0; i < 3; ++i) {
+		for (int j = i; j < 3; ++j) {
+			simple_vector<float, 3> tmp = product(aEigenVectors.row(i), aEigenValues);
+			result.get(i, j) = dot(tmp, aEigenVectors.row(j));
+		}
+	}
+	return result;
+}
 
 }  // namespace cugip

@@ -21,10 +21,9 @@ public:
 	get(int aRow, int aCol)
 	{
 		if (aRow > aCol) {
-			swap(aRow, aCol);
+			return (*this)[aRow + aCol * tDimension - ((aCol +1) * aCol / 2)];
 		}
-		const int index = aCol + aRow * tDimension - ((aRow +1) * aRow / 2);
-		return (*this)[index];
+		return (*this)[aCol + aRow * tDimension - ((aRow +1) * aRow / 2)];
 	}
 
 	CUGIP_DECL_HYBRID
@@ -32,10 +31,9 @@ public:
 	get(int aRow, int aCol) const
 	{
 		if (aRow > aCol) {
-			swap(aRow, aCol);
+			return (*this)[aRow + aCol * tDimension - ((aCol +1) * aCol / 2)];
 		}
-		const int index = aCol + aRow * tDimension - ((aRow +1) * aRow / 2);
-		return (*this)[index];
+		return (*this)[aCol + aRow * tDimension - ((aRow +1) * aRow / 2)];
 	}
 
 	//TODO - get wrapper which provides access

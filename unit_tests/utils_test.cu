@@ -10,6 +10,7 @@
 #include <cugip/access_utils.hpp>
 #include <cugip/math/symmetric_tensor.hpp>
 #include <cugip/math/eigen.hpp>
+#include <cugip/math/matrix.hpp>
 #include <thrust/device_vector.h>
 #include <thrust/reduce.h>
 #include <thrust/for_each.h>
@@ -161,11 +162,22 @@ BOOST_AUTO_TEST_CASE(SymmetricTensor3x3EigenValues)
 	tensor[4] = 0.0f;
 	tensor[5] = 3.0f;
 
-	std::cout << eigen_values(tensor) << "\n";
+	tensor[0] = 1.0f;
+	tensor[1] = 1.0f;
+	tensor[2] = 3.0f;
+	tensor[3] = 2.0f;
+	tensor[4] = 7.0f;
+	tensor[5] = 3.0f;
+
+	auto eigVals = eigen_values(tensor);
+	auto eigVecs = eigen_vectors(tensor, eigVals);
+	std::cout << eigVals << "\n";
 	/*std::cout << eigen_vector<0, 1>(3.0f, tensor) << "\n";
 	std::cout << eigen_vector<0, 2>(2.0f, tensor) << "\n";
 	std::cout << eigen_vector<1, 2>(1.0f, tensor) << "\n";*/
-	std::cout << eigen_vectors(tensor, eigen_values(tensor)) << "\n";
+	std::cout << eigVecs << "\n";
+	std::cout << matrix_from_eigen_vectors_and_values(eigVecs, eigVals)  << "\n";
+
 
 }
 

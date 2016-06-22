@@ -176,6 +176,20 @@ public:
 	TCoordinateType mValues[tDim];
 };
 
+template<typename TVector>
+struct static_vector_traits
+{
+	static constexpr bool is_vector = false;
+};
+
+template<typename TValue, int tDimension>
+struct static_vector_traits<simple_vector<TValue, tDimension>>
+{
+	static constexpr bool is_vector = true;
+	static constexpr int dimension = tDimension;
+	typedef TValue element_type;
+};
+
 template<typename TCoordType1, typename TCoordType2, int tDim>
 inline CUGIP_DECL_HYBRID simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim>
 operator+(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TCoordType2, tDim> &aArg2)
@@ -184,7 +198,24 @@ operator+(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TCo
 	return res += aArg2;
 }
 
-template<typename TCoordType1, typename TCoordType2, int tDim>
+template<typename TFactor, typename TVector>
+inline CUGIP_DECL_HYBRID typename std::enable_if<
+		static_vector_traits<TVector>::is_vector,
+		simple_vector<
+			decltype(std::declval<TFactor>() * std::declval<TVector>()[0]),
+			static_vector_traits<TVector>::dimension>
+		>::type
+operator*(const TFactor &aFactor, const TVector &aArg)
+{
+	simple_vector<decltype(std::declval<TFactor>() * std::declval<TVector>()[0]), static_vector_traits<TVector>::dimension> res;
+	//simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim> res;
+	for (int i = 0; i < static_vector_traits<TVector>::dimension; ++i) {
+		res[i] = aFactor * aArg[i];
+	}
+	return res;
+}
+
+/*template<typename TCoordType1, typename TCoordType2, int tDim>
 inline CUGIP_DECL_HYBRID simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim>
 operator*(const TCoordType1 &aFactor, const simple_vector<TCoordType2, tDim> &aArg)
 {
@@ -193,7 +224,7 @@ operator*(const TCoordType1 &aFactor, const simple_vector<TCoordType2, tDim> &aA
 		res.mValues[i] = aFactor * aArg.mValues[i];
 	}
 	return res;
-}
+}*/
 
 template<typename TCoordType1, typename TCoordType2, int tDim>
 inline CUGIP_DECL_HYBRID simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim>
@@ -295,16 +326,27 @@ operator<<(std::ostream &stream, const simple_vector<TType, tDim> &v)
 	return stream << v[tDim - 1] << " ]";
 }
 
-template<typename TCoordType, int tDim>
-inline CUGIP_DECL_HYBRID TCoordType
-dot(const simple_vector<TCoordType, tDim> &aVector1, const simple_vector<TCoordType, tDim> &aVector2)
+template<typename TVector1, typename TVector2>
+inline CUGIP_DECL_HYBRID
+typename std::enable_if<
+		static_vector_traits<TVector1>::is_vector && static_vector_traits<TVector2>::is_vector,
+		decltype(std::declval<TVector1>()[0] * std::declval<TVector2>()[0])>::type
+dot(const TVector1 &aVector1, const TVector2 &aVector2)
 {
+	static_assert(static_vector_traits<TVector1>::dimension == static_vector_traits<TVector2>::dimension, "vectors must have same dimension");
 	//TODO - optimize
-	TCoordType ret = 0;
-	for (int i = 0; i < tDim; ++i) {
+	auto ret = aVector1[0] * aVector2[0];
+	for (int i = 1; i < static_vector_traits<TVector1>::dimension; ++i) {
 		ret += aVector1[i] * aVector2[i];
 	}
 	return ret;
+}
+
+template<typename TType>
+CUGIP_DECL_HYBRID typename std::enable_if<std::is_fundamental<TType>::value, TType>::type
+dot(const TType &aValue1, const TType &aValue2)
+{
+	return aValue1 * aValue2;
 }
 
 template<typename TCoordType, int tDim>
@@ -318,15 +360,7 @@ product(simple_vector<TCoordType, tDim> aVector1, const simple_vector<TCoordType
 	return aVector1;
 }
 
-
-template<typename TType>
-CUGIP_DECL_HYBRID typename std::enable_if<std::is_fundamental<TType>::value, TType>::type
-dot(const TType &aValue1, const TType &aValue2)
-{
-	return aValue1 * aValue2;
-}
-
-template<typename TCoordType>
+/*template<typename TCoordType>
 inline CUGIP_DECL_HYBRID simple_vector<TCoordType, 3>
 cross(const simple_vector<TCoordType, 3> &aVector1, const simple_vector<TCoordType, 3> &aVector2)
 {
@@ -336,11 +370,30 @@ cross(const simple_vector<TCoordType, 3> &aVector1, const simple_vector<TCoordTy
 	result[1] = aVector1[2] * aVector2[0] - aVector1[0] * aVector2[2];
 	result[2] = aVector1[0] * aVector2[1] - aVector1[1] * aVector2[0];
 	return result;
+}*/
+
+template<typename TVector1, typename TVector2>
+inline CUGIP_DECL_HYBRID
+typename std::enable_if<
+		static_vector_traits<TVector1>::is_vector && static_vector_traits<TVector2>::is_vector,
+		simple_vector<decltype(std::declval<TVector1>()[0] * std::declval<TVector2>()[0]), 3>>::type
+//simple_vector<decltype(std::declval<TVector1>()[0] * std::declval<TVector2>()[0]), 3>
+cross(const TVector1 &aVector1, const TVector2 &aVector2)
+{
+	static_assert(static_vector_traits<TVector1>::dimension == 3, "First vector must have dimensinality equal 3 for cross product");
+	static_assert(static_vector_traits<TVector2>::dimension == 3, "Second vector must have dimensinality equal 3 for cross product");
+	//simple_vector<TCoordType, 3> result;
+	simple_vector<decltype(std::declval<TVector1>()[0] * std::declval<TVector2>()[0]), 3> result;
+
+	result[0] = aVector1[1] * aVector2[2] - aVector1[2] * aVector2[1];
+	result[1] = aVector1[2] * aVector2[0] - aVector1[0] * aVector2[2];
+	result[2] = aVector1[0] * aVector2[1] - aVector1[1] * aVector2[0];
+	return result;
 }
 
 template <typename TType>
-inline CUGIP_DECL_HYBRID typename TType::coord_t
-squared_magnitude(const TType &aVector)
+inline CUGIP_DECL_HYBRID auto //typename TType::coord_t
+squared_magnitude(const TType &aVector) -> decltype(dot(aVector, aVector))
 {
 	return dot(aVector, aVector);
 }
@@ -629,11 +682,13 @@ sort(simple_vector<TCoordType, tDim> &aVector)
 	}
 }
 
-template<typename TType>
-inline CUGIP_DECL_HYBRID simple_vector<TType, 3>
-find_orthonormal(const simple_vector<TType, 3> &aVector)
+template<typename TVector>
+inline CUGIP_DECL_HYBRID typename std::enable_if<
+		static_vector_traits<TVector>::is_vector,
+		simple_vector<typename static_vector_traits<TVector>::element_type, 3>>::type
+find_orthonormal(const TVector &aVector)
 {
-	simple_vector<TType, 3> result;
+	simple_vector<typename static_vector_traits<TVector>::element_type, 3> result;
 	for (int j = 0; j < 3; ++j) {
 		// find some orthogonal vector to the first eigen vector
 		if (aVector[j] != 0.0f) {
