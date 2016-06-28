@@ -52,7 +52,7 @@ struct scan_neighborhood_for_connections_ftor
 		typedef full_neighborhood<dimension<TLocator>::value> neighborhood;
 		TInputType minimum = aCurrent;
 
-		for (size_t i = 0; i < neighborhood::count; ++i) {
+		for (int i = 0; i < neighborhood::count; ++i) {
 			TInputType value = aLocator[neighborhood::get(i)/*typename TLocator::diff_t(i, j)*/];
 			minimum = (value < minimum && value > 0) ? value : minimum;
 		}

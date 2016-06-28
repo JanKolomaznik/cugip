@@ -29,6 +29,16 @@ struct device_base_ptr
 	TType *p;
 };
 
+template<typename TType>
+std::ostream &
+operator<<(std::ostream &s, const device_base_ptr<TType> &aPtr)
+{
+	std::ios_base::fmtflags flags = s.flags();
+	s << std::hex << std::showbase << reinterpret_cast<size_t>(aPtr.p);
+	s.flags(flags);
+	return s;
+}
+
 
 template<typename TType>
 struct device_ptr : device_base_ptr<TType>
@@ -37,9 +47,9 @@ struct device_ptr : device_base_ptr<TType>
 	device_ptr(): device_base_ptr<TType>(0)
 	{ /*empty*/ }
 
-	CUGIP_DECL_HYBRID
+	/*CUGIP_DECL_HYBRID
 	device_ptr(const device_ptr &aArg): device_base_ptr<TType>(aArg.p)
-	{ /*empty*/ }
+	{ }*/
 
 	CUGIP_DECL_HYBRID
 	device_ptr(TType *aArg): device_base_ptr<TType>(aArg)
@@ -47,15 +57,29 @@ struct device_ptr : device_base_ptr<TType>
 
 	CUGIP_DECL_DEVICE TType *
 	operator->()
-	{ return this->p; }
+	{
+		return this->p;
+	}
 
 	CUGIP_DECL_HYBRID device_ptr &
 	operator=(const device_ptr &aArg)
-	{ this->p = aArg.p; return *this; }
+	{
+		this->p = aArg.p;
+		return *this;
+	}
 
 	CUGIP_DECL_HYBRID device_ptr &
 	operator=(TType *aArg)
-	{ this->p = aArg; return *this; }
+	{
+		this->p = aArg;
+		return *this;
+	}
+
+	CUGIP_DECL_HYBRID void
+	assign(TType *aArg)
+	{
+		this->p = aArg;
+	}
 
 	/*CUGIP_DECL_HYBRID
 	operator bool() const
@@ -88,6 +112,12 @@ struct device_ptr : device_base_ptr<TType>
 		return tmp;
 	}
 
+	CUGIP_DECL_DEVICE TType
+	retrieve_device() const
+	{
+		return *(this->p);
+	}
+
 
 /*	CUGIP_DECL_HYBRID TType *
 	get() const
@@ -109,7 +139,7 @@ struct access_helper
 	CUGIP_DECL_HYBRID
 	operator TType()const
 	{
-#ifdef __CUDACC__
+#ifdef __CUDA_ARCH__
 		return *(ptr.p);
 #else
 		TType tmp;
@@ -122,7 +152,7 @@ struct access_helper
 	const access_helper&
 	operator=(const TType &aArg)const
 	{
-#ifdef __CUDACC__
+#ifdef __CUDA_ARCH__
 		*(ptr.p) = aArg;
 #else
 		TType tmp = aArg;
@@ -218,11 +248,11 @@ struct device_memory_1d
 	device_memory_1d()
 	{}
 
-	device_memory_1d(device_ptr<TType> aPtr, size_t aSize)
+	device_memory_1d(device_ptr<TType> aPtr, int aSize)
 		:mData(aPtr), mExtents(aSize)
 	{}
 
-	device_memory_1d(device_ptr<TType> aPtr, extents_t aExtents, size_t aPitch)
+	device_memory_1d(device_ptr<TType> aPtr, extents_t aExtents, int aPitch)
 		:mData(aPtr), mExtents(aExtents)
 	{}
 
@@ -233,26 +263,26 @@ struct device_memory_1d
 	~device_memory_1d()
 	{ }
 
-	inline CUGIP_DECL_HYBRID value_type &
+	/*inline CUGIP_DECL_HYBRID value_type &
 	operator[](coord_t aCoords)
 	{
 		return mData.p[aCoords[0]];
-	}
+	}*/
 
 	inline CUGIP_DECL_HYBRID value_type &
-	operator[](size_t aIdx)
+	operator[](int aIdx)
 	{
 		return mData.p[aIdx];
 	}
 
-	inline CUGIP_DECL_HYBRID const value_type &
+	/*inline CUGIP_DECL_HYBRID const value_type &
 	operator[](coord_t aCoords) const
 	{
 		return mData.p[aCoords[0]];
-	}
+	}*/
 
 	inline CUGIP_DECL_HYBRID const value_type &
-	operator[](size_t aIdx) const
+	operator[](int aIdx) const
 	{
 		return mData.p[aIdx];
 	}
@@ -260,6 +290,75 @@ struct device_memory_1d
 	inline CUGIP_DECL_HYBRID extents_t
 	dimensions() const
 	{ return mExtents; }
+
+	inline CUGIP_DECL_HYBRID extents_t
+	strides() const
+	{ return sizeof(TType) *mExtents; }
+
+	device_ptr<TType> mData;
+	extents_t mExtents;
+};
+
+template<typename TType>
+struct const_device_memory_1d
+{
+	typedef dim_traits<1>::extents_t extents_t;
+	typedef dim_traits<1>::coord_t coord_t;
+	typedef TType value_type;
+
+	const_device_memory_1d()
+	{}
+
+	const_device_memory_1d(device_ptr<TType> aPtr, int aSize)
+		:mData(aPtr), mExtents(aSize)
+	{}
+
+	const_device_memory_1d(device_ptr<TType> aPtr, extents_t aExtents, int aPitch)
+		:mData(aPtr), mExtents(aExtents)
+	{}
+
+	const_device_memory_1d(const device_memory_1d<TType> &aMemory)
+		:mData(aMemory.mData), mExtents(aMemory.mExtents)
+	{}
+
+	const_device_memory_1d(const const_device_memory_1d<TType> &aMemory)
+		:mData(aMemory.mData), mExtents(aMemory.mExtents)
+	{}
+
+	~const_device_memory_1d()
+	{ }
+
+	/*inline CUGIP_DECL_HYBRID value_type &
+	operator[](coord_t aCoords)
+	{
+		return mData.p[aCoords[0]];
+	}*/
+
+	inline CUGIP_DECL_HYBRID value_type &
+	operator[](int aIdx)
+	{
+		return mData.p[aIdx];
+	}
+
+	/*inline CUGIP_DECL_HYBRID const value_type &
+	operator[](coord_t aCoords) const
+	{
+		return mData.p[aCoords[0]];
+	}*/
+
+	inline CUGIP_DECL_HYBRID const value_type &
+	operator[](int aIdx) const
+	{
+		return mData.p[aIdx];
+	}
+
+	inline CUGIP_DECL_HYBRID extents_t
+	dimensions() const
+	{ return mExtents; }
+
+	inline CUGIP_DECL_HYBRID extents_t
+	strides() const
+	{ return sizeof(TType) *mExtents; }
 
 	device_ptr<TType> mData;
 	extents_t mExtents;
@@ -276,13 +375,13 @@ struct device_memory_2d
 	device_memory_2d()
 	{}
 
-	device_memory_2d(device_ptr<TType> aPtr, size_t aWidth, size_t aHeight, size_t aPitch)
+	device_memory_2d(device_ptr<TType> aPtr, int aWidth, int aHeight, int aPitch)
 		:mData(aPtr), mExtents(aWidth, aHeight), mPitch(aPitch)
 	{
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
 
-	device_memory_2d(device_ptr<TType> aPtr, extents_t aExtents, size_t aPitch)
+	device_memory_2d(device_ptr<TType> aPtr, extents_t aExtents, int aPitch)
 		:mData(aPtr), mExtents(aExtents), mPitch(aPitch)
 	{
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
@@ -308,6 +407,11 @@ struct device_memory_2d
 	dimensions() const
 	{ return mExtents; }
 
+	inline CUGIP_DECL_HYBRID extents_t
+	strides() const
+	{ return extents_t(sizeof(TType), mPitch); }
+
+
 	device_ptr<TType> mData;
 	extents_t mExtents;
 	size_t mPitch;
@@ -323,13 +427,13 @@ struct const_device_memory_2d
 	const_device_memory_2d()
 	{}
 
-	const_device_memory_2d(const_device_ptr<TType> aPtr, size_t aWidth, size_t aHeight, size_t aPitch)
+	const_device_memory_2d(const_device_ptr<TType> aPtr, int aWidth, int aHeight, int aPitch)
 		:mData(aPtr), mExtents(aWidth, aHeight), mPitch(aPitch)
 	{
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
 
-	const_device_memory_2d(const_device_ptr<TType> aPtr, extents_t aExtents, size_t aPitch)
+	const_device_memory_2d(const_device_ptr<TType> aPtr, extents_t aExtents, int aPitch)
 		:mData(aPtr), mExtents(aExtents), mPitch(aPitch)
 	{
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
@@ -362,6 +466,11 @@ struct const_device_memory_2d
 	dimensions() const
 	{ return mExtents; }
 
+	inline CUGIP_DECL_HYBRID extents_t
+	strides() const
+	{ return extents_t(sizeof(TType), mPitch); }
+
+
 	const_device_ptr<TType> mData;
 	extents_t mExtents;
 	size_t mPitch;
@@ -378,13 +487,13 @@ struct device_memory_3d
 	device_memory_3d()
 	{}
 
-	device_memory_3d(device_ptr<TType> aPtr, size_t aWidth, size_t aHeight,  size_t aDepth, size_t aPitch)
+	device_memory_3d(device_ptr<TType> aPtr, int aWidth, int aHeight,  int aDepth, int aPitch)
 		:mData(aPtr), mExtents(aWidth, aHeight, aDepth), mPitch(aPitch)
 	{
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
 
-	device_memory_3d(device_ptr<TType> aPtr, extents_t aExtents, size_t aPitch)
+	device_memory_3d(device_ptr<TType> aPtr, extents_t aExtents, int aPitch)
 		:mData(aPtr), mExtents(aExtents), mPitch(aPitch)
 	{
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
@@ -404,14 +513,19 @@ struct device_memory_3d
 	operator[](coord_t aCoords) const
 	{
 		int offset = aCoords[0] * sizeof(value_type)
-		             + aCoords[1] * mPitch
-		             + aCoords[2] * mPitch * mExtents[1];
+			     + aCoords[1] * mPitch
+			     + aCoords[2] * mPitch * mExtents[1];
 		return *reinterpret_cast<value_type *>(reinterpret_cast<char *>(mData.p) + offset);
 	}
 
 	inline CUGIP_DECL_HYBRID extents_t
 	dimensions() const
 	{ return mExtents; }
+
+	inline CUGIP_DECL_HYBRID extents_t
+	strides() const
+	{ return extents_t(sizeof(TType), mPitch, mPitch * mExtents[1]); }
+
 
 	device_ptr<TType> mData;
 	extents_t mExtents;
@@ -429,13 +543,13 @@ struct const_device_memory_3d
 	const_device_memory_3d()
 	{}
 
-	const_device_memory_3d(device_ptr<TType> aPtr, size_t aWidth, size_t aHeight,  size_t aDepth, size_t aPitch)
+	const_device_memory_3d(device_ptr<TType> aPtr, int aWidth, int aHeight,  int aDepth, int aPitch)
 		:mData(aPtr), mExtents(aWidth, aHeight, aDepth), mPitch(aPitch)
 	{
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
 
-	const_device_memory_3d(device_ptr<TType> aPtr, extents_t aExtents, size_t aPitch)
+	const_device_memory_3d(device_ptr<TType> aPtr, extents_t aExtents, int aPitch)
 		:mData(aPtr), mExtents(aExtents), mPitch(aPitch)
 	{
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
@@ -460,14 +574,19 @@ struct const_device_memory_3d
 	operator[](coord_t aCoords) const
 	{
 		int offset = aCoords[0] * sizeof(value_type)
-		             + aCoords[1] * mPitch
-		             + aCoords[2] * mPitch * mExtents[1];
+			     + aCoords[1] * mPitch
+			     + aCoords[2] * mPitch * mExtents[1];
 		return *reinterpret_cast<value_type *>(reinterpret_cast<const char *>(mData.p) + offset);
 	}
 
 	inline CUGIP_DECL_HYBRID extents_t
 	dimensions() const
 	{ return mExtents; }
+
+	inline CUGIP_DECL_HYBRID extents_t
+	strides() const
+	{ return extents_t(sizeof(TType), mPitch, mPitch * mExtents[1]); }
+
 
 	const_device_ptr<TType> mData;
 	extents_t mExtents;
@@ -484,35 +603,44 @@ struct device_memory_1d_owner: public device_memory_1d<TType>
 	device_memory_1d_owner()
 	{}
 
-	device_memory_1d_owner(size_t aSize)
+	/*device_memory_1d_owner(int aSize)
 	{
-		void *devPtr = NULL;
-		CUGIP_CHECK_RESULT(cudaMalloc(&devPtr, aSize * sizeof(TType)));
-		this->mExtents.template set<0>(aSize);
-		this->mData = reinterpret_cast<TType*>(devPtr);
-
-		D_PRINT(boost::str(boost::format("GPU allocation: 1D memory - %1% items, %2% item size")
-					% this->mExtents
-					% sizeof(TType)));
-	}
+		reallocate(extents_t(aSize));
+	}*/
 
 	device_memory_1d_owner(extents_t aExtents)
 	{
-		void *devPtr = NULL;
-		CUGIP_CHECK_RESULT(cudaMalloc(&devPtr, aExtents.get<0>() * sizeof(TType)));
-		this->mExtents = aExtents;
-		this->mData = reinterpret_cast<TType*>(devPtr);
-
-		D_PRINT(boost::str(boost::format("GPU allocation: 1D memory - %1% items, %2% item size")
-					% this->mExtents
-					% sizeof(TType)));
+		reallocate(aExtents);
 	}
 
 	~device_memory_1d_owner()
 	{
 		if (this->mData) {
-			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
+			CUGIP_DPRINT("Releasing memory at: " << this->mData);
+			CUGIP_CHECK_RESULT(cudaFree(this->mData.p));
 		}
+	}
+
+	void
+	reallocate(extents_t aExtents)
+	{
+		if (this->mData) {
+			CUGIP_DPRINT("Releasing memory at: " << this->mData);
+			CUGIP_CHECK_RESULT(cudaFree(this->mData.p));
+		}
+		void *devPtr = nullptr;
+		CUGIP_CHECK_RESULT(cudaMalloc(&devPtr, aExtents * sizeof(TType)));
+		if (!devPtr) {
+			CUGIP_THROW(ExceptionBase() << MessageErrorInfo("Failed to allocate enough GPU memory."));
+		}
+		this->mExtents = aExtents;
+		this->mData = reinterpret_cast<TType*>(devPtr);
+
+		/*D_PRINT(boost::str(boost::format("GPU allocation: 1D memory - %1% items, %2% bytes per item, address %3$#x")
+					% this->mExtents
+					% sizeof(TType)
+					% int(this->mData.p)));*/
+		CUGIP_ASSERT(this->mData.p);
 	}
 };
 
@@ -525,24 +653,38 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 	device_memory_2d_owner()
 	{}
 
-	device_memory_2d_owner(size_t aWidth, size_t aHeight)
+	device_memory_2d_owner(int aWidth, int aHeight)
 	{
-		void *devPtr = NULL;
-		CUGIP_CHECK_RESULT(cudaMallocPitch(&devPtr, &(this->mPitch), aWidth * sizeof(TType), aHeight));
-		this->mExtents.set<0>(aWidth);
-		this->mExtents.set<1>(aHeight);
-		this->mData = reinterpret_cast<TType*>(devPtr);
-
-		D_PRINT(boost::str(boost::format("GPU allocation: 2D memory - %1% items, %2% bytes pitch, %3% item size")
-					% this->mExtents
-					% this->mPitch
-					% sizeof(TType)));
+		reallocate(extents_t(aWidth, aHeight));
 	}
 
 	device_memory_2d_owner(extents_t aExtents)
 	{
+		reallocate(aExtents);
+	}
+
+	~device_memory_2d_owner()
+	{
+		if (this->mData) {
+			CUGIP_CHECK_RESULT(cudaFree(this->mData.p));
+		}
+	}
+
+	void
+	reallocate(extents_t aExtents)
+	{
+		if (this->mData) {
+			CUGIP_CHECK_RESULT(cudaFree(this->mData.p));
+		}
 		void *devPtr = NULL;
-		CUGIP_CHECK_RESULT(cudaMallocPitch(&devPtr, &(this->mPitch), aExtents.get<0>() * sizeof(TType), aExtents.get<1>()));
+		size_t pitch = 0;
+		//D_PRINT(boost::str(boost::format("GPU allocation: 2D memory - width %1%, height %2%") % (aExtents[0] * sizeof(TType)) % aExtents[1]));
+		//D_PRINT(cudaMemoryInfoText());
+		CUGIP_CHECK_RESULT(cudaMallocPitch(&devPtr, &pitch, aExtents[0] * sizeof(TType), aExtents[1]));
+		if (!devPtr) {
+			CUGIP_THROW(ExceptionBase() << MessageErrorInfo("Failed to allocate enough GPU memory."));
+		}
+		this->mPitch = pitch;
 		this->mExtents = aExtents;
 		this->mData = reinterpret_cast<TType*>(devPtr);
 
@@ -550,13 +692,7 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 					% this->mExtents
 					% this->mPitch
 					% sizeof(TType)));
-	}
-
-	~device_memory_2d_owner()
-	{
-		if (this->mData) {
-			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
-		}
+		CUGIP_ASSERT(this->mData.p);
 	}
 };
 
@@ -570,46 +706,147 @@ struct device_memory_3d_owner: public device_memory_3d<TType>
 	device_memory_3d_owner()
 	{}
 
-	device_memory_3d_owner(size_t aWidth, size_t aHeight, size_t aDepth)
+	device_memory_3d_owner(int aWidth, int aHeight, int aDepth)
 	{
-		cudaPitchedPtr pitchedDevPtr;
-
-		CUGIP_CHECK_RESULT(cudaMalloc3D(&pitchedDevPtr, make_cudaExtent(aWidth * sizeof(TType), aHeight, aDepth)));
-		this->mExtents.set<0>(aWidth);
-		this->mExtents.set<1>(aHeight);
-		this->mExtents.set<2>(aDepth);
-		this->mData = reinterpret_cast<TType*>(pitchedDevPtr.ptr);
-		this->mPitch = pitchedDevPtr.pitch;
-		D_PRINT(boost::str(boost::format("GPU allocation: 3D memory - %1% items, %2% bytes pitch, %3% item size")
-					% this->mExtents
-					% this->mPitch
-					% sizeof(TType)));
+		reallocate(extents_t(aWidth, aHeight, aDepth));
 	}
 
 	device_memory_3d_owner(extents_t aExtents)
 	{
-		cudaPitchedPtr pitchedDevPtr;
-		CUGIP_CHECK_RESULT(cudaMalloc3D(&pitchedDevPtr, make_cudaExtent(aExtents[0] * sizeof(TType), aExtents[1], aExtents[2])));
-		this->mExtents = aExtents;
-		this->mData = reinterpret_cast<TType*>(pitchedDevPtr.ptr);
-		this->mPitch = pitchedDevPtr.pitch;
-
-		D_PRINT(boost::str(boost::format("GPU allocation: 3D memory - %1% items, %2% bytes pitch, %3% item size")
-					% this->mExtents
-					% this->mPitch
-					% sizeof(TType)));
-
-		CUGIP_CHECK_RESULT(cudaMemset(pitchedDevPtr.ptr, 0, this->mPitch * aExtents[1] * aExtents[2]));
+		reallocate(aExtents);
 	}
 
 	~device_memory_3d_owner()
 	{
-		if (this->mData) {
-			CUGIP_ASSERT_RESULT(cudaFree(this->mData.p));
+		if (this->mData.p) {
+			CUGIP_CHECK_RESULT(cudaFree(this->mData.p));
 		}
+	}
+
+	void clear()
+	{
+		CUGIP_ASSERT(false);
+		/*if (this->mData) {
+			CUGIP_CHECK_RESULT(cudaMemset(pitchedDevPtr.ptr, 0, this->mPitch * aExtents[1] * aExtents[2]));
+		}*/
+	}
+
+	void
+	reallocate(extents_t aExtents)
+	{
+		if (this->mData) {
+			CUGIP_CHECK_RESULT(cudaFree(this->mData.p));
+		}
+		cudaPitchedPtr pitchedDevPtr = {0};
+		CUGIP_CHECK_RESULT(cudaMalloc3D(&pitchedDevPtr, make_cudaExtent(aExtents[0] * sizeof(TType), aExtents[1], aExtents[2])));
+		if (!pitchedDevPtr.ptr) {
+			CUGIP_THROW(ExceptionBase() << MessageErrorInfo("Failed to allocate enough GPU memory."));
+		}
+		this->mExtents = aExtents;
+		this->mData = reinterpret_cast<TType*>(pitchedDevPtr.ptr);
+		this->mPitch = pitchedDevPtr.pitch;
+
+		D_PRINT(boost::str(boost::format("GPU allocation: 3D memory - %1% items, %2% bytes pitch, %3% item size, address: %4$#x")
+					% this->mExtents
+					% this->mPitch
+					% sizeof(TType)
+					% reinterpret_cast<size_t>(this->mData.p)));
+
+		CUGIP_ASSERT(this->mData.p);
+		//CUGIP_CHECK_RESULT(cudaMemset(pitchedDevPtr.ptr, 0, this->mPitch * aExtents[1] * aExtents[2]));
 	}
 };
 //*****************************************************************************************
+template<typename TType>
+struct host_memory_1d
+{
+	typedef dim_traits<1>::extents_t extents_t;
+	typedef dim_traits<1>::coord_t coord_t;
+	typedef TType value_type;
+
+	host_memory_1d()
+	{}
+
+	host_memory_1d(TType *aPtr, int aSize)
+		:mData(aPtr), mExtents(aSize)
+	{
+	}
+
+	host_memory_1d(TType *aPtr, extents_t aExtents, int aPitch)
+		:mData(aPtr), mExtents(aExtents)
+	{
+	}
+
+	host_memory_1d(const host_memory_1d<TType> &aMemory)
+		:mData(aMemory.mData), mExtents(aMemory.mExtents)
+	{
+	}
+
+	~host_memory_1d()
+	{ }
+
+	value_type &
+	operator[](coord_t aCoords) const
+	{
+		return mData[aCoords];
+	}
+
+	extents_t
+	dimensions() const
+	{ return mExtents; }
+
+	TType *mData;
+	extents_t mExtents;
+};
+
+template<typename TType>
+struct const_host_memory_1d
+{
+	typedef dim_traits<1>::extents_t extents_t;
+	typedef dim_traits<1>::coord_t coord_t;
+	typedef const TType value_type;
+
+	const_host_memory_1d()
+	{}
+
+	const_host_memory_1d(const TType *aPtr, int aSize)
+		:mData(aPtr), mExtents(aSize)
+	{
+	}
+
+	const_host_memory_1d(const TType *aPtr, extents_t aExtents, int aPitch)
+		:mData(aPtr), mExtents(aExtents)
+	{
+	}
+
+	const_host_memory_1d(const host_memory_1d<TType> &aMemory)
+		:mData(aMemory.mData), mExtents(aMemory.mExtents)
+	{
+	}
+
+	const_host_memory_1d(const const_host_memory_1d<TType> &aMemory)
+		:mData(aMemory.mData), mExtents(aMemory.mExtents)
+	{
+	}
+
+	~const_host_memory_1d()
+	{ }
+
+	value_type &
+	operator[](coord_t aCoords) const
+	{
+		return mData[aCoords];
+	}
+
+
+	extents_t
+	dimensions() const
+	{ return mExtents; }
+
+	const TType *mData;
+	extents_t mExtents;
+};
+
 
 template<typename TType>
 struct host_memory_2d
@@ -621,13 +858,13 @@ struct host_memory_2d
 	host_memory_2d()
 	{}
 
-	host_memory_2d(TType *aPtr, size_t aWidth, size_t aHeight, size_t aPitch)
+	host_memory_2d(TType *aPtr, int aWidth, int aHeight, int aPitch)
 		:mData(aPtr), mExtents(aWidth, aHeight), mPitch(aPitch)
 	{
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
 
-	host_memory_2d(TType *aPtr, extents_t aExtents, size_t aPitch)
+	host_memory_2d(TType *aPtr, extents_t aExtents, int aPitch)
 		:mData(aPtr), mExtents(aExtents), mPitch(aPitch)
 	{
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
@@ -655,7 +892,7 @@ struct host_memory_2d
 
 	TType *mData;
 	extents_t mExtents;
-	size_t mPitch;
+	int mPitch;
 };
 
 template<typename TType>
@@ -668,13 +905,13 @@ struct const_host_memory_2d
 	const_host_memory_2d()
 	{}
 
-	const_host_memory_2d(const TType *aPtr, size_t aWidth, size_t aHeight, size_t aPitch)
+	const_host_memory_2d(const TType *aPtr, int aWidth, int aHeight, int aPitch)
 		:mData(aPtr), mExtents(aWidth, aHeight), mPitch(aPitch)
 	{
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
 
-	const_host_memory_2d(const TType *aPtr, extents_t aExtents, size_t aPitch)
+	const_host_memory_2d(const TType *aPtr, extents_t aExtents, int aPitch)
 		:mData(aPtr), mExtents(aExtents), mPitch(aPitch)
 	{
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
@@ -709,7 +946,7 @@ struct const_host_memory_2d
 
 	const TType *mData;
 	extents_t mExtents;
-	size_t mPitch;
+	int mPitch;
 };
 
 
@@ -723,13 +960,13 @@ struct host_memory_3d
 	host_memory_3d()
 	{}
 
-	host_memory_3d(TType *aPtr, size_t aWidth, size_t aHeight,  size_t aDepth, size_t aPitch)
+	host_memory_3d(TType *aPtr, int aWidth, int aHeight,  int aDepth, int aPitch)
 		:mData(aPtr), mExtents(aWidth, aHeight, aDepth), mPitch(aPitch)
 	{
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
 
-	host_memory_3d(TType *aPtr, extents_t aExtents, size_t aPitch)
+	host_memory_3d(TType *aPtr, extents_t aExtents, int aPitch)
 		:mData(aPtr), mExtents(aExtents), mPitch(aPitch)
 	{
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
@@ -758,7 +995,7 @@ struct host_memory_3d
 
 	TType *mData;
 	extents_t mExtents;
-	size_t mPitch;
+	int mPitch;
 };
 
 
@@ -772,13 +1009,13 @@ struct const_host_memory_3d
 	const_host_memory_3d()
 	{}
 
-	const_host_memory_3d(const TType *aPtr, size_t aWidth, size_t aHeight,  size_t aDepth, size_t aPitch)
+	const_host_memory_3d(const TType *aPtr, int aWidth, int aHeight,  int aDepth, int aPitch)
 		:mData(aPtr), mExtents(aWidth, aHeight, aDepth), mPitch(aPitch)
 	{
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
 
-	const_host_memory_3d(const TType *aPtr, extents_t aExtents, size_t aPitch)
+	const_host_memory_3d(const TType *aPtr, extents_t aExtents, int aPitch)
 		:mData(aPtr), mExtents(aExtents), mPitch(aPitch)
 	{
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
@@ -812,13 +1049,24 @@ struct const_host_memory_3d
 
 	const TType *mData;
 	extents_t mExtents;
-	size_t mPitch;
+	int mPitch;
 };
 
 //*****************************************************************************************
 
-template<typename TElement, size_t tDim>
+template<typename TElement, int tDim>
 struct memory_management;
+
+template<typename TElement>
+struct memory_management<TElement, 1>
+{
+	typedef device_memory_1d<TElement> device_memory;
+	typedef const_device_memory_1d<TElement> const_device_memory;
+	typedef device_memory_1d_owner<TElement> device_memory_owner;
+
+	typedef host_memory_1d<TElement> host_memory;
+	typedef const_host_memory_1d<TElement> const_host_memory;
+};
 
 template<typename TElement>
 struct memory_management<TElement, 2>

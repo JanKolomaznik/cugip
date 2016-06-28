@@ -1,14 +1,14 @@
 #pragma once
 
 #include <cugip/detail/include.hpp>
-#include <boost/mpl/bool.hpp>
 #include <cugip/utils.hpp>
 #include <cugip/memory.hpp>
 #include <cugip/image_locator.hpp>
+#include <type_traits>
 
 namespace cugip {
 
-template<typename TElement, size_t tDim = 2>
+template<typename TElement, int tDim = 2>
 class memory_view
 {
 public:
@@ -54,7 +54,7 @@ protected:
 
 };
 
-template<typename TElement, size_t tDim = 2>
+template<typename TElement, int tDim = 2>
 class const_memory_view
 {
 public:
@@ -106,20 +106,20 @@ protected:
  * @{
  **/
 
-template<typename TElement, size_t tDim>
+template<typename TElement, int tDim>
 struct dimension<memory_view<TElement, tDim> >: dimension_helper<tDim> {};
 
-template<typename TElement, size_t tDim>
+template<typename TElement, int tDim>
 struct dimension<const_memory_view<TElement, tDim> >: dimension_helper<tDim> {};
 
 template<typename TView>
-struct is_memory_view: public boost::mpl::false_ {};
+struct is_memory_view: public std::false_type {};
 
-template<typename TElement, size_t tDim>
-struct is_memory_view<memory_view<TElement, tDim> > : public boost::mpl::true_ {};
+template<typename TElement, int tDim>
+struct is_memory_view<memory_view<TElement, tDim> > : public std::true_type {};
 
-template<typename TElement, size_t tDim>
-struct is_memory_view<const_memory_view<TElement, tDim> > : public boost::mpl::true_ {};
+template<typename TElement, int tDim>
+struct is_memory_view<const_memory_view<TElement, tDim> > : public std::true_type {};
 
 
 
@@ -127,5 +127,4 @@ struct is_memory_view<const_memory_view<TElement, tDim> > : public boost::mpl::t
  * @}
  **/
 
-}//namespace cugip
-
+} // namespace cugip

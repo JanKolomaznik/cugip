@@ -18,13 +18,23 @@ struct device_flag_view
 	CUGIP_DECL_HOST void
 	reset_host()
 	{
+		CUGIP_ASSERT(mFlag.p);
 		mFlag.assign_host(false);
+		//*mFlag = false;
+	}
+
+	CUGIP_DECL_DEVICE void
+	reset_device()
+	{
+		CUGIP_ASSERT(mFlag.p);
+		mFlag.assign_device(false);
 		//*mFlag = false;
 	}
 
 	CUGIP_DECL_HOST void
 	set_host()
 	{
+		CUGIP_ASSERT(mFlag.p);
 		mFlag.assign_host(true);
 		//*mFlag = true;
 	}
@@ -32,6 +42,7 @@ struct device_flag_view
 	CUGIP_DECL_DEVICE void
 	set_device()
 	{
+		CUGIP_ASSERT(mFlag.p);
 		mFlag.assign_device(true);
 		//*mFlag = true;
 	}
@@ -39,7 +50,15 @@ struct device_flag_view
 	CUGIP_DECL_HOST bool
 	check_host()
 	{
+		CUGIP_ASSERT(mFlag.p);
 		return mFlag.retrieve_host();
+	}
+
+	CUGIP_DECL_DEVICE bool
+	check_device()
+	{
+		CUGIP_ASSERT(mFlag.p);
+		return mFlag.retrieve_device();
 	}
 
 

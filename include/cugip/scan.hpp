@@ -11,7 +11,7 @@ namespace cugip {
 
 namespace detail {
 
-template<typename TInputView, typename TOutputView, typename TOperator, size_t tDim, size_t tBlockSize, bool tStoreIntermediateR>
+template<typename TInputView, typename TOutputView, typename TOperator, int tDim, int tBlockSize, bool tStoreIntermediateR>
 CUGIP_GLOBAL void
 kernel_scan_block_dim(TInputView aInput, TOutputView aOutput, TOutputView aIntermediateResultsView, TOperator aOperator)
 {
@@ -19,15 +19,15 @@ kernel_scan_block_dim(TInputView aInput, TOutputView aOutput, TOutputView aInter
 	typedef typename TOutputView::coord_t coord_t;
 	typedef typename TOutputView::extents_t extents_t;
 	CUGIP_SHARED value_type tmpData[tBlockSize+1];
-	size_t offset = tBlockSize >> 1;
+	int offset = tBlockSize >> 1;
 
 	coord_t threadCoord(threadIdx.x, threadIdx.y, threadIdx.z);
 	coord_t processedBlockDim(blockDim.x, blockDim.y, blockDim.z);
 	get<tDim>(processedBlockDim) = tBlockSize;
 
-	size_t thid = get<tDim>(threadCoord);
-	size_t bufferIdx1 = get<tDim>(threadCoord);
-	size_t bufferIdx2 = bufferIdx1 + offset;
+	int thid = get<tDim>(threadCoord);
+	int bufferIdx1 = get<tDim>(threadCoord);
+	int bufferIdx2 = bufferIdx1 + offset;
 	coord_t coord1 = coord_t(blockIdx.x * processedBlockDim[0] + threadIdx.x, blockIdx.y * processedBlockDim[1] + threadIdx.y, blockIdx.z * processedBlockDim[2] + threadIdx.z);
 	coord_t coord2 = coord1;
 	get<tDim>(coord2) += offset;
@@ -44,11 +44,11 @@ kernel_scan_block_dim(TInputView aInput, TOutputView aOutput, TOutputView aInter
 		tmpData[bufferIdx2] = 0; //TODO use right mask for background
 	}
 	offset = 1;
-	for (size_t d = tBlockSize >> 1; d > 0; d >>= 1) {
+	for (int d = tBlockSize >> 1; d > 0; d >>= 1) {
 		__syncthreads();
 		if (thid < d) {
-			size_t ai = offset*((thid << 1) + 1) - 1;
-			size_t bi = offset*((thid << 1) + 2) - 1;
+			int ai = offset*((thid << 1) + 1) - 1;
+			int bi = offset*((thid << 1) + 2) - 1;
 			tmpData[bi] = aOperator(tmpData[ai], tmpData[bi]);
 		}
 		offset *= 2;
@@ -91,7 +91,7 @@ kernel_scan_block_dim(TInputView aInput, TOutputView aOutput, TOutputView aInter
 	}
 }
 
-template<typename TOutputView, typename TOperator, size_t tDim, size_t tBlockSize>
+template<typename TOutputView, typename TOperator, int tDim, int tBlockSize>
 CUGIP_GLOBAL void
 kernel_update_block_dim(TOutputView aOutput, TOutputView aIntermediateResultsView, TOperator aOperator)
 {
@@ -99,13 +99,13 @@ kernel_update_block_dim(TOutputView aOutput, TOutputView aIntermediateResultsVie
 	typedef typename TOutputView::coord_t coord_t;
 	typedef typename TOutputView::extents_t extents_t;
 
-	size_t offset = tBlockSize >> 1;
+	int offset = tBlockSize >> 1;
 
 	coord_t threadCoord(threadIdx.x, threadIdx.y, threadIdx.z);
 	coord_t processedBlockDim(blockDim.x, blockDim.y, blockDim.z);
 	get<tDim>(processedBlockDim) = tBlockSize;
 
-	size_t thid = get<tDim>(threadCoord);
+	int thid = get<tDim>(threadCoord);
 	coord_t coord1 = coord_t(blockIdx.x * processedBlockDim[0] + threadIdx.x, blockIdx.y * processedBlockDim[1] + threadIdx.y, blockIdx.z * processedBlockDim[2] + threadIdx.z);
 	coord_t coord2 = coord1;
 	get<tDim>(coord2) += offset;
@@ -127,7 +127,7 @@ kernel_update_block_dim(TOutputView aOutput, TOutputView aIntermediateResultsVie
 	}
 }
 
-template<typename TInputView, typename TOutputView, typename TOperator, size_t tDim>
+template<typename TInputView, typename TOutputView, typename TOperator, int tDim>
 void
 scan_block_dim(TInputView aInput, TOutputView aOutput, TOutputView aTmpView, TOperator aOperator)
 {
@@ -156,7 +156,7 @@ scan_block_dim(TInputView aInput, TOutputView aOutput, TOutputView aTmpView, TOp
 	CUGIP_CHECK_ERROR_STATE("kernel_scan_block_dim");
 }
 
-template<typename TOutputView, typename TOperator, size_t tDim>
+template<typename TOutputView, typename TOperator, int tDim>
 void
 update_block_dim(TOutputView aOutput, TOutputView aTmpView, TOperator aOperator)
 {
@@ -185,7 +185,7 @@ update_block_dim(TOutputView aOutput, TOutputView aTmpView, TOperator aOperator)
 }
 
 
-template<typename TInputView, typename TOutputView, typename TOperator, size_t tDim>
+template<typename TInputView, typename TOutputView, typename TOperator, int tDim>
 void
 scan_dim(TInputView aInput, TOutputView aOutput, TOutputView aTmpView, TOperator aOperator)
 {

@@ -43,5 +43,3 @@ denoise(float *aInput, float *aOutput, size_t aWidth, size_t aHeight, size_t aDe
 	CUGIP_CHECK_ERROR_STATE("denoise");
 
 }
-
-

@@ -35,5 +35,5 @@ CUDA_ADD_EXECUTABLE(denoising denoising.cpp denoising.cu )
 TARGET_LINK_LIBRARIES(denoising ${Boost_LIBRARIES} ${ITK_LIBRARIES})
 
 CUDA_ADD_EXECUTABLE(graph_cut graph_cut.cpp graph_cut.cu )
-#TARGET_LINK_LIBRARIES(graph_cut ${Boost_LIBRARIES})
+TARGET_LINK_LIBRARIES(graph_cut ${Boost_LIBRARIES})
 

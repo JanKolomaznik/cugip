@@ -311,7 +311,7 @@ diffusion(boost::gil::gray8_image_t::const_view_t aIn, boost::gil::gray8_image_t
 
 	cugip::transform(cugip::const_view(inImage), cugip::view(tmpImage), cugip::convert_float_and_byte());
 
-	for (size_t i = 0; i < 80; ++i) {
+	for (int i = 0; i < 80; ++i) {
 		coherence_enhancing_diffusion_step(
 			cugip::const_view(tmpImage), 
 			cugip::view(diffStep), 

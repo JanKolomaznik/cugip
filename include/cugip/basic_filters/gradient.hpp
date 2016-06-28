@@ -8,7 +8,7 @@
 namespace cugip {
 namespace detail {
 
-template<typename TOutputType, typename TLocator, size_t tDim>
+template<typename TOutputType, typename TLocator, int tDim>
 struct compute_symmetric_difference
 {
 	static CUGIP_DECL_HYBRID void 
@@ -64,7 +64,7 @@ struct gradient_magnitude_symmetric_difference
 
 namespace detail {
 
-template<typename TOutputType, typename TLocator, size_t tDim>
+template<typename TOutputType, typename TLocator, int tDim>
 struct compute_divergence
 {
 	static CUGIP_DECL_HYBRID void 

@@ -13,7 +13,8 @@
 void
 test_graph_cut()
 {
-	cugip::Graph graph;
+	using namespace cugip;
+	cugip::Graph<float> graph;
 	graph.set_vertex_count(16);
 
 	//std::vector<int>
@@ -28,6 +29,10 @@ test_graph_cut()
 		};
 
 	EdgeRecord edges[24];
+	for (int i = 0; i < 24; ++i) {
+		edges[i] = EdgeRecord(nlinksVertices1[i], nlinksVertices2[i]);
+	}
+
 	//std::vector<float> 
 	float nlinksWeights[24] = {
 		5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 
@@ -49,6 +54,7 @@ test_graph_cut()
 		/*nlinksVertices1,
 		nlinksVertices2,*/
 		edges,
+		nlinksWeights, 
 		nlinksWeights);
 
 	graph.set_tweights(
@@ -56,6 +62,7 @@ test_graph_cut()
 		tlinksSink
 		);
 
-	graph.max_flow();
+	float flow = graph.max_flow();
+	CUGIP_DPRINT("Max flow = " << flow);
 }
 

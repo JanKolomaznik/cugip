@@ -46,6 +46,44 @@ loadData(TMemoryBlock &aData, TLocator aLocator, const TCoordinates &aPaddedCoor
 			}
 		}
 	}
+	/*const int cBorder = TParameters::patch_radius + TParameters::search_radius;
+	aData[aPaddedCoords] = aLocator[aPaddedCoords];
+	typename TMemoryBlock::extents_t extents = TMemoryBlock::dimensions();
+	TCoordinates blockExtents(blockDim.x, blockDim.y, blockDim.z);
+
+	// 6 box sides
+	for (int i = 0; i < 3; ++i) {
+		int idx = aLocalCoords[i];
+		while (idx < cBorder) {
+			TCoordinates coordTop = aPaddedCoords;
+			coordTop[i] = idx;
+			aData[coordTop] = aLocator[coordTop];
+			coordTop[i] = extents[i] - idx - 1;
+			aData[coordTop] = aLocator[coordTop];
+			idx += blockExtents[i];
+		}
+	}
+
+	for (int i = 0; i < 3; ++i) {
+		TCoordinates coordTop = aPaddedCoords;
+		for (int j = 0; j < 3; ++j) {
+			if (i == j) {
+				continue;
+			}
+			coordTop[j] = aLocalCoords[j];
+		}
+	}*/
+	/*for (int i = 0; i < 2; ++i) {
+		int idx = aLocalCoords[i];
+		while (idx < cBorder) {
+			TCoordinates coordTop = aPaddedCoords;
+			coordTop[i] = idx;
+			aData[coordTop] = aLocator[coordTop];
+			coordTop[i] = extents[i] - idx - 1;
+			aData[coordTop] = aLocator[coordTop];
+			idx += blockExtents[i];
+		}
+	}*/
 }
 
 template<int tPatchRadius>
@@ -81,7 +119,7 @@ kernel_nonlocal_means(TInImageView aIn, TOutImageView aOut, TParameters aParamet
 	const int cPatchRadius = TParameters::patch_radius;
 	const int cSearchRadius = TParameters::search_radius;
 	typedef typename TInImageView::value_type value_type;
-	typedef size_traits_3d<8 + 2*(cBorder), 8 + 2*(cBorder), 4 + 2*(cBorder)> shared_data_size;
+	typedef intraits_3d<8 + 2*(cBorder), 8 + 2*(cBorder), 4 + 2*(cBorder)> shared_data_size;
 	typedef static_memory_block<value_type, shared_data_size> MemoryBlock;
 
 	typedef simple_vector<int, 3> coord_t;

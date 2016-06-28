@@ -19,7 +19,7 @@ const_view(TImage &aImage);
 //**************************************************************************
 
 
-template<typename TElement, size_t tDim = 2>
+template<typename TElement, int tDim = 2>
 class device_image
 {
 public:
@@ -40,17 +40,23 @@ public:
 		: mData(aExtents)
 	{}
 
-	device_image(size_t aS0)
+	device_image(int aS0)
 		: mData(typename dim_traits<tDim>::extents_t(aS0))
 	{}
 
-	device_image(size_t aS0, size_t aS1)
+	device_image(int aS0, int aS1)
 		: mData(typename dim_traits<tDim>::extents_t(aS0, aS1))
 	{}
 
-	device_image(size_t aS0, size_t aS1, size_t aS2)
+	device_image(int aS0, int aS1, int aS2)
 		: mData(typename dim_traits<tDim>::extents_t(aS0, aS1, aS2))
 	{}
+
+	device_image(device_image &&aOther) = default;
+	device_image & operator=(device_image &&aOther) = default;
+
+	device_image & operator=(const device_image &) = delete;
+	device_image(const device_image &) = delete;
 
 	CUGIP_DECL_HYBRID extents_t
 	dimensions() const
@@ -67,9 +73,20 @@ public:
 	{
 		return const_view_t(mData);
 	}
+
+	value_type *
+	pointer() const
+	{
+		return mData.mData.get();
+	}
+
+	void
+	resize(extents_t aExtents)
+	{
+		mData.reallocate(aExtents);
+	}
+
 protected:
-	device_image & operator=(const device_image &);
-	device_image(const device_image &);
 
 	typename memory_management<TElement, tDim>::device_memory_owner mData;
 	//device_ptr<element_t> mData;
@@ -94,7 +111,7 @@ const_view(TImage &aImage)
 /** \ingroup  traits
  * @{
  **/
-template<typename TElement, size_t tDim>
+template<typename TElement, int tDim>
 struct dimension<device_image<TElement, tDim> >: dimension_helper<tDim> {};
 
 /**
