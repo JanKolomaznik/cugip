@@ -1,6 +1,7 @@
 #pragma once
 
 #include <initializer_list>
+#include <cugip/math.hpp>
 
 namespace cugip {
 
@@ -51,8 +52,8 @@ template<int tCurrentResult, typename TIntSequence>
 struct ProductIntSequenceImpl;
 
 template<int tCurrentResult, int tHead, int...tValues>
-struct ProductIntSequenceImpl<IntSequence<tHead, tValues...>> {
-	static constexpr int value = ProductOfIntSequence<tCurrentResult * tHead, tTail...>::value;
+struct ProductIntSequenceImpl<tCurrentResult, IntSequence<tHead, tValues...>> {
+	static constexpr int value = ProductIntSequenceImpl<tCurrentResult * tHead, IntSequence<tValues...>>::value;
 };
 
 template<int tCurrentResult, int tHead>
@@ -97,7 +98,7 @@ struct GetPositionInIntSequence {
 template<typename TIntSequence>
 struct ProductOfIntSequence
 {
-	static constexpr int value = ProductIntSequenceImpl<1, TIntSequence>::value;
+	static constexpr int value = detail::ProductIntSequenceImpl<1, TIntSequence>::value;
 };
 
 template<int tSize>
@@ -117,5 +118,38 @@ std::ostream &operator<<(std::ostream &stream, const IntSequence<tValues...> &) 
 	return stream << "]";
 }
 
-}  // namespace cugip
+template<int...tSize>
+struct StaticSize: IntSequence<tSize...>
+{
+	static constexpr int cDimension = sizeof...(tSize);
 
+	CUGIP_DECL_HYBRID
+	static constexpr simple_vector<int, cDimension>
+	vector()
+	{
+		return simple_vector<int, cDimension>{ tSize... };
+	}
+
+	CUGIP_DECL_HYBRID
+	static constexpr int count()
+	{
+		return ProductOfIntSequence<IntSequence<tSize...>>::value;
+	}
+};
+
+template<int tDimension, int tValue>
+struct FillStaticSize;
+
+template<int tValue>
+struct FillStaticSize<2, tValue>
+{
+	typedef StaticSize<tValue, tValue> Type;
+};
+
+template<int tValue>
+struct FillStaticSize<3, tValue>
+{
+	typedef StaticSize<tValue, tValue, tValue> Type;
+};
+
+}  // namespace cugip

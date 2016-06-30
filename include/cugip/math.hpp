@@ -93,8 +93,16 @@ public:
 
 	CUGIP_DECL_HYBRID /*constexpr*/
 	simple_vector(std::initializer_list<TCoordinateType> aList)
-		: mValues(aList)
-	{}
+	{
+		CUGIP_ASSERT(aList.size() == tDim);
+		TCoordinateType *result = mValues;
+		auto first = aList.begin();
+		auto last = aList.end();
+		while (first != last) {
+			*result = *first;
+			++result; ++first;
+		}
+	}
 
 	template<typename TOtherCoordType>
 	inline CUGIP_DECL_HYBRID simple_vector &
@@ -125,6 +133,17 @@ public:
 		}
 		return *this;
 	}
+
+	inline CUGIP_DECL_HYBRID simple_vector
+	operator-() const
+	{
+		auto result = *this;
+		for (int i = 0; i < tDim; ++i) {
+			result[i] *= -1;
+		}
+		return result;
+	}
+
 
 	template <int tIdx>
 	inline CUGIP_DECL_HYBRID TCoordinateType const&

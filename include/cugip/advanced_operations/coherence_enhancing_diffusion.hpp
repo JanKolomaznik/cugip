@@ -1,28 +1,37 @@
 #pragma once
 
 #include <cugip/basic_filters/gradient.hpp>
-#include <cugip/filter.hpp>
+#include <cugip/math/symmetric_tensor.hpp>
+#include <cugip/math/eigen.hpp>
+#include <cugip/basic_filters/convolution.hpp>
+#include <cugip/transform.hpp>
+#include <cugip/for_each.hpp>
 
 namespace cugip {
 
 template<typename TInView, typename TGradientView>
 void compute_gradient(TInView aInput, TGradientView aGradient)
 {
-	filter(aInput, aGradient, cugip::gradient_symmetric_difference<typename TInView::value_type, typename TGradientView::value_type>());
+	cugip::transform_locator(aInput, aGradient, sobel_gradient<3>());
+	//filter(aInput, aGradient, cugip::gradient_symmetric_difference<typename TInView::value_type, typename TGradientView::value_type>());
 }
 
 template<typename TGradientVector, typename TStructuralTensor>
 struct compute_structural_tensor_ftor
 {
-	/*CUGIP_DECL_HYBRID TStructuralTensor
+	static constexpr int cDimension = static_vector_traits<TGradientVector>::dimension;
+
+	CUGIP_DECL_HYBRID TStructuralTensor
 	operator()(const TGradientVector &aGradient)
 	{
 		TStructuralTensor tensor;
-		get<0>(tensor) =  get<0>(aGradient) * get<0>(aGradient);
-		get<1>(tensor) =  get<0>(aGradient) * get<1>(aGradient);
-		get<2>(tensor) =  get<1>(aGradient) * get<1>(aGradient);
+		for (int i = 0; i < cDimension; ++i) {
+			for (int j = i; j < cDimension; ++j) {
+				tensor.get(i, j) = aGradient[i] * aGradient[j];
+			}
+		}
 		return tensor;
-	}*/
+	}
 };
 
 /*template<typename TStructuralTensor>
@@ -72,7 +81,7 @@ struct compute_diffusion_tensor_ftor
 	CUGIP_DECL_HYBRID TStructuralTensor
 	operator()(const TStructuralTensor &aTensor)
 	{
-		TStructuralTensor tensor;
+		constexpr int cDimension = TStructuralTensor::cDimension;
 
 		auto eigValues = eigen_values(aTensor);
 		auto eigVectors = eigen_vectors(aTensor, eigValues);
@@ -93,31 +102,7 @@ struct compute_diffusion_tensor_ftor
 			newEigValues[cDimension - 1] += (1 - alpha) * exp(-contrast / kappa);
 		}
 
-		return matrix_from_eigen_vectors_and_values(aEigenVectors, newEigValues);
-
-		/*float s11 = get<0>(aTensor);
-		float s12 = get<1>(aTensor);
-		float s22 = get<2>(aTensor);
-
-		float s1_m_s2 = s11 - s22;
-
-		float gamma = 0.02f;
-		float C = 1.0f;
-		float alfa = sqrtf(sqr(s1_m_s2) + 4*sqr(s12))+0.00001f;
-
-		float c1 = gamma;
-      		float c2 = gamma + (1-gamma)*expf(-C/(alfa));
-
-		float c1_p_c2 = c1 + c2;
-      		float c2_m_c1 = c2 - c1;
-
-		float dd = (c2_m_c1 * s1_m_s2 )/(alfa);
-
-      		get<0>(tensor) = 0.5f * ( c1_p_c2 + dd );
-      		get<1>(tensor) = -(c2_m_c1)*s12/(alfa);
-      		get<2>(tensor) = 0.5f * (c1_p_c2 - dd);*/
-
-		return tensor;
+		return matrix_from_eigen_vectors_and_values(eigVectors, newEigValues);
 	}
 
 	float alpha;
@@ -133,37 +118,31 @@ void compute_structural_tensor(TGradientView aGradient, TTensorView aStructuralT
 template<typename TInputTensorView, typename TOutputTensorView>
 void blur_structural_tensor(TInputTensorView aStructuralTensor, TOutputTensorView aBluredStructuralTensor)
 {
-	convolution(aStructuralTensor, aBluredStructuralTensor, gaussian_kernel<float, intraits_2d<9,9> >());
+	//convolution(aStructuralTensor, aBluredStructuralTensor, gaussian_kernel<float, intraits_2d<9,9> >());
 }
 
 
 template<typename TTensorView>
-void compute_diffusion_tensor(TTensorView aDiffusionTensor)
+void compute_diffusion_tensor(TTensorView aDiffusionTensor, float aAlpha, float aContrast)
 {
-	for_each(aDiffusionTensor, cugip::compute_diffusion_tensor_ftor{ 1.0f, 1.0f });
+	for_each(aDiffusionTensor, cugip::compute_diffusion_tensor_ftor{ aAlpha, aContrast });
 }
 
-template<typename TStructuralTensor, typename TGradient>
 struct apply_diffusion_tensor_ftor
 {
+	template<typename TStructuralTensor, typename TGradient>
 	CUGIP_DECL_HYBRID void
 	operator()(const TStructuralTensor &aTensor, TGradient &aGradient)
 	{
-		//TODO - generic dimension
-		TGradient tmp(0);
-
-		return sum(product(aTensor, aGradient));
-		get<0>(tmp) = get<0>(aTensor) * get<0>(aGradient) + get<1>(aTensor) * get<1>(aGradient);
-		get<1>(tmp) = get<1>(aTensor) * get<0>(aGradient) + get<2>(aTensor) * get<1>(aGradient);
-
-		aGradient = tmp;
+		return product(aTensor, aGradient);
 	}
 };
 
 template<typename TTensorView, typename TGradientView, typename TOutputView>
 void apply_diffusion_tensor(TTensorView aDiffusionTensor, TGradientView aGradient, TOutputView aOutput, float aTimeStep)
 {
-	//for_each(aDiffusionTensor, aGradient, cugip::apply_diffusion_tensor_ftor<typename TTensorView::value_type, typename TGradientView::value_type>());
+	transform2(aDiffusionTensor, aGradient, aGradient, cugip::apply_diffusion_tensor_ftor());
+	transform_locator(aGradient, aOutput, weighted_divergence(aTimeStep));
 }
 
 /*template<typename TGradientView, typename TOutputView>
@@ -189,7 +168,7 @@ coherence_enhancing_diffusion_step(
 
 	compute_gradient(aInput, aGradient);
 
-	compute_structural_tensor(aInput, aStructuralTensor);
+	compute_structural_tensor(aGradient, aStructuralTensor);
 
 	blur_structural_tensor(aStructuralTensor, aDiffusionTensor);
 
@@ -225,7 +204,10 @@ public:
 			aOutput,
 			view(mGradient),
 			view(mStructuralTensor),
-			view(mDiffusionTensor);
+			view(mDiffusionTensor),
+			mTimeStep,
+			mAlpha,
+			mContrast);
 
 	}
 

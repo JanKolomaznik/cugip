@@ -10,6 +10,7 @@ class symmetric_tensor: public simple_vector<TType, ((tDimension + 1) * tDimensi
 {
 public:
 	typedef simple_vector<TType, ((tDimension + 1) * tDimension) / 2> base_type;
+	static constexpr int cDimension = tDimension;
 
 	CUGIP_DECL_HYBRID
 	symmetric_tensor()
@@ -60,7 +61,7 @@ private:
 };
 
 template <typename TType, int tDimension>
-TType
+CUGIP_DECL_HYBRID TType
 matrix_trace(const symmetric_tensor<TType, tDimension> &aMatrix)
 {
 	TType result = 0;

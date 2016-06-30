@@ -3,7 +3,8 @@
 #include <cugip/utils.hpp>
 #include <cugip/math.hpp>
 #include <cugip/traits.hpp>
-#include <cugip/filter.hpp>
+//#include <cugip/filter.hpp>
+#include <cugip/basic_filters/convolution.hpp>
 
 namespace cugip {
 namespace detail {
@@ -11,7 +12,7 @@ namespace detail {
 template<typename TOutputType, typename TLocator, int tDim>
 struct compute_symmetric_difference
 {
-	static CUGIP_DECL_HYBRID void 
+	static CUGIP_DECL_HYBRID void
 	compute(TOutputType &aOutput, TLocator &aLocator)
 	{
 		get<tDim-1>(aOutput) = (aLocator.dim_offset<tDim-1>(1) - aLocator.dim_offset<tDim-1>(-1))/2;
@@ -23,7 +24,7 @@ struct compute_symmetric_difference
 template<typename TOutputType, typename TLocator>
 struct compute_symmetric_difference<TOutputType, TLocator, 0>
 {
-	static CUGIP_DECL_HYBRID void 
+	static CUGIP_DECL_HYBRID void
 	compute(TOutputType &, TLocator &)
 	{ }
 };
@@ -67,7 +68,7 @@ namespace detail {
 template<typename TOutputType, typename TLocator, int tDim>
 struct compute_divergence
 {
-	static CUGIP_DECL_HYBRID void 
+	static CUGIP_DECL_HYBRID void
 	compute(TOutputType &aOutput, TLocator &aLocator)
 	{
 		aOutput += (get<tDim-1>(aLocator.dim_offset<tDim-1>(0)) - get<tDim-1>(aLocator.dim_offset<tDim-1>(-1)));
@@ -79,7 +80,7 @@ struct compute_divergence
 template<typename TOutputType, typename TLocator>
 struct compute_divergence<TOutputType, TLocator, 0>
 {
-	static CUGIP_DECL_HYBRID void 
+	static CUGIP_DECL_HYBRID void
 	compute(TOutputType &, TLocator &)
 	{ }
 };
@@ -99,6 +100,42 @@ struct divergence
 
 		return tmp;
 	}
+};
+
+template<int tDimension>
+struct sobel_gradient_magnitude
+{
+	sobel_gradient_magnitude()
+		: kernel(sobel_gradient_kernel<tDimension>())
+	{}
+
+	template<typename TLocator>
+	CUGIP_DECL_HYBRID float
+	operator()(TLocator aLocator) const
+	{
+		simple_vector<float, tDimension> result;
+		apply_convolution_kernel(aLocator, kernel, result);
+		return magnitude(result);
+	}
+	convolution_kernel<simple_vector<float, tDimension>, typename FillStaticSize<tDimension, 3>::Type> kernel;
+};
+
+template<int tDimension>
+struct sobel_gradient
+{
+	sobel_gradient()
+		: kernel(sobel_gradient_kernel<tDimension>())
+	{}
+
+	template<typename TLocator>
+	CUGIP_DECL_HYBRID simple_vector<float, tDimension>
+	operator()(TLocator aLocator) const
+	{
+		simple_vector<float, tDimension> result;
+		apply_convolution_kernel(aLocator, kernel, result);
+		return result;
+	}
+	convolution_kernel<simple_vector<float, tDimension>, typename FillStaticSize<tDimension, 3>::Type> kernel;
 };
 
 

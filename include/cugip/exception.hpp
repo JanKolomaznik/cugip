@@ -35,7 +35,7 @@ class IncompatibleViewSizes: public ExceptionBase {};
 		cudaError_t err = __VA_ARGS__ ;\
 		if( cudaSuccess != err ) {\
 			CUGIP_EFORMAT("%1% (%2%) %3%", aErrorMessage, cugip::get_error_enum_name(err), cudaGetErrorString(err)); \
-			CUGIP_THROW(ExceptionBase() << MessageErrorInfo(aErrorMessage) << CudaErrorCodeInfo(err));\
+			CUGIP_THROW(cugip::ExceptionBase() << cugip::MessageErrorInfo(aErrorMessage) << cugip::CudaErrorCodeInfo(err));\
 		}\
 	} while(0);
 

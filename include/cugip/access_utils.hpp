@@ -31,19 +31,25 @@ inline int stridesFromSize(int size) {
 }
 
 
-
 CUGIP_HD_WARNING_DISABLE
 template<typename TImageView>
 CUGIP_DECL_HYBRID auto
-linear_access(const TImageView &aView, int aIdx) -> typename TImageView::accessed_type
+index_from_linear_access_index(const TImageView &aView, int aIdx) -> typename TImageView::coord_t
 {
 	typename TImageView::coord_t coords;
 	for(int i = 0; i < dimension<TImageView>::value; ++i) {
 		coords[i] = aIdx % aView.dimensions()[i];
 		aIdx /= aView.dimensions()[i];
 	}
+	return coords;
+}
 
-	return aView[coords];
+CUGIP_HD_WARNING_DISABLE
+template<typename TImageView>
+CUGIP_DECL_HYBRID auto
+linear_access(const TImageView &aView, int aIdx) -> typename TImageView::accessed_type
+{
+	return aView[index_from_linear_access_index(aView, aIdx)];
 }
 
 template<typename TExtents, typename TCoordinates>

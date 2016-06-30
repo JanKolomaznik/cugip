@@ -73,6 +73,14 @@ elementCount(const TView &aView)
 	return product(aView.dimensions());
 }
 
+CUGIP_HD_WARNING_DISABLE
+template<typename TView>
+CUGIP_DECL_HYBRID bool
+isEmpty(const TView &aView)
+{
+	return 0 == product(aView.dimensions());
+}
+
 template<int tDimension>
 class device_image_view_base
 {

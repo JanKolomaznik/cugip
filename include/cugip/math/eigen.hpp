@@ -8,8 +8,8 @@ namespace cugip {
 // TODO handle constants properly
 #define M_SQRT3    1.73205080756887729352744634151   // sqrt(3)
 
-/*CUGIP_DECL_HYBRID*/ simple_vector<float, 3>
-eigen_values(symmetric_tensor<float, 3> &aTensor)
+CUGIP_DECL_HYBRID simple_vector<float, 3>
+eigen_values(const symmetric_tensor<float, 3> &aTensor)
 {
 	// Determine coefficients of characteristic poynomial. We write
 	//       | a   d   f  |
@@ -51,7 +51,7 @@ eigen_values(symmetric_tensor<float, 3> &aTensor)
 }
 
 template<int tCol1, int tCol2>
-simple_vector<float, 3>
+CUGIP_DECL_HYBRID simple_vector<float, 3>
 eigen_vector(float aEigenValue, const symmetric_tensor<float, 3> &aMatrix, const float aThreshold)
 {
 	auto v1 = aMatrix.column(tCol1);
@@ -91,7 +91,7 @@ eigen_vector(float aEigenValue, const symmetric_tensor<float, 3> &aMatrix, const
  * Based on implementation for paper: 'Efficient numerical diagonalization of hermitian 3x3 matrices' by Joachim Kopp
  **/
 //simple_vector<simple_vector<float, 3>, 3>
-matrix<float, 3, 3>
+CUGIP_DECL_HYBRID matrix<float, 3, 3>
 eigen_vectors(const symmetric_tensor<float, 3> &aTensor, const simple_vector<float, 3> &aEigenValues)
 {
 	matrix<float, 3, 3> result;
@@ -130,7 +130,7 @@ eigen_vectors(const symmetric_tensor<float, 3> &aTensor, const simple_vector<flo
 	return result;
 }
 
-symmetric_tensor<float, 3>
+CUGIP_DECL_HYBRID symmetric_tensor<float, 3>
 matrix_from_eigen_vectors_and_values(const matrix<float, 3, 3> &aEigenVectors, const simple_vector<float, 3> &aEigenValues)
 {
 	symmetric_tensor<float, 3> result;

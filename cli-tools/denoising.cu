@@ -11,8 +11,10 @@
 #include <cugip/memory_view.hpp>
 #include <cugip/memory.hpp>
 #include <cugip/copy.hpp>
+#include <cugip/host_image_view.hpp>
 
 //typedef itk::Image<float, 3> ImageType;
+using namespace cugip;
 
 void
 denoise(float *aInput, float *aOutput, size_t aWidth, size_t aHeight, size_t aDepth, float aVariance)
@@ -20,8 +22,10 @@ denoise(float *aInput, float *aOutput, size_t aWidth, size_t aHeight, size_t aDe
 {
 	//cugip::const_host_memory_3d<float> pom(aInput, aWidth, aHeight, aDepth, aWidth * sizeof(float));
 
-	cugip::const_memory_view<float, 3> inView(cugip::const_host_memory_3d<float>(aInput, aWidth, aHeight, aDepth, aWidth * sizeof(float)));
-	cugip::memory_view<float, 3> outView(cugip::host_memory_3d<float>(aOutput, aWidth, aHeight, aDepth, aWidth * sizeof(float)));
+	//cugip::const_memory_view<float, 3> inView(cugip::const_host_memory_3d<float>(aInput, aWidth, aHeight, aDepth, aWidth * sizeof(float)));
+	//cugip::memory_view<float, 3> outView(cugip::host_memory_3d<float>(aOutput, aWidth, aHeight, aDepth, aWidth * sizeof(float)));
+	auto inView = makeConstHostImageView(aInput, vect3i_t(aWidth, aHeight, aDepth));
+	auto outView = makeHostImageView(aOutput, vect3i_t(aWidth, aHeight, aDepth));
 	D_PRINT(aDepth);
 	D_PRINT(inView.dimensions());
 
@@ -33,11 +37,11 @@ denoise(float *aInput, float *aOutput, size_t aWidth, size_t aHeight, size_t aDe
 
 	D_PRINT("nonlocal_means ...");
 
-	cugip::copy_to(inView, cugip::view(inImage));
+	cugip::copy(inView, cugip::view(inImage));
 
 	cugip::nonlocal_means(cugip::const_view(inImage), cugip::view(outImage), cugip::nl_means_parameters<2, 3>(aVariance));
 
-	cugip::copy_from(cugip::view(outImage), outView);
+	cugip::copy(cugip::view(outImage), outView);
 	D_PRINT("nonlocal_means done!");
 
 	CUGIP_CHECK_ERROR_STATE("denoise");

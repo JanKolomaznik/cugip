@@ -73,7 +73,7 @@ struct get_policy2;
 
 
 template<int tIdx1, int tIdx2, typename TType>
-float
+CUGIP_DECL_HYBRID float
 get(TType &aArg)
 {
 	return get_policy2<tIdx1,

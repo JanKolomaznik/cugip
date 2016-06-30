@@ -5,24 +5,6 @@
 namespace cugip {
 
 
-template<int...tSize>
-struct StaticSize: IntSequence<tSize...>
-{
-	static constexpr int cDimension = sizeof...(tSize);
-
-	static constexpr simple_vector<int, cDimension>
-	vector()
-	{
-		return simple_vector<int, cDimension>{ tSize... };
-	}
-
-	static constexpr int count()
-	{
-		return ProductOfIntSequence<IntSequence<tSize...>>::value;
-	}
-};
-
-
 namespace detail {
 
 template<typename TElement, typename TStaticSize, typename TThreadBlockSize>

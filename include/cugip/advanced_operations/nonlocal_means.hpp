@@ -86,6 +86,7 @@ loadData(TMemoryBlock &aData, TLocator aLocator, const TCoordinates &aPaddedCoor
 	}*/
 }
 
+
 template<int tPatchRadius>
 struct compute_weight
 {
@@ -116,7 +117,7 @@ CUGIP_GLOBAL void
 kernel_nonlocal_means(TInImageView aIn, TOutImageView aOut, TParameters aParameters, simple_vector<int, 3> aOffset)
 {
 	const int cBorder = TParameters::patch_radius + TParameters::search_radius;
-	const int cPatchRadius = TParameters::patch_radius;
+	//const int cPatchRadius = TParameters::patch_radius;
 	const int cSearchRadius = TParameters::search_radius;
 	typedef typename TInImageView::value_type value_type;
 	typedef intraits_3d<8 + 2*(cBorder), 8 + 2*(cBorder), 4 + 2*(cBorder)> shared_data_size;
@@ -136,7 +137,7 @@ kernel_nonlocal_means(TInImageView aIn, TOutImageView aOut, TParameters aParamet
 	loadData(data, aIn.template locator<border_handling_mirror_t>(searchedBlockCornerCoords), paddedCoords, localCoords, aParameters);
 	__syncthreads();
 
-	bool use = !(threadIdx.x || threadIdx.y || threadIdx.z);
+	//bool use = !(threadIdx.x || threadIdx.y || threadIdx.z);
 	if (coords < extents) {
 		float acc = 0;
 		float value = 0;
@@ -227,7 +228,7 @@ nonlocal_means(TInImageView aIn, TOutImageView aOut, TParameters aParameters)
 				       );
 				cugip::detail::kernel_nonlocal_means<TInImageView, TOutImageView, TParameters>
 					<<<currentGridSize, blockSize>>>(aIn, aOut, aParameters, offset);
-			cudaThreadSynchronize();
+				cudaThreadSynchronize();
 				//++counter;
 				//D_PRINT("=== " << (float(counter) / count * 100) << "% finished.");
 			}

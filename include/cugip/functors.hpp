@@ -93,7 +93,7 @@ struct thresholding_ftor
 	TOutValue mUpperValue;
 };
 
-template<typename TInputType, typename TOutputType>
+/*template<typename TInputType, typename TOutputType>
 struct gradient_magnitude
 {
 
@@ -105,7 +105,7 @@ struct gradient_magnitude
 		     + abs(aAccessor[typename TAccessor::diff_t(0,-1)] - aAccessor[typename TAccessor::diff_t()]);
 	}
 
-};
+};*/
 
 struct convert_float_and_byte
 {
