@@ -107,7 +107,18 @@ struct sobel_gradient_magnitude
 {
 	sobel_gradient_magnitude()
 		: kernel(sobel_gradient_kernel<tDimension>())
-	{}
+	{
+		for (int k = -1; k < 2; ++k) {
+			for (int j = -1; j < 2; ++j) {
+				for (int i = -1; i < 2; ++i) {
+					std::cout << kernel.get(vect3i_t(i, j, k)) << "; ";
+				}
+				std::cout << "\n";
+			}
+			std::cout << "---------------------------------------------------\n";
+		}
+
+	}
 
 	template<typename TLocator>
 	CUGIP_DECL_HYBRID float

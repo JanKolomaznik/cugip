@@ -256,12 +256,10 @@ struct device_memory_1d
 		:mData(aPtr), mExtents(aExtents)
 	{}
 
+	CUGIP_DECL_HYBRID
 	device_memory_1d(const device_memory_1d<TType> &aMemory)
 		:mData(aMemory.mData), mExtents(aMemory.mExtents)
 	{}
-
-	~device_memory_1d()
-	{ }
 
 	/*inline CUGIP_DECL_HYBRID value_type &
 	operator[](coord_t aCoords)
@@ -317,10 +315,12 @@ struct const_device_memory_1d
 		:mData(aPtr), mExtents(aExtents)
 	{}
 
+	CUGIP_DECL_HYBRID
 	const_device_memory_1d(const device_memory_1d<TType> &aMemory)
 		:mData(aMemory.mData), mExtents(aMemory.mExtents)
 	{}
 
+	CUGIP_DECL_HYBRID
 	const_device_memory_1d(const const_device_memory_1d<TType> &aMemory)
 		:mData(aMemory.mData), mExtents(aMemory.mExtents)
 	{}
@@ -387,14 +387,12 @@ struct device_memory_2d
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
 
+	CUGIP_DECL_HYBRID
 	device_memory_2d(const device_memory_2d<TType> &aMemory)
 		:mData(aMemory.mData), mExtents(aMemory.mExtents), mPitch(aMemory.mPitch)
 	{
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
-
-	~device_memory_2d()
-	{ }
 
 	inline CUGIP_DECL_HYBRID value_type &
 	operator[](coord_t aCoords) const
@@ -439,20 +437,19 @@ struct const_device_memory_2d
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
 
+	CUGIP_DECL_HYBRID
 	const_device_memory_2d(const device_memory_2d<TType> &aMemory)
 		:mData(aMemory.mData), mExtents(aMemory.mExtents), mPitch(aMemory.mPitch)
 	{
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
 
+	CUGIP_DECL_HYBRID
 	const_device_memory_2d(const const_device_memory_2d<TType> &aMemory)
 		:mData(aMemory.mData), mExtents(aMemory.mExtents), mPitch(aMemory.mPitch)
 	{
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
-
-	~const_device_memory_2d()
-	{ }
 
 	inline CUGIP_DECL_HYBRID value_type &
 	operator[](coord_t aCoords) const
@@ -499,15 +496,12 @@ struct device_memory_3d
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
 
+	CUGIP_DECL_HYBRID
 	device_memory_3d(const device_memory_3d<TType> &aMemory)
 		:mData(aMemory.mData), mExtents(aMemory.mExtents), mPitch(aMemory.mPitch)
 	{
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
-
-
-	~device_memory_3d()
-	{ }
 
 	inline CUGIP_DECL_HYBRID value_type &
 	operator[](coord_t aCoords) const
@@ -555,20 +549,19 @@ struct const_device_memory_3d
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
 
+	CUGIP_DECL_HYBRID
 	const_device_memory_3d(const device_memory_3d<TType> &aMemory)
 		:mData(aMemory.mData), mExtents(aMemory.mExtents), mPitch(aMemory.mPitch)
 	{
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
 
+	CUGIP_DECL_HYBRID
 	const_device_memory_3d(const const_device_memory_3d<TType> &aMemory)
 		:mData(aMemory.mData), mExtents(aMemory.mExtents), mPitch(aMemory.mPitch)
 	{
 		CUGIP_ASSERT(mPitch >= (mExtents.get<0>()*sizeof(TType)));
 	}
-
-	~const_device_memory_3d()
-	{ }
 
 	inline CUGIP_DECL_HYBRID value_type &
 	operator[](coord_t aCoords) const

@@ -67,6 +67,7 @@ int main( int argc, char* argv[] )
 	ImageType::Pointer output_image = ImageType::New();
 	output_image->SetRegions(image->GetLargestPossibleRegion());
 	output_image->Allocate();
+	output_image->SetSpacing(image->GetSpacing());
 
 	//denoise(image, output_image);
 	denoise(

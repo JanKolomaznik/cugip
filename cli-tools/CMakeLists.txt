@@ -25,3 +25,6 @@ TARGET_LINK_LIBRARIES(gradient ${Boost_LIBRARIES} ${ITK_LIBRARIES})
 
 CUDA_ADD_EXECUTABLE(ce_diffusion ce_diffusion.cpp ce_diffusion.cu)
 TARGET_LINK_LIBRARIES(ce_diffusion ${Boost_LIBRARIES} ${ITK_LIBRARIES})
+
+CUDA_ADD_EXECUTABLE(gauss gauss.cpp gauss.cu)
+TARGET_LINK_LIBRARIES(gauss ${Boost_LIBRARIES} ${ITK_LIBRARIES})

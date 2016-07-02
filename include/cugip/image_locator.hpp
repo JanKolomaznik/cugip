@@ -50,7 +50,7 @@ public:
 	typedef typename TImageView::accessed_type accessed_type;
 
 	CUGIP_DECL_HYBRID
-	image_locator(TImageView &aView, coord_t aCoords): mView(aView), mCoords(aCoords)
+	image_locator(TImageView aView, coord_t aCoords): mView(aView), mCoords(aCoords)
 	{}
 
 	CUGIP_DECL_HYBRID accessed_type
@@ -90,7 +90,7 @@ public:
 	}
 
 protected:
-	TImageView &mView;
+	TImageView mView;
 	coord_t mCoords;
 };
 
@@ -100,6 +100,14 @@ protected:
 
 template<typename TImageView, typename TBorderHandling>
 struct dimension<image_locator<TImageView, TBorderHandling> >: dimension<TImageView> {};
+
+
+template<typename TImageView, typename TBorderHandling>
+CUGIP_DECL_HYBRID image_locator<TImageView, TBorderHandling>
+create_locator(TImageView aView, typename TImageView::coord_t aCoords)
+{
+	return image_locator<TImageView, TBorderHandling>(aView, aCoords);
+}
 
 /**
  * @}

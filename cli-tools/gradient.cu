@@ -14,12 +14,15 @@
 #include <cugip/host_image_view.hpp>
 #include <cugip/basic_filters/convolution.hpp>
 #include <cugip/basic_filters/gradient.hpp>
+#include <cugip/procedural_views.hpp>
+#include <cugip/reduce.hpp>
+#include <cugip/for_each.hpp>
 
 //typedef itk::Image<float, 3> ImageType;
 using namespace cugip;
 
 void
-gradientMagnitude(float *aInput, float *aOutput, size_t aWidth, size_t aHeight, size_t aDepth)
+gradientMagnitude(float *aInput, float *aOutput, size_t aWidth, size_t aHeight, size_t aDepth, bool aNormalize)
 {
 	//cugip::const_host_memory_3d<float> pom(aInput, aWidth, aHeight, aDepth, aWidth * sizeof(float));
 
@@ -36,9 +39,16 @@ gradientMagnitude(float *aInput, float *aOutput, size_t aWidth, size_t aHeight, 
 	cugip::device_image<float, 3> outImage(inView.dimensions());
 	D_PRINT(cugip::cudaMemoryInfoText());
 
+	//auto testView = checkerBoard(0.0f, 10.0f, vect3i_t(30, 30, 10), inView.dimensions());
+
 	cugip::copy(inView, cugip::view(inImage));
 
 	cugip::transform_locator(cugip::const_view(inImage), cugip::view(outImage), sobel_gradient_magnitude<3>());
+
+	if (aNormalize) {
+		auto maxVal = max(cugip::const_view(outImage));
+		for_each(cugip::view(outImage), MultiplyByFactorFunctor<float>(100.0f / maxVal));
+	}
 
 	cugip::copy(cugip::view(outImage), outView);
 

@@ -281,7 +281,7 @@ kernel_transform_locator(TInView aInView, TOutView aOutView, TOperator aOperator
 	typename TInView::extents_t extents = aInView.dimensions();
 
 	if (coord < extents) {
-		aOutView[coord] = aOperator(aInView.template locator<typename TPolicy::BorderHandling>(coord));
+		aOutView[coord] = aOperator(create_locator<TInView, typename TPolicy::BorderHandling>(aInView, coord));
 	}
 }
 
@@ -291,7 +291,7 @@ void
 transformLocatorHost(TInView aInView, TOutView aOutView, TOperator aOperator, TPolicy aPolicy)
 {
 	for (int i = 0; i < elementCount(aInView); ++i) {
-		linear_access(aOutView, i) = aOperator(aInView.template locator<typename TPolicy::BorderHandling>(index_from_linear_access_index(aInView, i)));
+		linear_access(aOutView, i) = aOperator(create_locator<TInView, typename TPolicy::BorderHandling>(aInView, index_from_linear_access_index(aInView, i)));
 	}
 }
 

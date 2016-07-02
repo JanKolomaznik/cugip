@@ -8,22 +8,26 @@ namespace po = boost::program_options;
 
 typedef itk::Image<float, 3> ImageType;
 
+//void
+//denoise(ImageType::Pointer aInput, ImageType::Pointer aOutput);
+
 void
-gradientMagnitude(float *aInput, float *aOutput, size_t aWidth, size_t aHeight, size_t aDepth, bool aNormalize);
+gauss(float *aInput, float *aOutput, size_t aWidth, size_t aHeight, size_t aDepth, float aSigma);
 
 
 int main( int argc, char* argv[] )
 {
 	std::string input_file;
 	std::string output_file;
-	bool normalize;
+	float sigma;
 
 	po::options_description desc("Allowed options");
 	desc.add_options()
 		("help", "produce help message")
 		("input,i", po::value<std::string>(&input_file), "input file")
 		("output,o", po::value<std::string>(&output_file), "output file")
-		("normalize,n", po::value<bool>(&normalize)->default_value(false), "normalize")
+		("sigma,s", po::value<float>(&sigma)->default_value(10.0), "sigma")
+
 		;
 
 	po::variables_map vm;
@@ -66,14 +70,13 @@ int main( int argc, char* argv[] )
 	output_image->SetSpacing(image->GetSpacing());
 
 	//denoise(image, output_image);
-	gradientMagnitude(
+	gauss(
 		image->GetPixelContainer()->GetBufferPointer(),
 		output_image->GetPixelContainer()->GetBufferPointer(),
 		image->GetLargestPossibleRegion().GetSize()[0],
 		image->GetLargestPossibleRegion().GetSize()[1],
 		image->GetLargestPossibleRegion().GetSize()[2],
-		normalize
-		);
+		sigma);
 
 
 	WriterType::Pointer writer = WriterType::New();

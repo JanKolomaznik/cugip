@@ -102,8 +102,8 @@ CUGIP_DECL_HYBRID
 void for_each_neighbor(simple_vector<int, 2> aFrom, simple_vector<int, 2> aTo, TCallable aCallable)
 {
 	simple_vector<int, 2> index;
-	for(index[1] = aFrom[1]; index[1] <= aTo[1]; ++index[1]) {
-		for(index[0] = aFrom[0]; index[0] <= aTo[0]; ++index[0]) {
+	for(index[1] = aFrom[1]; index[1] < aTo[1]; ++index[1]) {
+		for(index[0] = aFrom[0]; index[0] < aTo[0]; ++index[0]) {
 			aCallable(index);
 		}
 	}
@@ -115,9 +115,9 @@ CUGIP_DECL_HYBRID
 void for_each_neighbor(simple_vector<int, 3> aFrom, simple_vector<int, 3> aTo, TCallable aCallable)
 {
 	simple_vector<int, 3> index;
-	for(index[2] = aFrom[2]; index[2] <= aTo[2]; ++index[2]) {
-		for(index[1] = aFrom[1]; index[1] <= aTo[1]; ++index[1]) {
-			for(index[0] = aFrom[0]; index[0] <= aTo[0]; ++index[0]) {
+	for(index[2] = aFrom[2]; index[2] < aTo[2]; ++index[2]) {
+		for(index[1] = aFrom[1]; index[1] < aTo[1]; ++index[1]) {
+			for(index[0] = aFrom[0]; index[0] < aTo[0]; ++index[0]) {
 				aCallable(index);
 			}
 		}
