@@ -8,6 +8,22 @@
 
 namespace cugip {
 
+struct transform_update_assign {
+	template<typename TOutput, typename TValue>
+	CUGIP_DECL_HYBRID
+	void operator()(TOutput &aOutput, const TValue &aValue) const {
+		aOutput = aValue;
+	}
+};
+
+struct transform_update_add {
+	template<typename TOutput, typename TValue>
+	CUGIP_DECL_HYBRID
+	void operator()(TOutput &aOutput, const TValue &aValue) const {
+		aOutput += aValue;
+	}
+};
+
 template<typename TView1, typename TView2>
 struct DefaultTransformPolicy {
 	static CUGIP_DECL_HYBRID dim3 blockSize()
@@ -23,80 +39,80 @@ struct DefaultTransformPolicy {
 
 namespace detail {
 
-template <typename TInView, typename TOutView, typename TFunctor, typename TPolicy>
+template <typename TInView, typename TOutView, typename TFunctor, typename TAssignOperation, typename TPolicy>
 CUGIP_GLOBAL void
-kernel_transform(TInView aInView, TOutView aOutView, TFunctor aOperator, TPolicy aPolicy)
+kernel_transform(TInView aInView, TOutView aOutView, TFunctor aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy)
 {
 	auto coord = mapBlockIdxAndThreadIdxToViewCoordinates<dimension<TInView>::value>();
 	auto extents = aInView.dimensions();
 
 	if (coord < extents) {
-		aOutView[coord] = aOperator(aInView[coord]);
+		aAssignOperation(aOutView[coord], aOperator(aInView[coord]));
 	}
 }
 
-template <typename TInView1, typename TInView2, typename TOutView, typename TFunctor, typename TPolicy>
+template <typename TInView1, typename TInView2, typename TOutView, typename TFunctor, typename TAssignOperation, typename TPolicy>
 CUGIP_GLOBAL void
-kernel_transform2(TInView1 aInView1, TInView2 aInView2, TOutView aOutView, TFunctor aOperator, TPolicy aPolicy)
+kernel_transform2(TInView1 aInView1, TInView2 aInView2, TOutView aOutView, TFunctor aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy)
 {
 	auto coord = mapBlockIdxAndThreadIdxToViewCoordinates<dimension<TInView1>::value>();
 	auto extents = aInView1.dimensions();
 
 	if (coord < extents) {
-		aOutView[coord] = aOperator(aInView1[coord], aInView2[coord]);
+		aAssignOperation(aOutView[coord], aOperator(aInView1[coord], aInView2[coord]));
 	}
 }
 
-template <typename TInView, typename TOutView, typename TFunctor, typename TPolicy>
+template <typename TInView, typename TOutView, typename TFunctor, typename TAssignOperation, typename TPolicy>
 void
-transformHost(TInView aInView, TOutView aOutView, TFunctor aOperator, TPolicy aPolicy)
+transformHost(TInView aInView, TOutView aOutView, TFunctor aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy)
 {
 	for (int i = 0; i < elementCount(aInView); ++i) {
-		linear_access(aOutView, i) = aOperator(linear_access(aInView, i));
+		aAssignOperation(linear_access(aOutView, i), aOperator(linear_access(aInView, i)));
 	}
 }
 
-template <typename TInView1, typename TInView2, typename TOutView, typename TFunctor, typename TPolicy>
+template <typename TInView1, typename TInView2, typename TOutView, typename TFunctor, typename TAssignOperation, typename TPolicy>
 void
-transformHost(TInView1 aInView1, TInView2 aInView2, TOutView aOutView, TFunctor aOperator, TPolicy aPolicy)
+transformHost(TInView1 aInView1, TInView2 aInView2, TOutView aOutView, TFunctor aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy)
 {
 	for (int i = 0; i < elementCount(aInView1); ++i) {
-		linear_access(aOutView, i) = aOperator(linear_access(aInView1, i), linear_access(aInView2, i));
+		aAssignOperation(linear_access(aOutView, i), aOperator(linear_access(aInView1, i), linear_access(aInView2, i)));
 	}
 }
 
 template<bool tRunOnDevice>
 struct TransformImplementation {
 
-	template <typename TInView, typename TOutView, typename TFunctor, typename TPolicy>
-	static void run(TInView aInView, TOutView aOutView, TFunctor aOperator, TPolicy aPolicy, cudaStream_t aCudaStream) {
+	template <typename TInView, typename TOutView, typename TFunctor, typename TAssignOperation, typename TPolicy>
+	static void run(TInView aInView, TOutView aOutView, TFunctor aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy, cudaStream_t aCudaStream) {
 		dim3 blockSize = aPolicy.blockSize();
 		dim3 gridSize = aPolicy.gridSize(aInView);
 
-		detail::kernel_transform<TInView, TOutView, TFunctor>
-			<<<gridSize, blockSize, 0, aCudaStream>>>(aInView, aOutView, aOperator, aPolicy);
+		detail::kernel_transform<TInView, TOutView, TFunctor, TAssignOperation, TPolicy>
+			<<<gridSize, blockSize, 0, aCudaStream>>>(aInView, aOutView, aOperator, aAssignOperation, aPolicy);
 	}
 
-	template  <typename TInView1, typename TInView2, typename TOutView, typename TFunctor, typename TPolicy>
-	static void run(TInView1 aInView1, TInView2 aInView2, TOutView aOutView, TFunctor aOperator, TPolicy aPolicy, cudaStream_t aCudaStream) {
+	template  <typename TInView1, typename TInView2, typename TOutView, typename TFunctor, typename TAssignOperation, typename TPolicy>
+	static void run(TInView1 aInView1, TInView2 aInView2, TOutView aOutView, TFunctor aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy, cudaStream_t aCudaStream) {
 		dim3 blockSize = aPolicy.blockSize();
 		dim3 gridSize = aPolicy.gridSize(aInView1);
 
-		detail::kernel_transform<TInView1, TInView2, TOutView, TFunctor>
-			<<<gridSize, blockSize, 0, aCudaStream>>>(aInView1, aInView2, aOutView, aOperator, aPolicy);
+		detail::kernel_transform2<TInView1, TInView2, TOutView, TFunctor, TAssignOperation, TPolicy>
+			<<<gridSize, blockSize, 0, aCudaStream>>>(aInView1, aInView2, aOutView, aOperator, aAssignOperation, aPolicy);
 	}
 };
 
 template<>
 struct TransformImplementation<false> {
-	template <typename TInView, typename TOutView, typename TFunctor, typename TPolicy>
-	static void run(TInView aInView, TOutView aOutView, TFunctor aOperator, TPolicy aPolicy, cudaStream_t aCudaStream) {
-		detail::transformHost(aInView, aOutView, aOperator, aPolicy);
+	template <typename TInView, typename TOutView, typename TFunctor, typename TAssignOperation, typename TPolicy>
+	static void run(TInView aInView, TOutView aOutView, TFunctor aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy, cudaStream_t aCudaStream) {
+		detail::transformHost(aInView, aOutView, aOperator, aAssignOperation, aPolicy);
 	}
 
-	template  <typename TInView1, typename TInView2, typename TOutView, typename TFunctor, typename TPolicy>
-	static void run(TInView1 aInView1, TInView2 aInView2, TOutView aOutView, TFunctor aOperator, TPolicy aPolicy, cudaStream_t aCudaStream) {
-		detail::transformHost(aInView1, aInView1, aOutView, aOperator, aPolicy);
+	template  <typename TInView1, typename TInView2, typename TOutView, typename TFunctor, typename TAssignOperation, typename TPolicy>
+	static void run(TInView1 aInView1, TInView2 aInView2, TOutView aOutView, TFunctor aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy, cudaStream_t aCudaStream) {
+		detail::transformHost(aInView1, aInView1, aOutView, aOperator, aAssignOperation, aPolicy);
 	}
 };
 
@@ -120,7 +136,7 @@ transform(TInView aInView, TOutView aOutView, TFunctor aOperator, TPolicy aPolic
 	}
 
 	detail::TransformImplementation<
-		is_device_view<TInView>::value && is_device_view<TOutView>::value>::run(aInView, aOutView, aOperator, aPolicy, aCudaStream);
+		is_device_view<TInView>::value && is_device_view<TOutView>::value>::run(aInView, aOutView, aOperator, transform_update_assign(), aPolicy, aCudaStream);
 }
 
 template <typename TInView, typename TOutView, typename TFunctor>
@@ -145,7 +161,7 @@ transform2(TInView1 aInView1, TInView2 aInView2, TOutView aOutView, TFunctor aOp
 	}
 
 	detail::TransformImplementation<
-		is_device_view<TInView1>::value && is_device_view<TInView2>::value && is_device_view<TOutView>::value>::run(aInView1, aInView2, aOutView, aOperator, aPolicy, aCudaStream);
+		is_device_view<TInView1>::value && is_device_view<TInView2>::value && is_device_view<TOutView>::value>::run(aInView1, aInView2, aOutView, aOperator, transform_update_assign(), aPolicy, aCudaStream);
 }
 
 template  <typename TInView1, typename TInView2, typename TOutView, typename TFunctor>
@@ -229,7 +245,7 @@ transform_position(TInView aInView, TOutView aOutView, TFunctor aOperator)
 //*************************************************************************************************************
 template<typename TView1, typename TView2>
 struct DefaultTransformLocatorPolicy {
-	typedef border_handling_repeat_t BorderHandling;
+	typedef BorderHandlingTraits<border_handling_enum::REPEAT>/*border_handling_repeat_t*/ BorderHandling;
 
 	static constexpr bool cPreload = false;
 
@@ -273,45 +289,45 @@ struct PreloadingTransformLocatorPolicy {
 
 namespace detail {
 
-template <typename TInView, typename TOutView, typename TOperator, typename TPolicy>
+template <typename TInView, typename TOutView, typename TOperator, typename TAssignOperation, typename TPolicy>
 CUGIP_GLOBAL void
-kernel_transform_locator(TInView aInView, TOutView aOutView, TOperator aOperator, TPolicy aPolicy)
+kernel_transform_locator(TInView aInView, TOutView aOutView, TOperator aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy)
 {
 	typename TInView::coord_t coord = mapBlockIdxAndThreadIdxToViewCoordinates<dimension<TInView>::value>();
 	typename TInView::extents_t extents = aInView.dimensions();
 
 	if (coord < extents) {
-		aOutView[coord] = aOperator(create_locator<TInView, typename TPolicy::BorderHandling>(aInView, coord));
+		aAssignOperation(aOutView[coord], aOperator(create_locator<TInView, typename TPolicy::BorderHandling>(aInView, coord)));
 	}
 }
 
 
-template <typename TInView, typename TOutView, typename TOperator, typename TPolicy>
+template <typename TInView, typename TOutView, typename TOperator, typename TAssignOperation, typename TPolicy>
 void
-transformLocatorHost(TInView aInView, TOutView aOutView, TOperator aOperator, TPolicy aPolicy)
+transformLocatorHost(TInView aInView, TOutView aOutView, TOperator aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy)
 {
 	for (int i = 0; i < elementCount(aInView); ++i) {
-		linear_access(aOutView, i) = aOperator(create_locator<TInView, typename TPolicy::BorderHandling>(aInView, index_from_linear_access_index(aInView, i)));
+		aAssignOperation(linear_access(aOutView, i), aOperator(create_locator<TInView, typename TPolicy::BorderHandling>(aInView, index_from_linear_access_index(aInView, i))));
 	}
 }
 
 template<bool tRunOnDevice>
 struct TransformLocatorImplementation {
-	template <typename TInView, typename TOutView, typename TOperator, typename TPolicy>
+	template <typename TInView, typename TOutView, typename TOperator, typename TAssignOperation, typename TPolicy>
 	static typename std::enable_if<!TPolicy::cPreload, int>::type
-	run(TInView aInView, TOutView aOutView, TOperator aOperator, TPolicy aPolicy, cudaStream_t aCudaStream) {
+	run(TInView aInView, TOutView aOutView, TOperator aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy, cudaStream_t aCudaStream) {
 		// TODO - do this only in code processed by nvcc
 		dim3 blockSize = aPolicy.blockSize();
 		dim3 gridSize = aPolicy.gridSize(aInView);
 
-		detail::kernel_transform_locator<TInView, TOutView, TOperator, TPolicy>
-			<<<gridSize, blockSize, 0, aCudaStream>>>(aInView, aOutView, aOperator, aPolicy);
+		detail::kernel_transform_locator<TInView, TOutView, TOperator, TAssignOperation, TPolicy>
+			<<<gridSize, blockSize, 0, aCudaStream>>>(aInView, aOutView, aOperator, aAssignOperation, aPolicy);
 		return 0;
 	}
 
-	/*template <typename TInView, typename TOutView, typename TOperator, typename TPolicy>
+	/*template <typename TInView, typename TOutView, typename TOperator, typename TAssignOperation, typename TPolicy>
 	static typename std::enable_if<TPolicy::cPreload, int>::type
-	run(TInView aInView, TOutView aOutView, TOperator aOperator, TPolicy aPolicy, cudaStream_t aCudaStream) {
+	run(TInView aInView, TOutView aOutView, TOperator aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy, cudaStream_t aCudaStream) {
 		// TODO - do this only in code processed by nvcc
 		dim3 blockSize = aPolicy.blockSize();
 		dim3 gridSize = aPolicy.gridSize(aInView);
@@ -325,9 +341,9 @@ struct TransformLocatorImplementation {
 template<>
 struct TransformLocatorImplementation<false> {
 
-	template <typename TInView, typename TOutView, typename TOperator, typename TPolicy>
-	static void run(TInView aInView, TOutView aOutView, TOperator aOperator, TPolicy aPolicy, cudaStream_t aCudaStream) {
-		detail::transformLocatorHost(aInView, aOutView, aOperator, aPolicy);
+	template <typename TInView, typename TOutView, typename TOperator, typename TAssignOperation, typename TPolicy>
+	static void run(TInView aInView, TOutView aOutView, TOperator aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy, cudaStream_t aCudaStream) {
+		detail::transformLocatorHost(aInView, aOutView, aOperator, aAssignOperation, aPolicy);
 	}
 };
 
@@ -350,7 +366,7 @@ transform_locator(TInView aInView, TOutView aOutView, TOperator aOperator, cudaS
 	}
 
 	detail::TransformLocatorImplementation<
-		is_device_view<TInView>::value && is_device_view<TOutView>::value>::run(aInView, aOutView, aOperator, DefaultTransformLocatorPolicy<TInView, TOutView>(), aCudaStream);
+		is_device_view<TInView>::value && is_device_view<TOutView>::value>::run(aInView, aOutView, aOperator, transform_update_assign(), DefaultTransformLocatorPolicy<TInView, TOutView>(), aCudaStream);
 }
 
 
@@ -367,7 +383,40 @@ transform_locator(TInView aInView, TOutView aOutView, TOperator aOperator, TPoli
 	}
 
 	detail::TransformLocatorImplementation<
-		is_device_view<TInView>::value && is_device_view<TOutView>::value>::run(aInView, aOutView, aOperator, aPolicy, aCudaStream);
+		is_device_view<TInView>::value && is_device_view<TOutView>::value>::run(aInView, aOutView, aOperator, transform_update_assign(), aPolicy, aCudaStream);
+}
+
+template <typename TInView, typename TOutView, typename TOperator, typename TAssignOperation>
+void
+transform_locator_assign(TInView aInView, TOutView aOutView, TOperator aOperator, TAssignOperation aAssignOperation, cudaStream_t aCudaStream = 0)
+{
+	static_assert(is_image_view<TInView>::value, "Input view must be image view");
+	static_assert(is_image_view<TOutView>::value, "Output view must be image view");
+	CUGIP_ASSERT(aInView.dimensions() == aOutView.dimensions());
+
+	if(isEmpty(aInView)) {
+		return;
+	}
+
+	detail::TransformLocatorImplementation<
+		is_device_view<TInView>::value && is_device_view<TOutView>::value>::run(aInView, aOutView, aOperator, aAssignOperation, DefaultTransformLocatorPolicy<TInView, TOutView>(), aCudaStream);
+}
+
+
+template <typename TInView, typename TOutView, typename TOperator, typename TAssignOperation, typename TPolicy>
+void
+transform_locator_assign(TInView aInView, TOutView aOutView, TOperator aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy, cudaStream_t aCudaStream = 0)
+{
+	static_assert(is_image_view<TInView>::value, "Input view must be image view");
+	static_assert(is_image_view<TOutView>::value, "Output view must be image view");
+	CUGIP_ASSERT(aInView.dimensions() == aOutView.dimensions());
+
+	if(isEmpty(aInView)) {
+		return;
+	}
+
+	detail::TransformLocatorImplementation<
+		is_device_view<TInView>::value && is_device_view<TOutView>::value>::run(aInView, aOutView, aOperator, aAssignOperation, aPolicy, aCudaStream);
 }
 /**
  * @}

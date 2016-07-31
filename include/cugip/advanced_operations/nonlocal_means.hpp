@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cugip/subview.hpp>
 #include <cugip/math.hpp>
 #include <cugip/traits.hpp>
 #include <cugip/utils.hpp>
@@ -11,86 +12,18 @@
 
 #include <cugip/neighborhood.hpp>
 
-#include <cugip/static_memory_block.hpp>
+#include <cugip/detail/shared_memory.hpp>
 
 
-#define BLOCK_NLOPT	12
-#define BLOCK_WEIGHTS	8
 
 namespace cugip {
 
 namespace detail {
 
-template<typename TMemoryBlock, typename TCoordinates, typename TLocator, typename TParameters>
-CUGIP_DECL_DEVICE void
-loadData(TMemoryBlock &aData, TLocator aLocator, const TCoordinates &aPaddedCoords, const TCoordinates &aLocalCoords, TParameters aParameters)
-{
-	typename TMemoryBlock::extents_t extents = TMemoryBlock::dimensions();
-	TCoordinates blockExtents(blockDim.x, blockDim.y, blockDim.z);
-
-	TCoordinates counts;
-	for (int i = 0; i < 3; ++i) {
-		counts[i] = (extents[i] + blockExtents[i] - 1) / blockExtents[i];
-	}
-
-	for (int k = 0; k < counts[2]; ++k) {
-		TCoordinates offset(0, 0, k * blockExtents[2]);
-		for (int j = 0; j < counts[1]; ++j) {
-			offset[1] = j * blockExtents[1];
-			for (int i = 0; i < counts[0]; ++i) {
-				offset[0] = i * blockExtents[0];
-				TCoordinates coords = aLocalCoords + offset;
-				if (coords < extents) {
-					aData[coords] = aLocator[coords];
-				}
-			}
-		}
-	}
-	/*const int cBorder = TParameters::patch_radius + TParameters::search_radius;
-	aData[aPaddedCoords] = aLocator[aPaddedCoords];
-	typename TMemoryBlock::extents_t extents = TMemoryBlock::dimensions();
-	TCoordinates blockExtents(blockDim.x, blockDim.y, blockDim.z);
-
-	// 6 box sides
-	for (int i = 0; i < 3; ++i) {
-		int idx = aLocalCoords[i];
-		while (idx < cBorder) {
-			TCoordinates coordTop = aPaddedCoords;
-			coordTop[i] = idx;
-			aData[coordTop] = aLocator[coordTop];
-			coordTop[i] = extents[i] - idx - 1;
-			aData[coordTop] = aLocator[coordTop];
-			idx += blockExtents[i];
-		}
-	}
-
-	for (int i = 0; i < 3; ++i) {
-		TCoordinates coordTop = aPaddedCoords;
-		for (int j = 0; j < 3; ++j) {
-			if (i == j) {
-				continue;
-			}
-			coordTop[j] = aLocalCoords[j];
-		}
-	}*/
-	/*for (int i = 0; i < 2; ++i) {
-		int idx = aLocalCoords[i];
-		while (idx < cBorder) {
-			TCoordinates coordTop = aPaddedCoords;
-			coordTop[i] = idx;
-			aData[coordTop] = aLocator[coordTop];
-			coordTop[i] = extents[i] - idx - 1;
-			aData[coordTop] = aLocator[coordTop];
-			idx += blockExtents[i];
-		}
-	}*/
-}
-
-
 template<int tPatchRadius>
 struct compute_weight
 {
-	template <typename TMemoryBlock, typename TCoordinates>
+	/*template <typename TMemoryBlock, typename TCoordinates>
 	CUGIP_DECL_DEVICE static float
 	run(const TMemoryBlock &aData, const TCoordinates &aCoord1, const TCoordinates &aCoord2, float aVariance)
 	{
@@ -106,64 +39,70 @@ struct compute_weight
 			}
 		}
 		return exp(-weight / aVariance);
+	}*/
+	template <typename TLocator>
+	CUGIP_DECL_DEVICE static float
+	run(TLocator aOrigin, TLocator aPatchCenter, float aVariance)
+	{
+		float weight = 0;
+		for_each_neighbor(
+			simple_vector<int, dimension<TLocator>::value>::fill(tPatchRadius),
+			[&](simple_vector<int, dimension<TLocator>::value> aOffset){
+				weight += sqr(aOrigin[aOffset] - aPatchCenter[aOffset]);
+			});
+		/*typedef typename TLocator::diff_t diff_t;
+
+		for(int k = -tPatchRadius; k <= tPatchRadius; ++k) {
+			for(int j = -tPatchRadius; j <= tPatchRadius; ++j) {
+				for(int i = -tPatchRadius; i <= tPatchRadius; ++i) {
+					coord_t offset(i, j, k);
+					float diff = aData[aCoord1 + offset] - aData[aCoord2 + offset];
+					weight += diff*diff;
+				}
+			}
+		}*/
+		return exp(-weight / aVariance);
 	}
 };
 
 
-
-//tPatchRadius <= 2 int tSearchRadius <= 4
 template <typename TInImageView, typename TOutImageView, typename TParameters>
 CUGIP_GLOBAL void
 kernel_nonlocal_means(TInImageView aIn, TOutImageView aOut, TParameters aParameters, simple_vector<int, 3> aOffset)
 {
-	const int cBorder = TParameters::patch_radius + TParameters::search_radius;
-	//const int cPatchRadius = TParameters::patch_radius;
-	const int cSearchRadius = TParameters::search_radius;
-	typedef typename TInImageView::value_type value_type;
-	typedef intraits_3d<8 + 2*(cBorder), 8 + 2*(cBorder), 4 + 2*(cBorder)> shared_data_size;
-	typedef static_memory_block<value_type, shared_data_size> MemoryBlock;
+	constexpr int cDimension = dimension<TInImageView>::value;
+	constexpr int cBorder = TParameters::patch_radius + TParameters::search_radius;
+	typedef StaticSize<2*cBorder + 8, 2*cBorder + 8, 2*cBorder + 8> Size;
+	__shared__ cugip::detail::SharedMemory<int, Size> buffer;
 
-	typedef simple_vector<int, 3> coord_t;
 
-	typename TInImageView::extents_t extents = aIn.dimensions();
-	coord_t coords = coords_from_block_dim<coord_t>() + aOffset;
-	coord_t blockCornerCoords = corner_coords_from_block_dim<coord_t>() + aOffset;
-	coord_t localCoords(threadIdx.x, threadIdx.y, threadIdx.z);
-	coord_t paddingOffset = coord_t::fill(cBorder);
-	coord_t paddedCoords = localCoords + paddingOffset;
-	coord_t searchedBlockCornerCoords = blockCornerCoords - paddingOffset;
+	auto dataView = buffer.view();
+	auto coords = mapBlockIdxAndThreadIdxToViewCoordinates<cDimension>();
+	auto extents = aIn.dimensions();
+	auto border = simple_vector<int, cDimension>::fill(cBorder);
+	auto corner = mapBlockIdxToViewCoordinates<cDimension>() - border;
+	auto preloadCoords = coords - corner;
+	auto originLocator = create_locator<
+				decltype(dataView),
+				BorderHandlingTraits<border_handling_enum::NONE>>(dataView, preloadCoords);
 
-	CUGIP_SHARED MemoryBlock data;
-	loadData(data, aIn.template locator<border_handling_mirror_t>(searchedBlockCornerCoords), paddedCoords, localCoords, aParameters);
+	buffer.load(aIn, corner);
 	__syncthreads();
 
-	//bool use = !(threadIdx.x || threadIdx.y || threadIdx.z);
+	float acc = 0;
+	float value = 0;
 	if (coords < extents) {
-		float acc = 0;
-		float value = 0;
-		for(int k = -cSearchRadius; k <= cSearchRadius; ++k) {
-			/*if (use) {
-				printf("AACCC %d\n", k);
-			}*/
-
-			for(int j = -cSearchRadius; j <= cSearchRadius; ++j) {
-				for(int i = -cSearchRadius; i <= cSearchRadius; ++i) {
-
-					coord_t offset(i, j, k);
-					coord_t sampleCoords = paddedCoords + offset;
-					float weight = compute_weight<TParameters::patch_radius>::run(data, paddedCoords, sampleCoords, aParameters.variance);
-					value += weight * data[sampleCoords];
-					acc += weight;
-				}
-			}
-		}
-		/*if (use) {
-			printf("AA %d %f %f\n", cSearchRadius, acc, value);
-		}*/
+		for_each_neighbor(
+			border,
+			[&](const simple_vector<int, cDimension> &aCoord){
+				auto loc = create_locator<
+						decltype(dataView),
+						BorderHandlingTraits<border_handling_enum::NONE>>(dataView, preloadCoords + aCoord);
+				auto weight = compute_weight<TParameters::patch_radius>::run(originLocator, loc, aParameters.variance);
+				acc += weight;
+				value += weight * loc.get();
+			});
 		aOut[coords] = value / acc;
-		/*if (!(threadIdx.x || threadIdx.y || threadIdx.z)) {
-			printf("AAA %d %d %d %f %f\n", coords[0], coords[1], coords[2], aIn[coords], aOut[coords]);
-		}*/
 	}
 }
 
@@ -200,7 +139,9 @@ nonlocal_means(TInImageView aIn, TOutImageView aOut, TParameters aParameters)
 	coord_t gridSize = compute_grid_size(blockSize, aIn.dimensions());
 	coord_t subvolume = gridSize;
 	coord_t subvolumeCount(1, 1, 1);
-	while (detail::subvolume_too_big(blockSize, subvolume, aParameters)) {
+
+
+	/*while (detail::subvolume_too_big(blockSize, subvolume, aParameters)) {
 		int maxIndex = 0;
 		for (int i = 1; i < 3; ++i) {
 			if (subvolume[i] > subvolume[maxIndex]) {
@@ -210,10 +151,10 @@ nonlocal_means(TInImageView aIn, TOutImageView aOut, TParameters aParameters)
 
 		subvolume[maxIndex] = (subvolume[maxIndex] + 1) / 2;
 		subvolumeCount[maxIndex] *= 2;
-	}
+	}*/
 	//int count = multiply(subvolumeCount);
 	//int counter = 0;
-	for (int k = 0; k < subvolumeCount[2]; ++k) {
+	/*for (int k = 0; k < subvolumeCount[2]; ++k) {
 		for (int j = 0; j < subvolumeCount[1]; ++j) {
 			for (int i = 0; i < subvolumeCount[0]; ++i) {
 				//TODO - last subvolume can be smaller
@@ -233,7 +174,7 @@ nonlocal_means(TInImageView aIn, TOutImageView aOut, TParameters aParameters)
 				//D_PRINT("=== " << (float(counter) / count * 100) << "% finished.");
 			}
 		}
-	}
+	}*/
 
 }
 

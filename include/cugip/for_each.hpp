@@ -141,7 +141,7 @@ for_each_position(TView aView, TFunctor aOperator)
  **/
 
 //*************************************************************************************************************
-
+#if 0
 namespace detail {
 
 template <typename TView, typename TFunctor>
@@ -181,6 +181,6 @@ for_each_locator(TView aView, TFunctor aOperator)
 /**
  * @}
  **/
-
+#endif
 
 }//namespace cugip

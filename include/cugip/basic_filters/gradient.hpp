@@ -149,5 +149,32 @@ struct sobel_gradient
 	convolution_kernel<simple_vector<float, tDimension>, typename FillStaticSize<tDimension, 3>::Type> kernel;
 };
 
+template<int tDimension>
+struct sobel_weighted_divergence
+{
+	typedef convolution_kernel<simple_vector<float, tDimension>, typename FillStaticSize<tDimension, 3>::Type> Kernel;
+	sobel_weighted_divergence(float aWeight)
+		: weight(aWeight)
+		, kernel(sobel_gradient_kernel<tDimension>())
+	{}
+
+	template<typename TLocator>
+	CUGIP_DECL_HYBRID float
+	operator()(TLocator aLocator) const
+	{
+		float result = 0.0f;
+		typedef simple_vector<int, tDimension> Index;
+		for_each_neighbor(
+			-kernel.offset,
+			kernel.size() - kernel.offset,
+			[&](const Index &aIndex) {
+				result += dot(aLocator[aIndex], kernel.get(aIndex));
+			});
+		return weight * result;
+	}
+
+	float weight;
+	Kernel kernel;
+};
 
 }//namespace cugip

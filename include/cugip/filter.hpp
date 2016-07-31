@@ -17,7 +17,7 @@ kernel_filter(TInView aInView, TOutView aOutView, TFunctor aOperator )
 	typename TOutView::extents_t extents = aOutView.dimensions();
 
 	if (coord < extents) {
-		aOutView[coord] = aOperator(aInView.template locator<cugip::border_handling_repeat_t>(coord));
+		aOutView[coord] = aOperator(aInView.template locator<cugip::BorderHandlingTraits<border_handling_enum::REPEAT>>(coord));
 	}
 }
 
@@ -52,4 +52,3 @@ filter(TInView aInView, TOutView aOutView, TFunctor aOperator)
 //*************************************************************************************************************
 
 }//namespace cugip
-

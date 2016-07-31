@@ -63,7 +63,7 @@ protected:
 template<typename TImageView, typename TNeigborhoodTag>
 struct get_neighborhood_accessor
 {
-	typedef image_locator<TImageView, border_handling_repeat_t> locator_t;
+	typedef image_locator<TImageView, BorderHandlingTraits<border_handling_enum::REPEAT>> locator_t;
 	typedef neighborhood_accessor<locator_t, typename TNeigborhoodTag::type> type;
 
 };

@@ -16,12 +16,14 @@ int main( int argc, char* argv[] )
 {
 	std::string input_file;
 	std::string output_file;
+	int iterationCount = 0;
 
 	po::options_description desc("Allowed options");
 	desc.add_options()
 		("help", "produce help message")
 		("input,i", po::value<std::string>(&input_file), "input file")
 		("output,o", po::value<std::string>(&output_file), "output file")
+		("iterations,n", po::value<int>(&iterationCount)->default_value(1), "iteration count")
 		;
 
 	po::variables_map vm;
@@ -63,12 +65,13 @@ int main( int argc, char* argv[] )
 	output_image->Allocate();
 
 	//denoise(image, output_image);
-	gradientMagnitude(
+	coherenceEnhancingDiffusion(
 		image->GetPixelContainer()->GetBufferPointer(),
 		output_image->GetPixelContainer()->GetBufferPointer(),
 		image->GetLargestPossibleRegion().GetSize()[0],
 		image->GetLargestPossibleRegion().GetSize()[1],
-		image->GetLargestPossibleRegion().GetSize()[2]
+		image->GetLargestPossibleRegion().GetSize()[2],
+		iterationCount
 		);
 
 

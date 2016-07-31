@@ -274,17 +274,17 @@ struct AddValueFunctor {
 };
 
 struct SumValuesFunctor {
-	template<typename T>
+	template<typename T1, typename T2>
 	CUGIP_DECL_HYBRID
-	T operator()(T value) const
+	auto operator()(T1 val1, T2 val2) const -> decltype(val1 + val2)
 	{
-		return value;
+		return val1 + val2;
 	}
 
-	template<typename T1, typename ...TRest>
+	template<typename T1, typename T2, typename ...TRest>
 	CUGIP_DECL_HYBRID
-	auto operator()(T1 value, TRest... values) const -> decltype(std::declval<T1>() + operator()(values...)) {
-		return value + operator()(values...);
+	auto operator()(T1 val1, T2 val2, TRest... values) const -> decltype(operator()(val1 + val2, values...)) {
+		return operator()(val1 + val2, values...);
 	}
 };
 

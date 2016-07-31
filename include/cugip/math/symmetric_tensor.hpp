@@ -2,6 +2,7 @@
 
 #include <cugip/utils.hpp>
 #include <cugip/math.hpp>
+#include <cugip/math/matrix.hpp>
 
 namespace cugip {
 
@@ -9,7 +10,8 @@ template <typename TType, int tDimension>
 class symmetric_tensor: public simple_vector<TType, ((tDimension + 1) * tDimension) / 2>
 {
 public:
-	typedef simple_vector<TType, ((tDimension + 1) * tDimension) / 2> base_type;
+	static constexpr int cBufferSize = ((tDimension + 1) * tDimension) / 2;
+	typedef simple_vector<TType, cBufferSize> base_type;
 	static constexpr int cDimension = tDimension;
 
 	CUGIP_DECL_HYBRID
@@ -58,6 +60,16 @@ public:
 
 private:
 
+};
+
+template <typename TType, int tDimension>
+struct static_matrix_traits<symmetric_tensor<TType, tDimension>>
+{
+	static constexpr bool is_matrix = true;
+	static constexpr int row_count = tDimension;
+	static constexpr int col_count = tDimension;
+
+	typedef TType element_type;
 };
 
 template <typename TType, int tDimension>
@@ -112,6 +124,33 @@ struct get_policy2<tIdx1, tIdx2, symmetric_tensor<TType, tDimension>>
 		}
 	}
 };
+
+template<typename TFactor, typename TElement, int tDimension>
+inline CUGIP_DECL_HYBRID
+	symmetric_tensor<
+		decltype(std::declval<TFactor>() * std::declval<TElement>()),
+		tDimension>
+operator*(const TFactor &aFactor, const symmetric_tensor<TElement, tDimension> &aArg)
+{
+	symmetric_tensor<
+		decltype(std::declval<TFactor>() * std::declval<TElement>()),
+		tDimension> res;
+	//simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim> res;
+	for (int i = 0; i < symmetric_tensor<TElement, tDimension>::cBufferSize; ++i) {
+		res[i] = aFactor * aArg[i];
+	}
+	return res;
+}
+
+template<typename TFactor, typename TElement, int tDimension>
+inline CUGIP_DECL_HYBRID
+	symmetric_tensor<
+		decltype(std::declval<TFactor>() * std::declval<TElement>()),
+		tDimension>
+operator*(const symmetric_tensor<TElement, tDimension> &aArg, const TFactor &aFactor)
+{
+	return operator*(aFactor, aArg);
+}
 
 
 }  // namespace cugip

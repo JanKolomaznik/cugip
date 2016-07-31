@@ -234,6 +234,18 @@ operator*(const TFactor &aFactor, const TVector &aArg)
 	return res;
 }
 
+template<typename TFactor, typename TVector>
+inline CUGIP_DECL_HYBRID typename std::enable_if<
+		static_vector_traits<TVector>::is_vector,
+		simple_vector<
+			decltype(std::declval<TFactor>() * std::declval<TVector>()[0]),
+			static_vector_traits<TVector>::dimension>
+		>::type
+operator*(const TVector &aArg, const TFactor &aFactor)
+{
+	return operator*(aFactor, aArg);
+}
+
 /*template<typename TCoordType1, typename TCoordType2, int tDim>
 inline CUGIP_DECL_HYBRID simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim>
 operator*(const TCoordType1 &aFactor, const simple_vector<TCoordType2, tDim> &aArg)
@@ -554,6 +566,25 @@ struct dimension<simple_vector<TCoordinateType, tDim> >: dimension_helper<tDim> 
 /**
  * @}
  **/
+
+
+template<typename TType, int tDimension>
+CUGIP_DECL_HYBRID
+simple_vector<TType, tDimension + 1>
+insert_dimension(const simple_vector<TType, tDimension> &v, TType inserted_coordinate, int dimension) {
+	CUGIP_ASSERT(dimension >=0);
+	CUGIP_ASSERT(dimension <= tDimension);
+	simple_vector<TType, tDimension + 1> result;
+	for (int i = 0; i < dimension; ++i) {
+		result[i] = v[i];
+	}
+	result[dimension] = inserted_coordinate;
+	for (int i = dimension; i < tDimension; ++i) {
+		result[i + 1] = v[i];
+	}
+	return result;
+}
+
 
 #define EPSILON 0.000001f
 

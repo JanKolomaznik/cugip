@@ -30,18 +30,26 @@ inline int stridesFromSize(int size) {
 	return 1;
 }
 
+CUGIP_HD_WARNING_DISABLE
+template<int tDimension>
+CUGIP_DECL_HYBRID simple_vector<int, tDimension>
+index_from_linear_access_index(const simple_vector<int, tDimension> &aExtents, int aIdx)
+{
+	simple_vector<int, tDimension> coords;
+	for(int i = 0; i < tDimension; ++i) {
+		coords[i] = aIdx % aExtents[i];
+		aIdx /= aExtents[i];
+	}
+	return coords;
+}
+
 
 CUGIP_HD_WARNING_DISABLE
 template<typename TImageView>
 CUGIP_DECL_HYBRID auto
 index_from_linear_access_index(const TImageView &aView, int aIdx) -> typename TImageView::coord_t
 {
-	typename TImageView::coord_t coords;
-	for(int i = 0; i < dimension<TImageView>::value; ++i) {
-		coords[i] = aIdx % aView.dimensions()[i];
-		aIdx /= aView.dimensions()[i];
-	}
-	return coords;
+	return index_from_linear_access_index(aView.dimensions(), aIdx);
 }
 
 CUGIP_HD_WARNING_DISABLE

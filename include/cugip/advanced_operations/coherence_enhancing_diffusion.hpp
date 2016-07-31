@@ -13,7 +13,6 @@ template<typename TInView, typename TGradientView>
 void compute_gradient(TInView aInput, TGradientView aGradient)
 {
 	cugip::transform_locator(aInput, aGradient, sobel_gradient<3>());
-	//filter(aInput, aGradient, cugip::gradient_symmetric_difference<typename TInView::value_type, typename TGradientView::value_type>());
 }
 
 template<typename TGradientVector, typename TStructuralTensor>
@@ -115,9 +114,10 @@ void compute_structural_tensor(TGradientView aGradient, TTensorView aStructuralT
 	transform(aGradient, aStructuralTensor, cugip::compute_structural_tensor_ftor<typename TGradientView::value_type, typename TTensorView::value_type>());
 }
 
-template<typename TInputTensorView, typename TOutputTensorView>
-void blur_structural_tensor(TInputTensorView aStructuralTensor, TOutputTensorView aBluredStructuralTensor)
+template<typename TInputTensorView, typename TOutputTensorView, typename TTmpTensorView>
+void blur_structural_tensor(TInputTensorView aStructuralTensor, TOutputTensorView aBluredStructuralTensor, TTmpTensorView aTmpTensorView)
 {
+	cugip::separable_convolution(aStructuralTensor, aBluredStructuralTensor, aTmpTensorView, gaussian_kernel<5>());
 	//convolution(aStructuralTensor, aBluredStructuralTensor, gaussian_kernel<float, intraits_2d<9,9> >());
 }
 
@@ -131,7 +131,7 @@ void compute_diffusion_tensor(TTensorView aDiffusionTensor, float aAlpha, float 
 struct apply_diffusion_tensor_ftor
 {
 	template<typename TStructuralTensor, typename TGradient>
-	CUGIP_DECL_HYBRID void
+	CUGIP_DECL_HYBRID TGradient
 	operator()(const TStructuralTensor &aTensor, TGradient &aGradient)
 	{
 		return product(aTensor, aGradient);
@@ -142,7 +142,7 @@ template<typename TTensorView, typename TGradientView, typename TOutputView>
 void apply_diffusion_tensor(TTensorView aDiffusionTensor, TGradientView aGradient, TOutputView aOutput, float aTimeStep)
 {
 	transform2(aDiffusionTensor, aGradient, aGradient, cugip::apply_diffusion_tensor_ftor());
-	transform_locator(aGradient, aOutput, weighted_divergence(aTimeStep));
+	transform_locator_assign(aGradient, aOutput, sobel_weighted_divergence<dimension<TTensorView>::value>(aTimeStep), transform_update_add());
 }
 
 /*template<typename TGradientView, typename TOutputView>
@@ -159,6 +159,7 @@ coherence_enhancing_diffusion_step(
                 TGradientView aGradient,
                 TTensorView aStructuralTensor,
                 TTensorView aDiffusionTensor,
+                TTensorView aTmpTensor,
 		float aTimeStep,
 		float aAlpha,
 		float aContrast
@@ -170,7 +171,7 @@ coherence_enhancing_diffusion_step(
 
 	compute_structural_tensor(aGradient, aStructuralTensor);
 
-	blur_structural_tensor(aStructuralTensor, aDiffusionTensor);
+	blur_structural_tensor(aStructuralTensor, aDiffusionTensor, aTmpTensor);
 
 	compute_diffusion_tensor(aDiffusionTensor, aAlpha, aContrast);
 
@@ -194,6 +195,7 @@ public:
 		, mGradient(aSize)
 		, mStructuralTensor(aSize)
 		, mDiffusionTensor(aSize)
+		, mTmpTensor(aSize)
 	{}
 
 	template<typename TInView, typename TOutView>
@@ -205,6 +207,7 @@ public:
 			view(mGradient),
 			view(mStructuralTensor),
 			view(mDiffusionTensor),
+			view(mTmpTensor),
 			mTimeStep,
 			mAlpha,
 			mContrast);
@@ -218,6 +221,7 @@ public:
 	device_image<Gradient, tDimension> mGradient;
 	device_image<StructuralTensor, tDimension> mStructuralTensor;
 	device_image<StructuralTensor, tDimension> mDiffusionTensor;
+	device_image<StructuralTensor, tDimension> mTmpTensor;
 };
 
 } //cugip

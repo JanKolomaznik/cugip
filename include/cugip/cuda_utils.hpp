@@ -77,12 +77,40 @@ mapBlockIdxAndThreadIdxToViewCoordinates<3>()
 	return cugip::simple_vector<int, 3>(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y, blockIdx.z * blockDim.z + threadIdx.z);
 }
 
+template<int tDimension>
+CUGIP_DECL_DEVICE cugip::simple_vector<int, tDimension>
+mapBlockIdxToViewCoordinates();
+
+template<>
+CUGIP_DECL_DEVICE cugip::simple_vector<int, 2>
+mapBlockIdxToViewCoordinates<2>()
+{
+	CUGIP_ASSERT(gridDim.z == 1);
+	CUGIP_ASSERT(blockDim.z == 1);
+	CUGIP_ASSERT(threadIdx.z == 0);
+	return cugip::simple_vector<int, 2>(blockIdx.x * blockDim.x, blockIdx.y * blockDim.y);
+}
+
+template<>
+CUGIP_DECL_DEVICE cugip::simple_vector<int, 3>
+mapBlockIdxToViewCoordinates<3>()
+{
+	return cugip::simple_vector<int, 3>(blockIdx.x * blockDim.x, blockIdx.y * blockDim.y, blockIdx.z * blockDim.z);
+}
+
+
 CUGIP_DECL_DEVICE
 inline int threadOrderFromIndex()
 {
 	return threadIdx.x
 		+ threadIdx.y * blockDim.x
 		+ threadIdx.z * blockDim.x * blockDim.y;
+}
+
+CUGIP_DECL_DEVICE
+inline vect3i_t currentThreadIndex()
+{
+	return vect3i_t(threadIdx.x, threadIdx.y, threadIdx.z);
 }
 
 }//namespace cugip

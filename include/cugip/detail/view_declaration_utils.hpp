@@ -3,6 +3,7 @@
 #include <cugip/detail/defines.hpp>
 #include <cugip/math.hpp>
 #include <cugip/image_locator.hpp>
+#include <cugip/region.hpp>
 
 
 #define REMOVE_PARENTHESES(...) __VA_ARGS__
@@ -64,6 +65,14 @@ struct is_image_view: public std::false_type {};
 /**
  * @}
  **/
+CUGIP_HD_WARNING_DISABLE
+template<typename TView>
+CUGIP_DECL_HYBRID
+region<dimension<TView>::value> valid_region(const TView &view) {
+	return region<dimension<TView>::value>{
+		typename TView::coord_t(),
+		view.dimensions() };
+}
 
 CUGIP_HD_WARNING_DISABLE
 template<typename TView>
@@ -97,6 +106,24 @@ public:
 
 	extents_t mDimensions;
 };
+
+template<int tDimension>
+class host_image_view_base
+{
+public:
+	typedef typename dim_traits<tDimension>::extents_t extents_t;
+
+	host_image_view_base(extents_t dimensions)
+		: mDimensions(dimensions)
+	{}
+
+	extents_t
+	dimensions() const
+	{ return mDimensions; }
+
+	extents_t mDimensions;
+};
+
 
 template<int tDimension, typename TDerived>
 class device_image_view_crtp
