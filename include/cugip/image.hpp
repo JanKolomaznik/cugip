@@ -65,13 +65,15 @@ public:
 	view_t
 	view()
 	{
-		return view_t(mData);
+		//return view_t(mData);
+		return view_t(pointer(), dimensions(), strides());
 	}
 
 	const_view_t
 	const_view() const
 	{
-		return const_view_t(mData);
+		//return const_view_t(mData);
+		return const_view_t(pointer(), dimensions(), strides());
 	}
 
 	value_type *
@@ -79,6 +81,13 @@ public:
 	{
 		return mData.mData.get();
 	}
+
+	extents_t
+	strides() const
+	{
+		return mData.strides();
+	}
+
 
 	void
 	resize(extents_t aExtents)

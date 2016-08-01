@@ -39,7 +39,7 @@ denoise(float *aInput, float *aOutput, size_t aWidth, size_t aHeight, size_t aDe
 
 	cugip::copy(inView, cugip::view(inImage));
 
-	cugip::nonlocal_means(cugip::const_view(inImage), cugip::view(outImage), cugip::nl_means_parameters<2, 3>(aVariance));
+	cugip::nonlocal_means(cugip::const_view(inImage), cugip::view(outImage), cugip::nl_means_parameters<2, 4>(aVariance));
 
 	cugip::copy(cugip::view(outImage), outView);
 	D_PRINT("nonlocal_means done!");

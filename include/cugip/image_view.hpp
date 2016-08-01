@@ -23,8 +23,15 @@ public:
 	typedef const TElement const_value_type;
 	typedef value_type & accessed_type;
 
-	device_image_view(const typename memory_management<TElement, tDim>::device_memory &aData) :
+	/*device_image_view(const typename memory_management<TElement, tDim>::device_memory &aData) :
 		mData(aData)
+	{}*/
+
+	CUGIP_DECL_HYBRID
+	device_image_view(TElement *buffer, extents_t size, extents_t strides)
+		: mDevicePtr(buffer)
+		, mSize(size)
+		, mStrides(strides)
 	{}
 
 	device_image_view()
@@ -32,12 +39,16 @@ public:
 
 	CUGIP_DECL_HYBRID extents_t
 	dimensions() const
-	{ return mData.dimensions(); }
+	{
+		//return mData.dimensions();
+		return mSize;
+	}
 
 	CUGIP_DECL_HYBRID accessed_type
 	operator[](coord_t aCoords) const
 	{
-		return mData[aCoords];
+		return *reinterpret_cast<value_type *>(reinterpret_cast<char *>(mDevicePtr) + dot(mStrides, aCoords));
+		//return mData[aCoords];
 	}
 
 	template<typename TBorderHandling>
@@ -47,25 +58,29 @@ public:
 		return image_locator<this_t, TBorderHandling>(*const_cast<this_t *>(this), aCoordinates); //TODO - remove const_cast
 	}
 
-	CUGIP_DECL_HYBRID const memory_t&
+	/*CUGIP_DECL_HYBRID const memory_t&
 	data() const
-	{ return mData; }
+	{ return mData; }*/
 
-	value_type *
+	CUGIP_DECL_HYBRID value_type *
 	pointer() const
 	{
-		return mData.mData.get();
+		//return mData.mData.get();
+		return mDevicePtr;
 	}
 
-	extents_t
+	CUGIP_DECL_HYBRID extents_t
 	strides() const
 	{
-		return mData.strides();
+		//return mData.strides();
+		return mStrides;
 	}
 
 protected:
-	memory_t mData;
-
+	//memory_t mData;
+	extents_t mSize;
+	TElement *mDevicePtr;
+	extents_t mStrides;
 };
 
 template<typename TElement, int tDim = 2>
@@ -82,25 +97,39 @@ public:
 	typedef const TElement const_value_type;
 	typedef const_value_type & accessed_type;
 
+	/*CUGIP_DECL_HYBRID
 	const_device_image_view(const typename memory_management<TElement, tDim>::const_device_memory &aData) :
 		mData(aData)
 	{}
 
+	CUGIP_DECL_HYBRID
 	const_device_image_view(const typename memory_management<TElement, tDim>::device_memory &aData) :
 		mData(aData)
+	{}*/
+
+	CUGIP_DECL_HYBRID
+	const_device_image_view(const TElement *buffer, extents_t size, extents_t strides)
+		: mDevicePtr(buffer)
+		, mSize(size)
+		, mStrides(strides)
 	{}
 
+	CUGIP_DECL_HYBRID
 	const_device_image_view()
 	{ /*empty*/ }
 
 	CUGIP_DECL_HYBRID extents_t
 	dimensions() const
-	{ return mData.dimensions(); }
+	{
+		//return mData.dimensions();
+		return mSize;
+	}
 
 	CUGIP_DECL_HYBRID accessed_type &
 	operator[](coord_t aCoords) const
 	{
-		return mData[aCoords];
+		return *reinterpret_cast<const_value_type *>(reinterpret_cast<const char *>(mDevicePtr) + dot(mStrides, aCoords));
+	//	return mData[aCoords];
 	}
 
 	template<typename TBorderHandling>
@@ -110,23 +139,30 @@ public:
 		return image_locator<this_t, TBorderHandling>(*const_cast<this_t *>(this), aCoordinates); //TODO - remove const_cast
 	}
 
-	CUGIP_DECL_HYBRID const memory_t&
+	/*CUGIP_DECL_HYBRID const memory_t&
 	data() const
-	{ return mData; }
+	{ return mData; }*/
 
-	const_value_type *
+	CUGIP_DECL_HYBRID const_value_type *
 	pointer() const
 	{
-		return mData.mData.get();
+		//return mData.mData.get();
+		return mDevicePtr;
 	}
 
-	extents_t
+	CUGIP_DECL_HYBRID extents_t
 	strides() const
 	{
-		return mData.strides();
+		//return mData.strides();
+		return mStrides;
 	}
 protected:
-	memory_t mData;
+	//memory_t mData;
+
+	extents_t mSize;
+	const TElement *mDevicePtr;
+	extents_t mStrides;
+
 };
 
 CUGIP_DECLARE_DEVICE_VIEW_TRAITS((device_image_view<TElement, tDim>), tDim, typename TElement, int tDim);
@@ -149,6 +185,56 @@ struct dimension<device_image_view<TElement, tDim> >: dimension_helper<tDim> {};
 
 template<typename TElement, int tDim>
 struct dimension<const_device_image_view<TElement, tDim> >: dimension_helper<tDim> {};*/
+
+template<typename TElement, int tDimension>
+CUGIP_DECL_HYBRID const_device_image_view<const TElement, tDimension>
+makeConstDeviceImageView(const TElement *buffer, simple_vector<int, tDimension> size) {
+	return const_device_image_view<const TElement, tDimension>(buffer, size, sizeof(TElement) * stridesFromSize(size));
+}
+
+template<typename TElement, int tDimension>
+CUGIP_DECL_HYBRID const_device_image_view<const TElement, tDimension>
+makeConstDeviceImageView(const TElement *buffer, simple_vector<int, tDimension> size, simple_vector<int, tDimension> strides) {
+	return const_device_image_view<const TElement, tDimension>(buffer, size, strides);
+}
+
+
+template<typename TElement, int tDimension>
+CUGIP_DECL_HYBRID device_image_view<TElement, tDimension>
+makeDeviceImageView(TElement *buffer, simple_vector<int, tDimension> size) {
+	return device_image_view<TElement, tDimension>(buffer, size, sizeof(TElement) * stridesFromSize(size));
+}
+
+template<typename TElement, int tDimension>
+CUGIP_DECL_HYBRID device_image_view<TElement, tDimension>
+makeDeviceImageView(TElement *buffer, simple_vector<int, tDimension> size, simple_vector<int, tDimension> strides) {
+	return device_image_view<TElement, tDimension>(buffer, size, strides);
+}
+
+/*template<typename TElement, int tDimension>
+CUGIP_DECL_HYBRID const_device_image_view<const TElement, tDimension>
+makeConstDeviceImageView(const TElement *buffer, simple_vector<int, tDimension> size) {
+	return const_device_image_view<const TElement, tDimension>(typename memory_management<TElement, tDimension>::const_device_memory(buffer, size, sizeof(TElement) * stridesFromSize(size)));
+}
+
+template<typename TElement, int tDimension>
+CUGIP_DECL_HYBRID const_device_image_view<const TElement, tDimension>
+makeConstDeviceImageView(const TElement *buffer, simple_vector<int, tDimension> size, simple_vector<int, tDimension> strides) {
+	return const_device_image_view<const TElement, tDimension>(typename memory_management<TElement, tDimension>::const_device_memory(buffer, size, strides));
+}
+
+
+template<typename TElement, int tDimension>
+CUGIP_DECL_HYBRID device_image_view<TElement, tDimension>
+makeDeviceImageView(TElement *buffer, simple_vector<int, tDimension> size) {
+	return device_image_view<TElement, tDimension>(typename memory_management<TElement, tDimension>::device_memory(buffer, size, sizeof(TElement) * stridesFromSize(size)));
+}
+
+template<typename TElement, int tDimension>
+CUGIP_DECL_HYBRID device_image_view<TElement, tDimension>
+makeDeviceImageView(TElement *buffer, simple_vector<int, tDimension> size, simple_vector<int, tDimension> strides) {
+	return device_image_view<TElement, tDimension>(typename memory_management<TElement, tDimension>::device_memory(buffer, size, strides));
+}*/
 
 
 }//namespace cugip

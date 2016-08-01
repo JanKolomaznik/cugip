@@ -432,7 +432,7 @@ unaryOperatorOnPosition(TView view, TFunctor functor) {
 	return UnaryOperatorOnPositionImageView<TView, TFunctor>(view, functor);
 }
 
-template<typename TView, typename TOperator, typename TBorderHandling = cugip::border_handling_repeat_t>
+template<typename TView, typename TOperator, typename TBorderHandling = cugip::BorderHandlingTraits<border_handling_enum::REPEAT>>
 class UnaryOperatorOnLocatorImageView
 	: public device_image_view_crtp<
 		dimension<TView>::value,

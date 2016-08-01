@@ -12,6 +12,7 @@
 #include <cugip/texture.hpp>
 #include <cugip/host_image.hpp>
 #include <cugip/procedural_views.hpp>
+#include <cugip/view_arithmetics.hpp>
 #include <thrust/device_vector.h>
 #include <thrust/reduce.h>
 

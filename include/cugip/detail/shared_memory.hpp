@@ -49,6 +49,13 @@ public:
 		TElement *buffer = reinterpret_cast<TElement *>(data);
 		return buffer[get_linear_access_index(TStaticSize::vector(), aCoords)];
 	}
+
+	CUGIP_DECL_DEVICE
+	device_image_view<TElement, cDimension>
+	view()
+	{
+		return makeDeviceImageView(reinterpret_cast<TElement *>(data), TStaticSize::vector());
+	}
 protected:
 
 	int8_t data[cBufferSize];
