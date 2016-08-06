@@ -11,9 +11,6 @@
 
 namespace cugip {
 
-template<typename ...TArgs>
-void ignoreReturnValues(TArgs ...) {}
-
 
 template<typename TId>
 struct DurationRecord {

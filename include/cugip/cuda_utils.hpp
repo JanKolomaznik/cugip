@@ -113,6 +113,19 @@ inline vect3i_t currentThreadIndex()
 	return vect3i_t(threadIdx.x, threadIdx.y, threadIdx.z);
 }
 
+CUGIP_DECL_DEVICE
+inline bool is_in_block(int aX, int aY, int aZ)
+{
+	return blockIdx.x == aX && blockIdx.y == aY && blockIdx.z == aZ;
+}
+
+CUGIP_DECL_DEVICE
+inline bool is_in_thread(int aX, int aY, int aZ)
+{
+	return threadIdx.x == aX && threadIdx.y == aY && threadIdx.z == aZ;
+}
+
+
 }//namespace cugip
 
 inline std::ostream &operator<<(std::ostream &stream, const cudaPitchedPtr &pointer) {

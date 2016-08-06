@@ -20,22 +20,22 @@ namespace detail {
 
 template<int tValue, int tHead, int... tTail>
 struct IsValueInIntSequenceImpl {
-	static constexpr bool kValue = (tValue == tHead) || IsValueInIntSequenceImpl<tValue, tTail...>::kValue;
+	static constexpr bool value = (tValue == tHead) || IsValueInIntSequenceImpl<tValue, tTail...>::value;
 };
 
 template<int tValue, int tHead>
 struct IsValueInIntSequenceImpl<tValue, tHead> {
-	static constexpr bool kValue = tValue == tHead;
+	static constexpr bool value = tValue == tHead;
 };
 
 template<int tCurrentIndex, int tValue, int tHead, int... tTail>
 struct GetPositionInIntSequenceImpl {
-	static constexpr int kValue = tValue == tHead ? tCurrentIndex : GetPositionInIntSequenceImpl<tCurrentIndex + 1, tValue, tTail...>::kValue;
+	static constexpr int value = tValue == tHead ? tCurrentIndex : GetPositionInIntSequenceImpl<tCurrentIndex + 1, tValue, tTail...>::value;
 };
 
 template<int tCurrentIndex, int tValue, int tHead>
 struct GetPositionInIntSequenceImpl<tCurrentIndex, tValue, tHead> {
-	static constexpr int kValue = tValue == tHead ? tCurrentIndex : -1;
+	static constexpr int value = tValue == tHead ? tCurrentIndex : -1;
 };
 
 template<int tFront, int...tValues>
@@ -61,6 +61,19 @@ struct ProductIntSequenceImpl<tCurrentResult, IntSequence<tHead>> {
 	static constexpr int value = tCurrentResult * tHead;
 };
 
+template<typename TIntSequence>
+struct LastItemInIntSequenceImpl;
+
+template<int tHead, int... tTail>
+struct LastItemInIntSequenceImpl<IntSequence<tHead, tTail...>> {
+	static constexpr int value = LastItemInIntSequenceImpl<IntSequence<tTail...>>::value;
+};
+
+template<int tTail>
+struct LastItemInIntSequenceImpl<IntSequence<tTail>> {
+	static constexpr int value = tTail;
+};
+
 }  // namespace detail
 
 
@@ -71,34 +84,40 @@ struct IsValueInIntSequence {
 
 	template<bool tDummy, int... tSequence>
 	struct Helper<tDummy, IntSequence<tSequence...>> {
-		static constexpr bool kValue = detail::IsValueInIntSequenceImpl<tValue, tSequence...>::kValue;
+		static constexpr bool value = detail::IsValueInIntSequenceImpl<tValue, tSequence...>::value;
 	};
 
 
-	static constexpr bool kValue = Helper<false, TIntSequence>::kValue;
+	static constexpr bool value = Helper<false, TIntSequence>::value;
 };
 
 
 template<int tValue, typename TIntSequence>
 struct GetPositionInIntSequence {
-	static_assert(IsValueInIntSequence<tValue, TIntSequence>::kValue, "Value is not in the IntSequence!");
+	static_assert(IsValueInIntSequence<tValue, TIntSequence>::value, "Value is not in the IntSequence!");
 
 	template<bool tDummy, typename TDummy>
 	struct Helper;
 
 	template<bool tDummy, int... tSequence>
 	struct Helper<tDummy, IntSequence<tSequence...>> {
-		static constexpr int kValue = detail::GetPositionInIntSequenceImpl<0, tValue, tSequence...>::kValue;
+		static constexpr int value = detail::GetPositionInIntSequenceImpl<0, tValue, tSequence...>::value;
 	};
 
 
-	static constexpr int kValue = Helper<false, TIntSequence>::kValue;
+	static constexpr int value = Helper<false, TIntSequence>::value;
 };
 
 template<typename TIntSequence>
 struct ProductOfIntSequence
 {
 	static constexpr int value = detail::ProductIntSequenceImpl<1, TIntSequence>::value;
+};
+
+template<typename TIntSequence>
+struct LastItemInIntSequence
+{
+	static constexpr int value = detail::LastItemInIntSequenceImpl<TIntSequence>::value;
 };
 
 template<int tSize>
@@ -134,6 +153,12 @@ struct StaticSize: IntSequence<tSize...>
 	static constexpr int count()
 	{
 		return ProductOfIntSequence<IntSequence<tSize...>>::value;
+	}
+
+	CUGIP_DECL_HYBRID
+	static constexpr int last()
+	{
+		return LastItemInIntSequence<IntSequence<tSize...>>::value;
 	}
 };
 

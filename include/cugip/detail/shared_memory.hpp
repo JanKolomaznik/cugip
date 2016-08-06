@@ -22,6 +22,7 @@ public:
 	static constexpr int cDimension = TStaticSize::cDimension;
 	static constexpr int cElementCount = TStaticSize::count();
 	static constexpr int cBufferSize = cElementCount * sizeof(TElement);
+	static constexpr int cLayerSize = TStaticSize::count() / TStaticSize::last();
 
 	typedef simple_vector<int, cDimension> coord_t;
 
@@ -56,6 +57,64 @@ public:
 	{
 		return makeDeviceImageView(reinterpret_cast<TElement *>(data), TStaticSize::vector());
 	}
+
+
+	CUGIP_DECL_DEVICE
+	void shift_up(int aShift)
+	{
+		int layerCount = TStaticSize::last() - aShift;
+		int shiftStride = aShift * cLayerSize;
+
+		TElement *buffer = reinterpret_cast<TElement *>(data);
+		for(int i = 0; i < layerCount; ++i) {
+			int layerStartIndex = i * cLayerSize;
+			int index = threadOrderFromIndex();
+			while(index < cLayerSize) {
+				buffer[layerStartIndex + index] = buffer[layerStartIndex + shiftStride + index];
+				index += TThreadBlockSize::count();
+			}
+			__syncthreads();
+		}
+	}
+
+	CUGIP_DECL_DEVICE
+	void shift_up2(int aShift)
+	{
+		int layerCount = TStaticSize::last() - aShift;
+		int shiftStride = aShift * cLayerSize;
+
+		int blockSteps = (cLayerSize * layerCount + layerCount - 1) / TThreadBlockSize::count();
+
+		TElement *buffer = reinterpret_cast<TElement *>(data);
+		int index = threadOrderFromIndex();
+		for (int i = 0; i < blockSteps; ++i) {
+			if (index < layerCount * cLayerSize) {
+				buffer[index] = buffer[index + shiftStride];
+			}
+			__syncthreads();
+		}
+	}
+
+	template<typename TView>
+	CUGIP_DECL_DEVICE
+	void shift_and_load(TView aView, coord_t aCorner, int aShift) {
+		shift_up2(aShift);
+
+		int layerCount = TStaticSize::last() - aShift;
+		int index = layerCount * cLayerSize + threadOrderFromIndex();
+		TElement *buffer = reinterpret_cast<TElement *>(data);
+		while (index < cElementCount) {
+			auto coords = min_coords(
+				aView.dimensions()-coord_t::fill(1),
+				max_coords(coord_t(),
+					aCorner + index_from_linear_access_index(TStaticSize::vector(), index)));
+			buffer[index] = aView[coords];
+
+			index += TThreadBlockSize::count();
+		}
+	}
+
+
 protected:
 
 	int8_t data[cBufferSize];
