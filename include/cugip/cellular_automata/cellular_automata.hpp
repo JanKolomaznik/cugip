@@ -67,11 +67,17 @@ struct CellOperationWithGlobalState
 	template<typename TDummy>
 	struct CallWrapper<false, TDummy>
 	{
-		template<typename TOutLocator, typename TAccessor>
+		template<typename TAccessor>
 		CUGIP_DECL_DEVICE
-		static void invoke(int aIteration, TRule &aRule, TOutLocator aOutLocator, TAccessor aAccessor, TGlobalState aGlobalState)
+		static typename TAccessor::value_type
+		invoke(
+			int aIteration,
+			TRule &aRule,
+			TAccessor aAccessor,
+			TGlobalState aGlobalState)
 		{
-			aOutLocator.get() = aRule(aIteration, aAccessor);
+			return aRule(aIteration, aAccessor);
+			//aOutLocator.get() = aRule(aIteration, aAccessor);
 			//aLocator2.get() = mRule(mIteration, Accessor(aLocator1, TNeighborhood()));
 		}
 	};
@@ -79,25 +85,44 @@ struct CellOperationWithGlobalState
 	template<typename TDummy>
 	struct CallWrapper<true, TDummy>
 	{
-		template<typename TOutLocator, typename TAccessor>
+		template<typename TAccessor>
 		CUGIP_DECL_DEVICE
-		static void invoke(int aIteration, TRule &aRule, TOutLocator aOutLocator, TAccessor aAccessor, TGlobalState aGlobalState)
+		static typename TAccessor::value_type
+		invoke(
+			int aIteration,
+			TRule &aRule,
+			TAccessor aAccessor,
+			TGlobalState aGlobalState)
 		{
+			return aRule(aIteration, aAccessor, aGlobalState);
 			//aOutLocator.get() = mRule(mIteration, aAccessor);
-			aOutLocator.get() = aRule(aIteration, aAccessor, aGlobalState);
+			//aOutLocator.get() = aRule(aIteration, aAccessor, aGlobalState);
 			//aLocator2.get() = mRule(mIteration, Accessor(aLocator1, TNeighborhood()));
 		}
 	};
 
+	template<typename TLocator>
+	CUGIP_DECL_DEVICE typename TLocator::value_type
+	operator()(TLocator aLocator) {
+		typedef NeighborhoodAccessor<TLocator, TNeighborhood> Accessor;
+		typedef CallWrapper<is_callable<TRule, int, Accessor, TGlobalState>::value> Wrapper;
+		return Wrapper::invoke(
+				mIteration,
+				mRule,
+				Accessor(aLocator, TNeighborhood()),
+				mGlobalState);
+		//aLocator2.get() = mRule(mIteration,);
+	}
 
-	template<typename TLocator1, typename TLocator2>
+
+	/*template<typename TLocator1, typename TLocator2>
 	CUGIP_DECL_DEVICE void
 	operator()(TLocator1 aLocator1, TLocator2 aLocator2) {
 		typedef NeighborhoodAccessor<TLocator1, TNeighborhood> Accessor;
 
 		CallWrapper<is_callable<TRule, int, Accessor, TGlobalState>::value>::invoke(mIteration, mRule, aLocator2, Accessor(aLocator1, TNeighborhood()), mGlobalState);
 		//aLocator2.get() = mRule(mIteration,);
-	}
+	}*/
 
 	TRule mRule;
 	int mIteration;
@@ -333,6 +358,7 @@ protected:
 
 	void computeNextIteration()
 	{
+		mGlobalState.preprocess(this->currentInputView());
 		transform_locator(
 			this->currentInputView(),
 			this->currentOutputView(),

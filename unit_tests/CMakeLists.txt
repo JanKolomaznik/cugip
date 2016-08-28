@@ -15,7 +15,7 @@ MESSAGE(  ${Boost_LIBRARIES} )
 include_directories( ${Boost_INCLUDE_DIRS} ${CUB_INCLUDE_DIRECTORY} "../include")
 
 set(CUDA_HOST_COMPILER "/usr/bin/gcc-4.9")
-SET(CUDA_NVCC_FLAGS "--std=c++11 -gencode arch=compute_30,code=sm_30 --use_fast_math --generate-line-info")
+SET(CUDA_NVCC_FLAGS "--std=c++11 -gencode arch=compute_30,code=sm_30 --use_fast_math --generate-line-info --expt-extended-lambda")
 #set(CUDA_NVCC_FLAGS "--std=c++11 -gencode arch=compute_50,code=sm_50 --use_fast_math")
 #set(CUDA_NVCC_FLAGS "--std=c++11 -gencode arch=compute_30,code=sm_30 --use_fast_math")
 #SET(CUDA_NVCC_FLAGS "-G --std=c++11 -gencode arch=compute_30,code=sm_30 --use_fast_math -lineinfo")

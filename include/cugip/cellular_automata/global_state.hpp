@@ -17,6 +17,10 @@ struct DummyGlobalState
 
 	template<typename TView>
 	void
+	preprocess(TView aView) {}
+
+	template<typename TView>
+	void
 	postprocess(TView aView) {}
 };
 
@@ -36,6 +40,13 @@ struct DeviceFlagMixin : TBaseClass
 	{
 		mDeviceFlag.set_device();
 	}
+
+	bool
+	is_finished()
+	{
+		return !mDeviceFlag.check_host();
+	}
+
 
 	device_flag_view mDeviceFlag;
 };
