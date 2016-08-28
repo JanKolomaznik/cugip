@@ -230,7 +230,6 @@ public:
 	device_flag convergenceFlag;
 };
 
-
 void
 WShedAutomatonWrapper::runIterations(int aIterationCount)
 {

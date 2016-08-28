@@ -234,6 +234,9 @@ struct MooreNeighborhood<3>
 template<typename TLocator, typename TNeighborhood>
 struct NeighborhoodAccessor
 {
+	typedef typename TLocator::accessed_type accessed_type;
+	typedef typename TLocator::value_type value_type;
+
 	CUGIP_DECL_HYBRID
 	NeighborhoodAccessor(TLocator aLocator, TNeighborhood aNeighborhood)
 		: mLocator(aLocator)

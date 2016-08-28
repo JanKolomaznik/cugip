@@ -7,6 +7,7 @@
 #include <cugip/utils.hpp>
 #include <cugip/reduce.hpp>
 #include <cugip/math.hpp>
+#include <cugip/for_each.hpp>
 #include <cugip/image.hpp>
 #include <cugip/copy.hpp>
 #include <cugip/texture.hpp>
@@ -86,6 +87,8 @@ BOOST_AUTO_TEST_CASE(MultiViewOperator)
 	copy(result, view(deviceImage));
 }
 
+#if 0
+
 BOOST_AUTO_TEST_CASE(TextureView)
 {
 	host_image<int, 1> host_image1(10);
@@ -105,4 +108,19 @@ BOOST_AUTO_TEST_CASE(TextureView)
 	for (int i = 0; i < hostView2.dimensions(); ++i) {
 		BOOST_CHECK_EQUAL(hostView1[i], hostView2[i]);
 	}*/
+}
+#endif
+
+BOOST_AUTO_TEST_CASE(ForEachLambda)
+{
+	auto view1 = constantImage(3, Int3(512, 512, 64));
+
+	device_image<int, 3> deviceImage(view1.dimensions());
+	copy(view1, view(deviceImage));
+
+	for_each(view(deviceImage), []__device__(int arg) { return arg + 1; });
+
+	auto result = sum(subtract(view(deviceImage), constantImage(4, view1.dimensions())));
+
+	BOOST_CHECK_EQUAL(result, 0);
 }

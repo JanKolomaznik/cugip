@@ -75,6 +75,10 @@ struct EquivalenceGlobalState
 
 	template<typename TView>
 	void
+	preprocess(TView aView) {}
+
+	template<typename TView>
+	void
 	postprocess(TView aView)
 	{
 		manager.compaction();
@@ -107,6 +111,7 @@ struct ConnectedComponentLabelingRule2
 	}
 };
 
+template<typename TId=int>
 struct LocalMinimaEquivalenceGlobalState
 {
 	struct Relabel
@@ -123,12 +128,19 @@ struct LocalMinimaEquivalenceGlobalState
 			return aLabel;
 		}
 
-		EquivalenceManager<int> manager;
+		EquivalenceManager<TId> manager;
 	};
 
 	void
 	initialize(){
 		manager.initialize();
+		mDeviceFlag.reset_host();
+	}
+
+	template<typename TView>
+	void
+	preprocess(TView aView)
+	{
 		mDeviceFlag.reset_host();
 	}
 
@@ -147,7 +159,12 @@ struct LocalMinimaEquivalenceGlobalState
 		mDeviceFlag.set_device();
 	}
 
-	EquivalenceManager<int> manager;
+	bool is_finished()
+	{
+		return !mDeviceFlag.check_host();
+	}
+
+	EquivalenceManager<TId> manager;
 	device_flag_view mDeviceFlag;
 };
 
@@ -156,9 +173,9 @@ struct LocalMinimaConnectedComponentRule
 	template<typename T>
 	using remove_reference = typename std::remove_reference<T>::type;
 
-	template<typename TNeighborhood>
+	template<typename TNeighborhood, typename TId>
 	CUGIP_DECL_DEVICE
-	auto operator()(int aIteration, TNeighborhood aNeighborhood, LocalMinimaEquivalenceGlobalState aEquivalence) -> remove_reference<decltype(aNeighborhood[0])> const
+	auto operator()(int aIteration, TNeighborhood aNeighborhood, LocalMinimaEquivalenceGlobalState<TId> aEquivalence) -> remove_reference<decltype(aNeighborhood[0])> const
 	{
 		auto value = aNeighborhood[0];
 		auto minLabel = get<1>(value);
@@ -240,7 +257,7 @@ struct WatershedRule
 	}
 };
 
-typedef LocalMinimaEquivalenceGlobalState Watershed2EquivalenceGlobalState;
+typedef LocalMinimaEquivalenceGlobalState<int> Watershed2EquivalenceGlobalState;
 
 
 /*struct Watershed2EquivalenceGlobalState

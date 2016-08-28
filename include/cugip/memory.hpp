@@ -55,12 +55,6 @@ struct device_ptr : device_base_ptr<TType>
 	device_ptr(TType *aArg): device_base_ptr<TType>(aArg)
 	{ /*empty*/ }
 
-	CUGIP_DECL_DEVICE TType *
-	operator->()
-	{
-		return this->p;
-	}
-
 	CUGIP_DECL_HYBRID device_ptr &
 	operator=(const device_ptr &aArg)
 	{
@@ -91,6 +85,14 @@ struct device_ptr : device_base_ptr<TType>
 		return device_ptr(reinterpret_cast<TType *>((reinterpret_cast<char *>(this->p) + aOffset)));
 	}
 
+#if defined(__CUDACC__)
+
+	CUGIP_DECL_DEVICE TType *
+	operator->()
+	{
+		return this->p;
+	}
+
 	CUGIP_DECL_DEVICE void
 	assign_device(const TType &aValue)
 	{
@@ -118,6 +120,7 @@ struct device_ptr : device_base_ptr<TType>
 		return *(this->p);
 	}
 
+#endif //defined(__CUDACC__)
 
 /*	CUGIP_DECL_HYBRID TType *
 	get() const
@@ -128,6 +131,7 @@ struct device_ptr : device_base_ptr<TType>
 	TType *p;*/
 };
 
+/*
 template<typename TType>
 struct access_helper
 {
@@ -170,7 +174,7 @@ operator*(const device_ptr<TType> &aPtr)
 	return access_helper<TType>(aPtr);
 }
 
-
+*/
 /*#ifdef __CUDACC__
 template<typename TType>
 CUGIP_DECL_DEVICE TType &
@@ -205,9 +209,11 @@ struct const_device_ptr : device_base_ptr<const TType>
 	const_device_ptr(const const_device_ptr<TType> &aArg): device_base_ptr<const TType>(aArg.p)
 	{ /*empty*/ }
 
+#if defined(__CUDACC__)
 	CUGIP_DECL_DEVICE const TType *
 	operator->()
 	{ return this->p; }
+#endif //defined(__CUDACC__)
 
 	CUGIP_DECL_HYBRID const_device_ptr &
 	operator=(const device_ptr<TType> &aArg)
@@ -596,6 +602,7 @@ struct device_memory_1d_owner: public device_memory_1d<TType>
 	device_memory_1d_owner()
 	{}
 
+#if defined(__CUDACC__)
 	/*device_memory_1d_owner(int aSize)
 	{
 		reallocate(extents_t(aSize));
@@ -635,6 +642,7 @@ struct device_memory_1d_owner: public device_memory_1d<TType>
 					% int(this->mData.p)));*/
 		CUGIP_ASSERT(this->mData.p);
 	}
+#endif //defined(__CUDACC__)
 };
 
 
@@ -646,6 +654,7 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 	device_memory_2d_owner()
 	{}
 
+#if defined(__CUDACC__)
 	device_memory_2d_owner(int aWidth, int aHeight)
 	{
 		reallocate(extents_t(aWidth, aHeight));
@@ -687,6 +696,7 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 					% sizeof(TType)));
 		CUGIP_ASSERT(this->mData.p);
 	}
+#endif //defined(__CUDACC__)
 };
 
 //****************************************************
@@ -699,6 +709,7 @@ struct device_memory_3d_owner: public device_memory_3d<TType>
 	device_memory_3d_owner()
 	{}
 
+#if defined(__CUDACC__)
 	device_memory_3d_owner(int aWidth, int aHeight, int aDepth)
 	{
 		reallocate(extents_t(aWidth, aHeight, aDepth));
@@ -748,6 +759,7 @@ struct device_memory_3d_owner: public device_memory_3d<TType>
 		CUGIP_ASSERT(this->mData.p);
 		//CUGIP_CHECK_RESULT(cudaMemset(pitchedDevPtr.ptr, 0, this->mPitch * aExtents[1] * aExtents[2]));
 	}
+#endif //defined(__CUDACC__)
 };
 //*****************************************************************************************
 template<typename TType>
