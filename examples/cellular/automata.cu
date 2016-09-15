@@ -224,10 +224,11 @@ public:
 	virtual void
 	fillFromCurrentImage(host_image_view<element_rgb8_t, 2> aView) override;
 
-	CellularAutomatonWithGlobalState<Grid<Value2, 2>, VonNeumannNeighborhood<2>, LocalMinimaConnectedComponentRule, LocalMinimaEquivalenceGlobalState> mLocalMinimumAutomaton;
+	CellularAutomatonWithGlobalState<Grid<Value2, 2>, VonNeumannNeighborhood<2>, LocalMinimaConnectedComponentRule, LocalMinimaEquivalenceGlobalState<int>> mLocalMinimumAutomaton;
 	CellularAutomatonWithGlobalState<Grid<Value, 2>, MooreNeighborhood<2>, WatershedRule, ConvergenceFlag> mAutomaton;
 	thrust::device_vector<int> mBuffer;
 	device_flag convergenceFlag;
+	ConvergenceFlag mConvergenceGlobalState;
 };
 
 void
@@ -235,6 +236,8 @@ WShedAutomatonWrapper::runIterations(int aIterationCount)
 {
 	//mLocalMinimumAutomaton.iterate(aIterationCount);
 	mAutomaton.iterate(aIterationCount);
+	std::cout << "CONVERGENCE FLAG " << mConvergenceGlobalState.is_finished() << std::endl;
+	mConvergenceGlobalState.mDeviceFlag.reset_host();
 }
 
 struct InitWatershed
@@ -280,7 +283,7 @@ void WShedAutomatonWrapper::setStartImageView(const_host_image_view<const elemen
 	}
 	auto localMinima = unaryOperatorOnLocator(const_view(deviceGradient), LocalMinimumLabel());
 
-	LocalMinimaEquivalenceGlobalState globalState;
+	LocalMinimaEquivalenceGlobalState<int> globalState;
 	mBuffer.resize(elementCount(aView) + 1);
 	globalState.manager = EquivalenceManager<int>(thrust::raw_pointer_cast(&mBuffer[0]), mBuffer.size());
 	globalState.mDeviceFlag = convergenceFlag.view();
@@ -292,9 +295,8 @@ void WShedAutomatonWrapper::setStartImageView(const_host_image_view<const elemen
 	auto wshed = nAryOperator(InitWatershed(), const_view(deviceGradient), getDimension(mLocalMinimumAutomaton.getCurrentState(), IntValue<1>()));
 
 	//ConvergenceFlag convergenceGlobalState{ convergenceFlag.view() };
-	ConvergenceFlag convergenceGlobalState;
-	convergenceGlobalState.mDeviceFlag = convergenceFlag.view();
-	mAutomaton.initialize(wshed, convergenceGlobalState);
+	mConvergenceGlobalState.mDeviceFlag = convergenceFlag.view();
+	mAutomaton.initialize(wshed, mConvergenceGlobalState);
 }
 
 void WShedAutomatonWrapper::fillFromCurrentImage(host_image_view<element_rgb8_t, 2> aView)

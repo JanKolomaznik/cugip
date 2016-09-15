@@ -34,6 +34,13 @@ struct DeviceFlagMixin : TBaseClass
 		mDeviceFlag.reset_host();
 	}
 
+	template<typename TView>
+	void
+	preprocess(TView aView)
+	{
+		mDeviceFlag.reset_host();
+	}
+
 	CUGIP_DECL_DEVICE
 	void
 	signal()

@@ -239,18 +239,20 @@ struct WatershedRule
 		//input, label, distance
 		auto value = aNeighborhood[0];
 		int index = -1;
-		auto minValue = get<2>(value) - get<0>(value);
+		auto minValue = get<2>(value);// - get<0>(value);
 		for (int i = 1; i < aNeighborhood.size(); ++i) {
 			auto distance = get<2>(aNeighborhood[i]);
-			//printf("%d %d - %d val = %d -> %d\n", threadIdx.x, threadIdx.y, i, aNeighborhood[0], aNeighborhood[i]);
-			if (distance < minValue) {
+			if (get<1>(aNeighborhood[i]) != 0 && distance < minValue) {
 				index = i;
 				minValue = distance;
 			}
+			//printf("%d %d - %d val = %d -> %d\n", threadIdx.x, threadIdx.y, i, aNeighborhood[0], aNeighborhood[i]);
 		}
-		if (index != -1) {
+		auto newValue = minValue + get<0>(value);
+		if (index != -1 && newValue < get<2>(value)) {
+			//printf("aaa %d - %d %f\n", get<1>(value), get<1>(aNeighborhood[index]), newValue);
 			get<1>(value) = get<1>(aNeighborhood[index]);
-			get<2>(value) = get<2>(aNeighborhood[index]) + get<0>(value);
+			get<2>(value) = newValue;//get<2>(aNeighborhood[index]) + get<0>(value);
 			aConvergenceState.signal();
 		}
 		return value;

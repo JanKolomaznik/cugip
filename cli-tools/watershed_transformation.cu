@@ -60,25 +60,33 @@ void distanceBasedWShed(
 			WatershedRule,
 			ConvergenceFlag> WatershedAutomaton;
 	device_image<float, tDimension> deviceGradient(aInput.dimensions());
+	device_image<int64_t, tDimension> labels(aInput.dimensions());
 	copy(aInput, view(deviceGradient));
-	auto localMinima = unaryOperatorOnLocator(const_view(deviceGradient), LocalMinimumLabel());
-
-	LocalMinimaEquivalenceGlobalState<int64_t> globalState;
-
 	device_flag convergenceFlag;
-	thrust::device_vector<int64_t> buffer;
-	buffer.resize(elementCount(aInput) + 1);
-	globalState.manager = EquivalenceManager<int64_t>(thrust::raw_pointer_cast(&buffer[0]), buffer.size());
-	globalState.mDeviceFlag = convergenceFlag.view();
-	globalState.manager.initialize();
+	{
+		auto localMinima = unaryOperatorOnLocator(const_view(deviceGradient), LocalMinimumLabel());
 
-	LocalMinimaAutomaton localMinimumAutomaton;
-	localMinimumAutomaton.initialize(
-		nAryOperator(ZipGradientAndLabel(), const_view(deviceGradient), localMinima),
-		globalState);
-	localMinimumAutomaton.iterate(500);
+		LocalMinimaEquivalenceGlobalState<int64_t> globalState;
 
-	auto wshed = nAryOperator(InitWatershed(), const_view(deviceGradient), getDimension(localMinimumAutomaton.getCurrentState(), IntValue<1>()));
+		thrust::device_vector<int64_t> buffer;
+		buffer.resize(elementCount(aInput) + 1);
+		globalState.manager = EquivalenceManager<int64_t>(thrust::raw_pointer_cast(&buffer[0]), buffer.size());
+		globalState.mDeviceFlag = convergenceFlag.view();
+		globalState.manager.initialize();
+
+		LocalMinimaAutomaton localMinimumAutomaton;
+		localMinimumAutomaton.initialize(
+			nAryOperator(ZipGradientAndLabel(), const_view(deviceGradient), localMinima),
+			globalState);
+
+		do {
+			localMinimumAutomaton.iterate(1);
+		} while (!globalState.is_finished());
+		//localMinimumAutomaton.iterate(100);
+		copy(getDimension(localMinimumAutomaton.getCurrentState(), IntValue<1>()), view(labels));
+	}
+
+	auto wshed = nAryOperator(InitWatershed(), const_view(deviceGradient), const_view(labels));
 
 	ConvergenceFlag convergenceGlobalState;
 	convergenceGlobalState.mDeviceFlag = convergenceFlag.view();
@@ -91,9 +99,8 @@ void distanceBasedWShed(
 	} while (!convergenceGlobalState.is_finished());
 
 	auto state = automaton.getCurrentState();
-	device_image<int64_t, tDimension> tmpState(state.dimensions());
-	copy(getDimension(state, IntValue<1>()), view(tmpState));
-	copy(const_view(tmpState), aOutput);
+	copy(getDimension(state, IntValue<1>()), view(labels));
+	copy(const_view(labels), aOutput);
 }
 
 

@@ -76,6 +76,33 @@ public:
 		return mStrides;
 	}
 
+	device_image_view<TElement, tDim> subview(const coord_t &corner, const extents_t &size) const {
+		// D_FORMAT("Subview:\n\tcorner: %1%\n\tsize: %2%", corner, size);
+		CUGIP_ASSERT(corner >= extents_t());
+		CUGIP_ASSERT(corner < this->dimensions());
+		CUGIP_ASSERT((corner + size) <= this->dimensions());
+		auto ptr = reinterpret_cast<value_type *>(reinterpret_cast<char *>(mDevicePtr) + dot(mStrides, corner));
+		//return device_image_view<TElement, tDimension>(this->mDevicePtr + linear_index_from_strides(this->mStrides, corner), size, this->strides_);
+		return device_image_view<TElement, tDim>(ptr, size, this->mStrides);
+	}
+
+	/// Creates view for cut through the image
+	/// \tparam tSliceDimension Dimension axis perpendicular to the cut
+	/// \param slice Coordinate of the slice - index in tSliceDimension
+	/*template<int tSliceDimension>
+	device_image_view<TElement, tDimension - 1> slice(int slice) const {
+		// D_FORMAT("Slice:\n\tdimension: %1%\n\tslice: %2%", tSliceDimension, slice);
+		static_assert(tSliceDimension < tDimension, "Wrong slicing dimension");
+		static_assert(tSliceDimension >= 0, "Wrong slicing dimension");
+		CUGIP_ASSERT(slice >= 0);
+		CUGIP_ASSERT(slice < this->dimensions()[tSliceDimension]);
+		TElement *slice_corner = this->mDevicePtr + int64_t(this->mStrides[tSliceDimension]) * slice;
+		return device_image_view<TElement, tDimension - 1>(
+				slice_corner,
+				RemoveDimension(this->size_, tSliceDimension),
+				RemoveDimension(this->mStrides, tSliceDimension));
+	}*/
+
 protected:
 	//memory_t mData;
 	extents_t mSize;
@@ -155,6 +182,16 @@ public:
 	{
 		//return mData.strides();
 		return mStrides;
+	}
+
+	const_device_image_view<TElement, tDim> subview(const coord_t &corner, const extents_t &size) const {
+		// D_FORMAT("Subview:\n\tcorner: %1%\n\tsize: %2%", corner, size);
+		CUGIP_ASSERT(corner >= extents_t());
+		CUGIP_ASSERT(corner < this->dimensions());
+		CUGIP_ASSERT((corner + size) <= this->dimensions());
+		auto ptr = reinterpret_cast<value_type *>(reinterpret_cast<char *>(mDevicePtr) + dot(mStrides, corner));
+		//return device_image_view<TElement, tDimension>(this->mDevicePtr + linear_index_from_strides(this->mStrides, corner), size, this->strides_);
+		return const_device_image_view<TElement, tDim>(ptr, size, this->strides_);
 	}
 protected:
 	//memory_t mData;

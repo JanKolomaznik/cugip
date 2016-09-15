@@ -615,9 +615,15 @@ struct device_memory_1d_owner: public device_memory_1d<TType>
 
 	~device_memory_1d_owner()
 	{
+		reset();
+	}
+
+	void
+	reset()
+	{
 		if (this->mData) {
-			CUGIP_DPRINT("Releasing memory at: " << this->mData);
 			CUGIP_CHECK_RESULT(cudaFree(this->mData.p));
+			this->mData.p = nullptr;
 		}
 	}
 
@@ -667,8 +673,15 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 
 	~device_memory_2d_owner()
 	{
+		reset();
+	}
+
+	void
+	reset()
+	{
 		if (this->mData) {
 			CUGIP_CHECK_RESULT(cudaFree(this->mData.p));
+			this->mData.p = nullptr;
 		}
 	}
 
@@ -722,8 +735,15 @@ struct device_memory_3d_owner: public device_memory_3d<TType>
 
 	~device_memory_3d_owner()
 	{
-		if (this->mData.p) {
+		reset();
+	}
+
+	void
+	reset()
+	{
+		if (this->mData) {
 			CUGIP_CHECK_RESULT(cudaFree(this->mData.p));
+			this->mData.p = nullptr;
 		}
 	}
 

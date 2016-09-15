@@ -159,8 +159,8 @@ CUGIP_HD_WARNING_DISABLE
 template<typename TView, bool tIsDeviceView>
 CUGIP_DECL_HYBRID
 region<dimension<TView>::value> valid_region(const bordered_subimage_view<TView, tIsDeviceView> &view) {
-	auto region = valid_region(view.ParentView());
-	region.corner -= view.Corner();
+	auto region = valid_region(view.parent_view());
+	region.corner -= view.corner();
 	return region;
 }
 
@@ -224,7 +224,13 @@ template<typename TView, bool tIsMemoryBased>
 struct SubviewGenerator {
 	typedef subimage_view<TView, is_device_view<TView>::value> ResultView;
 
-	static ResultView invoke(TView view, const typename TView::IndexType &corner, const typename TView::SizeType &size) {
+	static ResultView invoke(
+		TView view,
+		const simple_vector<int, dimension<TView>::value> &corner,
+		const simple_vector<int, dimension<TView>::value> &size)
+		/*const typename TView::IndexType &corner,
+		const typename TView::SizeType &size)*/
+	{
 		return ResultView(view, corner, size);
 	}
 };
@@ -234,15 +240,21 @@ template<typename TView>
 struct SubviewGenerator<TView, true> {
 	typedef TView ResultView;
 
-	static ResultView invoke(TView view, const typename TView::IndexType &corner, const typename TView::SizeType &size) {
-		return view.Subview(corner, size);
+	static ResultView invoke(
+		TView view,
+		const simple_vector<int, dimension<TView>::value> &corner,
+		const simple_vector<int, dimension<TView>::value> &size)
+		/*const typename TView::IndexType &corner,
+		const typename TView::SizeType &size)*/
+	{
+		return view.subview(corner, size);
 	}
 };
 
 
 template<typename TView, int tSliceDimension, bool tIsMemoryBased>
 struct SliceGenerator {
-	typedef slice_image_view<TView, tSliceDimension, TView::kIsDeviceView> ResultView;
+	typedef slice_image_view<TView, tSliceDimension, is_device_view<TView>::value> ResultView;
 
 	static ResultView invoke(TView view, int slice) {
 		return ResultView(view, slice);
@@ -277,8 +289,8 @@ auto subview(
 	//CUGIP_ASSERT((corner >= Vector<int, TView::kDimension>()));
 	//CUGIP_ASSERT(corner < view.Size());
 	//CUGIP_ASSERT((corner + size) <= view.Size());
-	bool cornerInside = corner >= simple_vector<int, dimension<TView>::value>() && corner < view.Size();
-	if (!cornerInside || !((corner + size) <= view.Size())) {
+	bool cornerInside = corner >= simple_vector<int, dimension<TView>::value>() && corner < view.dimensions();
+	if (!cornerInside || !((corner + size) <= view.dimensions())) {
 		CUGIP_THROW(100);
 		//CUGIP_THROW(InvalidNDRange() << GetOriginalRegionErrorInfo(view.GetRegion()) << GetWrongRegionErrorInfo(CreateRegion(corner, size)));
 	}
@@ -296,14 +308,14 @@ auto bordered_subview(
 	const TView &view,
 	const simple_vector<int, dimension<TView>::value> &corner,
 	const simple_vector<int, dimension<TView>::value> &size)
-	-> bordered_subimage_view<TView, TView::kIsDeviceView>
+	-> bordered_subimage_view<TView, is_device_view<TView>::value>
 {
 	//D_FORMAT("Generating subview: corner: %1%, size: %2%, original size: %3%", corner, size, view.Size());
 	//CUGIP_ASSERT((corner >= Vector<int, TView::kDimension>()));
 	//CUGIP_ASSERT(corner < view.Size());
 	//CUGIP_ASSERT((corner + size) <= view.Size());
-	bool cornerInside = corner >= simple_vector<int, dimension<TView>::value>() && corner < view.Size();
-	if (!cornerInside || !((corner + size) <= view.Size())) {
+	bool cornerInside = corner >= simple_vector<int, dimension<TView>::value>() && corner < view.dimensions();
+	if (!cornerInside || !((corner + size) <= view.dimensions())) {
 		CUGIP_THROW(100);
 		//CUGIP_THROW(InvalidNDRange() << GetOriginalRegionErrorInfo(view.GetRegion()) << GetWrongRegionErrorInfo(CreateRegion(corner, size)));
 	}
@@ -321,12 +333,12 @@ auto slice(
 	-> typename detail::SliceGenerator<TView, tSliceDimension, is_memory_based<TView>::value>::ResultView
 {
 	CUGIP_ASSERT(slice >= 0);
-	CUGIP_ASSERT(slice < view.Size()[tSliceDimension]);
-	if (slice < 0 || slice >= view.Size()[tSliceDimension]) {
+	CUGIP_ASSERT(slice < view.dimensions()[tSliceDimension]);
+	if (slice < 0 || slice >= view.dimensions()[tSliceDimension]) {
 		CUGIP_THROW(100);
 		//CUGIP_THROW(SliceOutOfRange() << GetOriginalRegionErrorInfo(view.GetRegion()) << WrongSliceErrorInfo(Int2(slice, tSliceDimension)));
 	}
-	return detail::SliceGenerator<TView, tSliceDimension, is_memory_based<TView>::value>::Invoke(view, slice);
+	return detail::SliceGenerator<TView, tSliceDimension, is_memory_based<TView>::value>::invoke(view, slice);
 }
 
 /// @}

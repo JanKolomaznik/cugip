@@ -95,6 +95,12 @@ public:
 		mData.reallocate(aExtents);
 	}
 
+	void
+	reset()
+	{
+		mData.reset();
+	}
+
 protected:
 
 	typename memory_management<TElement, tDim>::device_memory_owner mData;

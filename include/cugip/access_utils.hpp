@@ -61,6 +61,20 @@ linear_access(const TImageView &aView, int aIdx) -> typename TImageView::accesse
 }
 
 template<typename TExtents, typename TCoordinates>
+CUGIP_DECL_HYBRID
+inline int64_t linear_index_from_strides(
+		TExtents aStrides,
+		TCoordinates aCoordinates)
+{
+	static_assert(dimension<TExtents>::value == dimension<TCoordinates>::value, "strides and coordinates must be of same dimensionality");
+	int64_t linear_index = 0;
+	for (int i =  0; i < dimension<TExtents>::value; ++i) {
+		linear_index += int64_t(aStrides[i]) * aCoordinates[i];
+	}
+	return linear_index;
+}
+
+template<typename TExtents, typename TCoordinates>
 CUGIP_DECL_HYBRID int
 get_linear_access_index(
 		TExtents aExtents,

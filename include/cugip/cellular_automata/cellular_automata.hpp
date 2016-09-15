@@ -40,12 +40,12 @@ struct CellOperation
 		, mIteration(aIteration)
 	{}
 
-	template<typename TLocator1, typename TLocator2>
-	CUGIP_DECL_DEVICE void
-	operator()(TLocator1 aLocator1, TLocator2 aLocator2) {
-		typedef NeighborhoodAccessor<TLocator1, TNeighborhood> Accessor;
+	template<typename TLocator>
+	CUGIP_DECL_DEVICE typename TLocator::value_type
+	operator()(TLocator aLocator) {
+		typedef NeighborhoodAccessor<TLocator, TNeighborhood> Accessor;
 
-		aLocator2.get() = mRule(mIteration, Accessor(aLocator1, TNeighborhood()));
+		return mRule(mIteration, Accessor(aLocator, TNeighborhood()));
 	}
 
 	TRule mRule;

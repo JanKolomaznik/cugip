@@ -13,7 +13,9 @@
 #include <cugip/texture.hpp>
 #include <cugip/host_image.hpp>
 #include <cugip/procedural_views.hpp>
+#include <cugip/subview.hpp>
 #include <cugip/view_arithmetics.hpp>
+#include <cugip/transform.hpp>
 #include <thrust/device_vector.h>
 #include <thrust/reduce.h>
 
@@ -122,5 +124,32 @@ BOOST_AUTO_TEST_CASE(ForEachLambda)
 
 	auto result = sum(subtract(view(deviceImage), constantImage(4, view1.dimensions())));
 
+	BOOST_CHECK_EQUAL(result, 0);
+}
+
+struct OffsetAccess
+{
+	template<typename TLocator>
+	CUGIP_DECL_HYBRID
+	int operator()(TLocator aLocator) {
+		return aLocator[vect2i_t(-4, -4)];
+	}
+};
+
+BOOST_AUTO_TEST_CASE(BorderedSubview)
+{
+	device_image<int, 2> deviceImage(16, 16);
+	UniqueIdDeviceImageView<2> idView(vect2i_t(20, 20));
+	device_image<int, 2> idImage(20, 20);
+	copy(idView, view(idImage));
+
+	transform_locator(
+		bordered_subview(view(idImage), vect2i_t(4, 4), vect2i_t(16, 16)),
+		//bordered_subview(idView, vect2i_t(4, 4), vect2i_t(16, 16)),
+		view(deviceImage),
+		OffsetAccess()
+		);
+
+	int result = sum(subtract(const_view(deviceImage), subview(view(idImage), vect2i_t(), vect2i_t(16, 16))), 0);
 	BOOST_CHECK_EQUAL(result, 0);
 }
