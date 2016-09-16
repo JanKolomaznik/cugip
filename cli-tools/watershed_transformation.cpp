@@ -16,12 +16,12 @@ using namespace cugip;
 
 void runWatershedTransformation(
 		const_host_image_view<const float, 2> aInput,
-		host_image_view<int64_t, 2> aOutput,
+		host_image_view<int32_t, 2> aOutput,
 		const WatershedOptions &aOptions);
 
 void runWatershedTransformation(
 		const_host_image_view<const float, 3> aInput,
-		host_image_view<int64_t, 3> aOutput,
+		host_image_view<int32_t, 3> aOutput,
 		const WatershedOptions &aOptions);
 
 
@@ -29,7 +29,7 @@ template<int tDimension>
 void processImage(fs::path aInput, fs::path aOutput, const WatershedOptions &aOptions)
 {
 	typedef itk::Image<float, tDimension> InputImageType;
-	typedef itk::Image<int64_t, tDimension> OutputImageType;
+	typedef itk::Image<int32_t, tDimension> OutputImageType;
 
 	typedef itk::ImageFileReader<InputImageType>  ReaderType;
 	typedef itk::ImageFileWriter<OutputImageType> WriterType;
@@ -58,6 +58,21 @@ void processImage(fs::path aInput, fs::path aOutput, const WatershedOptions &aOp
 	typename WriterType::Pointer writer = WriterType::New();
 	writer->SetFileName(aOutput.string());
 	writer->SetInput(output_image);
+	writer->Update();
+}
+
+WatershedVariant getWatershedVariantFromString(const std::string &token)
+{
+	if (token == "distance") {
+		return WatershedVariant::DistanceBased;
+	} else if (token == "descent_simple") {
+		return WatershedVariant::SteepestDescentSimple;
+	} else if (token == "descent_gs") {
+		return WatershedVariant::SteepestDescentGlobalState;
+	} else {
+		throw po::validation_error(po::validation_error::invalid_option_value);
+	}
+	return WatershedVariant::DistanceBased;
 }
 
 int main( int argc, char* argv[] )
@@ -66,12 +81,13 @@ int main( int argc, char* argv[] )
 	fs::path outputFile;
 
 	WatershedOptions options;
-
+	std::string watershedName;
 	po::options_description desc("Allowed options");
 	desc.add_options()
 		("help", "produce help message")
 		("input,i", po::value<fs::path>(&inputFile), "input file")
 		("output,o", po::value<fs::path>(&outputFile), "output file")
+		("watershed,w", po::value<std::string>(&watershedName)->default_value("distance"), "distance, descent_simple, descent_gs")
 		//("normalize,n", po::value<bool>(&normalize)->default_value(false), "normalize")
 		;
 
@@ -93,6 +109,8 @@ int main( int argc, char* argv[] )
 		std::cout << "Missing output filename\n" << desc << "\n";
 		return 1;
 	}
+
+	options.wshedVariant = getWatershedVariantFromString(watershedName);
 
 	typedef itk::ImageIOBase::IOComponentType ScalarPixelType;
 

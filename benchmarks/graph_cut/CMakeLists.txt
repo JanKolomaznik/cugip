@@ -15,6 +15,7 @@ set(BK301_SOURCES
 
 find_path(GRIDCUT_DIRECTORY "GridCut/GridGraph_3D_6C.h" "../../GridCut")
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_FORCE_INLINES")
 
 set(Boost_USE_STATIC_LIBS   OFF)
 set(Boost_USE_MULTITHREADED ON)
@@ -29,7 +30,8 @@ SET(CUDA_HOST_COMPILER "/usr/bin/gcc-4.9")
 #SET(CUDA_NVCC_FLAGS "--std=c++11 -gencode arch=compute_20,code=sm_20 --use_fast_math --generate-line-info")
 #SET(CUDA_NVCC_FLAGS "-G --std=c++11 -gencode arch=compute_30,code=sm_30 --use_fast_math -lineinfo")
 #SET(CUDA_NVCC_FLAGS "--std=c++11 -gencode arch=compute_30,code=sm_30 --use_fast_math -Xptxas=-v")
-SET(CUDA_NVCC_FLAGS "-rdc=true -std=c++11 -gencode arch=compute_52,code=sm_52 --use_fast_math --generate-line-info")
+#SET(CUDA_NVCC_FLAGS "-rdc=true -std=c++11 -gencode arch=compute_52,code=sm_52 --use_fast_math --generate-line-info -D_FORCE_INLINES")
+SET(CUDA_NVCC_FLAGS "-rdc=true -std=c++11 -gencode arch=compute_30,code=sm_30 --use_fast_math --generate-line-info -D_FORCE_INLINES")
 #SET(CUDA_NVCC_FLAGS "-gencode arch=compute_20,code=sm_20 -gencode arch=compute_30,code=sm_30 --use_fast_math")
 #SET(CUDA_NVCC_FLAGS "-gencode arch=compute_20,code=sm_20 -gencode arch=compute_30,code=sm_30 -gencode arch=compute_35,code=sm_35 -gencode arch=compute_37,code=sm_37 -gencode arch=compute_50,code=sm_50 -gencode arch=compute_50,code=compute_50 --use_fast_math")
 
@@ -127,12 +129,15 @@ set(GK_INCLUDE_DIRS
 	-I/usr/local/cuda/include
 	)
 
+#set(CUSTOM_COMMAND_ARCH "-gencode arch=compute_52,code=sm_52")
+set(CUSTOM_COMMAND_ARCH -gencode arch=compute_30,code=sm_30)
+
 add_custom_command(
 		OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/graph_cut.o"
 		COMMAND nvcc
 		ARGS
 			${GK_INCLUDE_DIRS}
-			-gencode arch=compute_52,code=sm_52
+			${CUSTOM_COMMAND_ARCH}
 			-std=c++11
 			--device-c "${CMAKE_CURRENT_SOURCE_DIR}/graph_cut.cu"
 			--output-file "${CMAKE_CURRENT_BINARY_DIR}/graph_cut.o"
@@ -151,7 +156,7 @@ add_custom_command(
 			--shared
 			--link
 			--output-file "${CMAKE_CURRENT_BINARY_DIR}/libgraph_cut.so"
-			-L/usr/local/cuda-7.5/targets/x86_64-linux/lib/
+			-L/usr/local/cuda/targets/x86_64-linux/lib/
 			-lcudadevrt
 			"${CMAKE_CURRENT_BINARY_DIR}/graph_cut.o"
 		MAIN_DEPENDENCY "${CMAKE_CURRENT_BINARY_DIR}/graph_cut.o"

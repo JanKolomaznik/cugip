@@ -83,7 +83,7 @@ checkerBoard(
 }
 
 
-template<int tDimension>
+template<int tDimension, typename TId = int>
 class UniqueIdDeviceImageView
 	: public device_image_view_crtp<
 		tDimension,
@@ -93,7 +93,7 @@ public:
 	//TODO - bigger int
 	typedef UniqueIdDeviceImageView<tDimension> this_t;
 	typedef device_image_view_crtp<tDimension, this_t> predecessor_type;
-	CUGIP_VIEW_TYPEDEFS_VALUE(int, tDimension)
+	CUGIP_VIEW_TYPEDEFS_VALUE(TId, tDimension)
 
 	UniqueIdDeviceImageView(extents_t aSize)
 		: predecessor_type(aSize)
@@ -110,7 +110,7 @@ public:
 protected:
 };
 
-CUGIP_DECLARE_HYBRID_VIEW_TRAITS((UniqueIdDeviceImageView<tDimension>), tDimension, int tDimension);
+CUGIP_DECLARE_HYBRID_VIEW_TRAITS((UniqueIdDeviceImageView<tDimension, TId>), tDimension, int tDimension, typename TId);
 
 
 /// View returning single coordinate mapping from grid

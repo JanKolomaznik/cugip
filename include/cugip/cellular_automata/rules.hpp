@@ -293,6 +293,77 @@ typedef LocalMinimaEquivalenceGlobalState<int> Watershed2EquivalenceGlobalState;
 	EquivalenceManager<int> manager;
 };*/
 
+struct WatershedSteepestDescentRuleBase
+{
+	template<typename T>
+	using remove_reference = typename std::remove_reference<T>::type;
+
+	template<typename TNeighborhood>
+	CUGIP_DECL_DEVICE
+	int findNeighborForMerge(TNeighborhood aNeighborhood)
+	{
+		//input, label, has smaller neighbor
+		auto value = aNeighborhood[0];
+		int index = -1;
+		auto minValue = get<0>(value);
+		//printf("%d - %d; ", get<0>(value), get<1>(value));
+		for (int i = 1; i < aNeighborhood.size(); ++i) {
+			auto current = get<0>(aNeighborhood[i]);
+			//printf("%d %d - %d val = %d -> %d\n", threadIdx.x, threadIdx.y, i, get<1>(aNeighborhood[0]), get<1>(aNeighborhood[i]));
+			if (current <= minValue) {
+				index = i;
+				minValue = current;
+			}
+		}
+		return index;
+	}
+};
+
+struct WatershedSteepestDescentRule : WatershedSteepestDescentRuleBase
+{
+	template<typename T>
+	using remove_reference = typename std::remove_reference<T>::type;
+
+	//TODO - global state by reference
+	template<typename TNeighborhood>
+	CUGIP_DECL_DEVICE
+	auto operator()(int aIteration, TNeighborhood aNeighborhood, ConvergenceFlag aConvergenceState) -> remove_reference<decltype(aNeighborhood[0])> const
+	{
+		//input, label
+		auto value = aNeighborhood[0];
+		int index = findNeighborForMerge(aNeighborhood);
+		if (index != -1 && get<1>(value) != get<1>(aNeighborhood[index])) {
+			get<1>(value) = get<1>(aNeighborhood[index]);
+			aConvergenceState.signal();
+		}
+		return value;
+	}
+};
+
+struct WatershedSteepestDescentGlobalStateRule : WatershedSteepestDescentRuleBase
+{
+	template<typename T>
+	using remove_reference = typename std::remove_reference<T>::type;
+
+	//TODO - global state by reference
+	template<typename TNeighborhood, typename TId>
+	CUGIP_DECL_DEVICE
+	auto operator()(int aIteration, TNeighborhood aNeighborhood, LocalMinimaEquivalenceGlobalState<TId> aGlobalState) -> remove_reference<decltype(aNeighborhood[0])> const
+	{
+		//input, label
+		auto value = aNeighborhood[0];
+		int index = findNeighborForMerge(aNeighborhood);
+		if (index != -1 && get<1>(value) != get<1>(aNeighborhood[index])) {
+			aGlobalState.manager.merge(get<1>(value), get<1>(aNeighborhood[index]));
+			aGlobalState.signal();
+			if (get<1>(value) > get<1>(aNeighborhood[index])) {
+				get<1>(value) = get<1>(aNeighborhood[index]);
+			}
+		}
+		return value;
+	}
+};
+
 struct Watershed2RuleBase
 {
 	template<typename T>
@@ -339,13 +410,14 @@ struct Watershed2Rule : Watershed2RuleBase
 	//TODO - global state by reference
 	template<typename TNeighborhood>
 	CUGIP_DECL_DEVICE
-	auto operator()(int aIteration, TNeighborhood aNeighborhood) -> remove_reference<decltype(aNeighborhood[0])> const
+	auto operator()(int aIteration, TNeighborhood aNeighborhood, ConvergenceFlag aConvergenceState) -> remove_reference<decltype(aNeighborhood[0])> const
 	{
 		//input, label, has smaller neighbor
 		auto value = aNeighborhood[0];
 		int index = findNeighborForMerge(aNeighborhood);
 		if (index != -1 && get<1>(value) != get<1>(aNeighborhood[index])) {
 			get<1>(value) = get<1>(aNeighborhood[index]);
+			aConvergenceState.signal();
 		}
 		return value;
 	}
@@ -365,11 +437,11 @@ struct Watershed2GlobalStateRule : Watershed2RuleBase
 		auto value = aNeighborhood[0];
 		int index = findNeighborForMerge(aNeighborhood);
 		if (index != -1 && get<1>(value) != get<1>(aNeighborhood[index])) {
-				aEquivalence.manager.merge(get<1>(value), get<1>(aNeighborhood[index]));
-				aEquivalence.signal();
-				if (get<1>(value) > get<1>(aNeighborhood[index])) {
-					get<1>(value) = get<1>(aNeighborhood[index]);
-				}
+			aEquivalence.manager.merge(get<1>(value), get<1>(aNeighborhood[index]));
+			aEquivalence.signal();
+			if (get<1>(value) > get<1>(aNeighborhood[index])) {
+				get<1>(value) = get<1>(aNeighborhood[index]);
+			}
 		}
 		return value;
 	}

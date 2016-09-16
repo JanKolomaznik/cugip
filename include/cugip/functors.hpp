@@ -459,9 +459,9 @@ struct HasSmallerNeighbor
 
 struct HandlePlateauBorder
 {
-	template<typename TAccessorIn, typename TAccessorOut>
-	CUGIP_DECL_HYBRID void
-	operator()(TAccessorIn aAccessor, TAccessorOut aOut) const
+	template<typename TAccessorIn>
+	CUGIP_DECL_HYBRID typename TAccessorIn::value_type
+	operator()(TAccessorIn aAccessor) const
 	{
 		using namespace cugip;
 		auto value = aAccessor[typename TAccessorIn::diff_t()];
@@ -474,7 +474,8 @@ struct HandlePlateauBorder
 			haveSmaller =  haveSmaller || (value > current);
 		}
 		float offset = isPlateau && haveSmaller ? 1.0f : 0.0f;
-		aOut.get() = value + offset;
+		//aOut.get() = value + offset;
+		return value + offset;
 	}
 };
 

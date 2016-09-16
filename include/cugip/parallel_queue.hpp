@@ -85,8 +85,10 @@ public:
 	CUGIP_DECL_DEVICE TType &
 	back()
 	{
-		CUGIP_ASSERT(*mSize > 0);
-		return get_device((*mSize) - 1);
+		/*CUGIP_ASSERT(*mSize > 0);
+		return get_device((*mSize) - 1);*/
+		CUGIP_ASSERT(mSize.retrieve_device() > 0);
+		return get_device((mSize.retrieve_device()) - 1);
 	}
 
 

@@ -10,7 +10,7 @@ void ignoreReturnValues(TArgs ...) {}
 
 template<int... tInts >
 class IntSequence {
-	constexpr int Size() {
+	constexpr int Size() const {
 		return sizeof...(tInts);
 	}
 };

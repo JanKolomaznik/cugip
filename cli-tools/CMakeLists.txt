@@ -9,7 +9,7 @@ MESSAGE(  ${Boost_LIBRARIES} )
 INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIRS} "../include")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC  -DVCL_CAN_STATIC_CONST_INIT_FLOAT=0")
-SET(CUDA_HOST_COMPILER "/usr/bin/gcc-4.8")
+#SET(CUDA_HOST_COMPILER "/usr/bin/gcc-4.8")
 SET(CUDA_NVCC_FLAGS "-gencode arch=compute_20,code=sm_20 -gencode arch=compute_30,code=sm_30 --use_fast_math --generate-line-info")
 #SET(CUDA_NVCC_FLAGS "-gencode arch=compute_20,code=sm_20 -gencode arch=compute_30,code=sm_30 --use_fast_math --generate-line-info --ptxas-options=-v")
 #SET(CUDA_NVCC_FLAGS "--std=c++11 -gencode arch=compute_20,code=sm_20 -gencode arch=compute_30,code=sm_30 --use_fast_math --generate-line-info --maxrregcount=31 --ptxas-options=-v")
@@ -31,6 +31,9 @@ TARGET_LINK_LIBRARIES(ce_diffusion ${Boost_LIBRARIES} ${ITK_LIBRARIES})
 
 CUDA_ADD_EXECUTABLE(gauss gauss.cpp gauss.cu)
 TARGET_LINK_LIBRARIES(gauss ${Boost_LIBRARIES} ${ITK_LIBRARIES})
+
+CUDA_ADD_EXECUTABLE(normalize_labeling normalize_labeling.cpp normalize_labeling.cu)
+TARGET_LINK_LIBRARIES(normalize_labeling ${Boost_LIBRARIES} ${ITK_LIBRARIES})
 
 CUDA_ADD_EXECUTABLE(watershed_transformation watershed_transformation.cpp watershed_transformation.cu)
 TARGET_LINK_LIBRARIES(watershed_transformation ${Boost_LIBRARIES} ${ITK_LIBRARIES})
