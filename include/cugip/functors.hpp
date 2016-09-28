@@ -273,6 +273,14 @@ struct AddValueFunctor {
 	TType value_;
 };
 
+struct AbsFunctor {
+	template<typename T>
+	CUGIP_DECL_HYBRID
+	T operator()(T in_value) const {
+		return cugip::abs(in_value);
+	}
+};
+
 struct SumValuesFunctor {
 	template<typename T1, typename T2>
 	CUGIP_DECL_HYBRID

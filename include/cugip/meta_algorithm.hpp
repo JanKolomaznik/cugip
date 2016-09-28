@@ -10,6 +10,8 @@ namespace cugip {
  **/
 namespace detail {
 
+#if defined(__CUDACC__)
+
 template<int tDimension>
 CUGIP_DECL_HYBRID dim3 defaultBlockDimForDimension();
 
@@ -57,6 +59,7 @@ struct defaultBlockSize<3>
 	typedef StaticSize<32, 4, 4> type;
 };
 
+#endif //defined(__CUDACC__)
 } // namespace detail
 
 }//namespace cugip

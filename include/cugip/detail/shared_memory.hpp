@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cugip/static_int_sequence.hpp>
+#include <cugip/image_view.hpp>
+#include <cugip/cuda_utils.hpp>
 
 namespace cugip {
 
@@ -34,10 +36,32 @@ public:
 		TElement *buffer = reinterpret_cast<TElement *>(data);
 		while (index < cElementCount) {
 			auto coords = min_coords(
-				aView.dimensions()-coord_t::fill(1),
+				aView.dimensions()-coord_t(1, FillFlag()),
 				max_coords(coord_t(),
-					aCorner + index_from_linear_access_index(TStaticSize::vector(), index)));
+					aCorner + index_from_linear_access_index(to_vector(TStaticSize()), index)));
 			buffer[index] = aView[coords];
+
+			index += TThreadBlockSize::count();
+		}
+	}
+
+	template<typename TView>
+	CUGIP_DECL_DEVICE
+	void loadZeroOut(TView aView, coord_t aCorner/*region<cDimension> aRegion*/)
+	{
+		int index = threadOrderFromIndex();
+		TElement *buffer = reinterpret_cast<TElement *>(data);
+		while (index < cElementCount) {
+			auto uncheckedCoordinates = aCorner + index_from_linear_access_index(to_vector(TStaticSize()), index);
+			auto coords = min_coords(
+				aView.dimensions()-coord_t(1, FillFlag()),
+				max_coords(coord_t(), uncheckedCoordinates));
+
+			if (coords != uncheckedCoordinates) {
+				buffer[index] = 0;
+			} else {
+				buffer[index] = aView[coords];
+			}
 
 			index += TThreadBlockSize::count();
 		}
@@ -48,14 +72,14 @@ public:
 	get(coord_t aCoords)
 	{
 		TElement *buffer = reinterpret_cast<TElement *>(data);
-		return buffer[get_linear_access_index(TStaticSize::vector(), aCoords)];
+		return buffer[get_linear_access_index(to_vector(TStaticSize()), aCoords)];
 	}
 
 	CUGIP_DECL_DEVICE
 	device_image_view<TElement, cDimension>
 	view()
 	{
-		return makeDeviceImageView(reinterpret_cast<TElement *>(data), TStaticSize::vector());
+		return makeDeviceImageView(reinterpret_cast<TElement *>(data), to_vector(TStaticSize()));
 	}
 
 
@@ -105,7 +129,7 @@ public:
 		TElement *buffer = reinterpret_cast<TElement *>(data);
 		while (index < cElementCount) {
 			auto coords = min_coords(
-				aView.dimensions()-coord_t::fill(1),
+				aView.dimensions()-coord_t(1, FillFlag()),
 				max_coords(coord_t(),
 					aCorner + index_from_linear_access_index(TStaticSize::vector(), index)));
 			buffer[index] = aView[coords];

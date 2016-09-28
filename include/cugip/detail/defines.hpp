@@ -23,6 +23,8 @@
 	#define CUGIP_SHARED
 
 	#define CUGIP_HD_WARNING_DISABLE
+
+	using cudaStream_t = size_t;
 #endif //__CUDACC__
 
 #define CUGIP_FORCE_INLINE inline

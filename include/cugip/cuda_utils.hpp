@@ -1,5 +1,9 @@
 #pragma once
 
+#if !defined(__CUDACC__)
+	#error cuda_utils.hpp cannot be included in file which is not compiled by nvcc!
+#endif
+
 #include <cugip/detail/include.hpp>
 #include <cugip/exception.hpp>
 #include <cugip/utils.hpp>
@@ -108,6 +112,12 @@ inline int threadOrderFromIndex()
 }
 
 CUGIP_DECL_DEVICE
+inline int currentBlockSize()
+{
+	return blockDim.x * blockDim.y * blockDim.z;
+}
+
+CUGIP_DECL_DEVICE
 inline vect3i_t currentThreadIndex()
 {
 	return vect3i_t(threadIdx.x, threadIdx.y, threadIdx.z);
@@ -123,6 +133,25 @@ CUGIP_DECL_DEVICE
 inline bool is_in_thread(int aX, int aY, int aZ)
 {
 	return threadIdx.x == aX && threadIdx.y == aY && threadIdx.z == aZ;
+}
+
+template<int tDimension>
+CUGIP_DECL_HYBRID
+simple_vector<int, tDimension> dim3_to_vector(dim3);
+
+template<>
+CUGIP_DECL_HYBRID
+simple_vector<int, 2> dim3_to_vector<2>(dim3 aValue)
+{
+	CUGIP_ASSERT(aValue.z == 0 || aValue.z == 1);
+	return simple_vector<int, 2>(aValue.x, aValue.y);
+}
+
+template<>
+CUGIP_DECL_HYBRID
+simple_vector<int, 3> dim3_to_vector<3>(dim3 aValue)
+{
+	return simple_vector<int, 3>(aValue.x, aValue.y, aValue.z);
 }
 
 
