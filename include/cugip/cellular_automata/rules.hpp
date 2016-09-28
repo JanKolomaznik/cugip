@@ -88,29 +88,6 @@ struct EquivalenceGlobalState
 	EquivalenceManager<int> manager;
 };
 
-struct ConnectedComponentLabelingRule2
-{
-	template<typename TNeighborhood>
-	CUGIP_DECL_DEVICE int
-	operator()(int aIteration, TNeighborhood aNeighborhood, EquivalenceGlobalState aEquivalence) const
-	{
-		auto value = aNeighborhood[0];
-		auto minValue = value;
-		if (value) {
-			for (int i = 1; i < aNeighborhood.size(); ++i) {
-				//printf("%d %d - %d val = %d -> %d\n", threadIdx.x, threadIdx.y, i, aNeighborhood[0], aNeighborhood[i]);
-				if (aNeighborhood[i] > 0 && aNeighborhood[i] < minValue) {
-					minValue = aNeighborhood[i];
-				}
-			}
-			if (minValue < value) {
-				aEquivalence.manager.merge(minValue, value);
-			}
-		}
-		return value;
-	}
-};
-
 template<typename TId=int>
 struct LocalMinimaEquivalenceGlobalState
 {
@@ -128,8 +105,21 @@ struct LocalMinimaEquivalenceGlobalState
 			return aLabel;
 		}
 
+		CUGIP_DECL_DEVICE
+		TId operator()(TId aLabel) const
+		{
+			aLabel =  manager.get(aLabel);
+			return aLabel;
+		}
+
 		EquivalenceManager<TId> manager;
 	};
+
+	CUGIP_DECL_DEVICE
+	TId merge(TId aFirst, TId aSecond)
+	{
+		return manager.merge(aFirst, aSecond);
+	}
 
 	void
 	initialize(){
@@ -167,6 +157,35 @@ struct LocalMinimaEquivalenceGlobalState
 	EquivalenceManager<TId> manager;
 	device_flag_view mDeviceFlag;
 };
+
+struct ConnectedComponentLabelingRule2
+{
+	template<typename TNeighborhood, typename TEquivalence>
+	CUGIP_DECL_DEVICE int
+	operator()(int aIteration, TNeighborhood aNeighborhood, TEquivalence/*LocalMinimaEquivalenceGlobalState<TId>*/ aEquivalence) const
+	{
+		auto value = aNeighborhood[0];
+		auto minValue = value;
+		if (value) {
+			for (int i = 1; i < aNeighborhood.size(); ++i) {
+				//printf("%d %d - %d val = %d -> %d\n", threadIdx.x, threadIdx.y, i, aNeighborhood[0], aNeighborhood[i]);
+				if (aNeighborhood[i] > 0 && aNeighborhood[i] < minValue) {
+					minValue = aNeighborhood[i];
+				}
+			}
+			if (minValue < value) {
+				minValue = aEquivalence.merge(minValue, value);
+				aEquivalence.signal();
+				/*if (aIteration > 30) {
+					printf("%d, %d, %d, %d, %d;   %d, %d, %d\n", minValue, value, threadIdx.x, threadIdx.y, threadIdx.z, blockIdx.x, blockIdx.y, blockIdx.z);
+				}*/
+
+			}
+		}
+		return minValue;
+	}
+};
+
 
 struct LocalMinimaConnectedComponentRule
 {

@@ -2,6 +2,7 @@
 
 #include <limits>
 #include <cugip/functors.hpp>
+#include <cugip/view_arithmetics.hpp>
 
 namespace cugip {
 
@@ -102,7 +103,11 @@ typename TView::value_type sum(TView view)
 	return reduce(view, typename TView::value_type(0), SumValuesFunctor());
 }
 
+template<typename TView1, typename TView2, typename TOutputValue, class>
+TOutputValue sum_differences(TView1 view1, TView2 view2, TOutputValue initial_value)
+{
+	//return 0;
+	return sum(abs_view(subtract(view1, view2)), initial_value);
+}
 
 }  // namespace cugip
-
-

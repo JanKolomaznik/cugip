@@ -16,19 +16,19 @@ struct convolution_kernel
 	CUGIP_DECL_HYBRID
 	static constexpr simple_vector<int, cDimension> size()
 	{
-		return TSizeTraits::vector();
+		return to_vector(TSizeTraits());
 	}
 
 	CUGIP_DECL_HYBRID
 	TType get(const simple_vector<int, cDimension> &aIndex) const
 	{
-		return data[get_linear_access_index(TSizeTraits::vector(), aIndex + offset)];
+		return data[get_linear_access_index(to_vector(TSizeTraits()), aIndex + offset)];
 	}
 
 	CUGIP_DECL_HYBRID
 	TType & get(const simple_vector<int, cDimension> &aIndex)
 	{
-		return data[get_linear_access_index(TSizeTraits::vector(), aIndex + offset)];
+		return data[get_linear_access_index(to_vector(TSizeTraits()), aIndex + offset)];
 	}
 
 	TType data[TSizeTraits::count()];
@@ -75,7 +75,8 @@ sobel_gradient_kernel()
 
 	for_each_neighbor(
 		Index(),
-		FillStaticSize<tDimension, 3>::Type::vector(),
+		to_vector(typename FillStaticSize<tDimension, 3>::Type()),
+	//for_each_in_radius<>
 		[&](Index &aIndex){
 			simple_vector<float, tDimension> value;
 			for (int i = 0; i < tDimension; ++i) {
@@ -84,14 +85,14 @@ sobel_gradient_kernel()
 				for (int j = 0; j < tDimension; ++j) {
 					if (i != j) {
 						value[i] *= smooth[aIndex[j]];
-						std::cout << value << "; ";
+						//std::cout << value << "; ";
 					}
 				}
 			}
-			std::cout << value << "; " << aIndex << '\n';
+			//std::cout << value << "; " << aIndex << '\n';
 			result.get(aIndex) = value;
 		});
-	result.offset = simple_vector<float, tDimension>::fill(1);
+	result.offset = simple_vector<float, tDimension>(1, FillFlag());
 	return result;
 }
 

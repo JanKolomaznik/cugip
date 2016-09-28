@@ -142,12 +142,12 @@ struct StaticSize: IntSequence<tSize...>
 {
 	static constexpr int cDimension = sizeof...(tSize);
 
-	CUGIP_DECL_HYBRID
+	/*CUGIP_DECL_HYBRID
 	static constexpr simple_vector<int, cDimension>
 	vector()
 	{
 		return simple_vector<int, cDimension>{ tSize... };
-	}
+	}*/
 
 	CUGIP_DECL_HYBRID
 	static constexpr int count()
@@ -161,6 +161,15 @@ struct StaticSize: IntSequence<tSize...>
 		return LastItemInIntSequence<IntSequence<tSize...>>::value;
 	}
 };
+
+// TODO make constexpr
+template<int...tSize>
+CUGIP_DECL_HYBRID
+simple_vector<int, sizeof...(tSize)>
+to_vector(IntSequence<tSize...>) {
+	return simple_vector<int, sizeof...(tSize)>(tSize... );
+	//return simple_vector<int, sizeof...(tSize)>{ tSize... };
+}
 
 template<int tDimension, int tValue>
 struct FillStaticSize;

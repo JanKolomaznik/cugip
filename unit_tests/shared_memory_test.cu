@@ -40,7 +40,6 @@ testIdentitySharedMemory(TInView aIn, TOutView aOut)
 
 	if (coord < extents) {
 		aOut[coord] = buffer.get(currentThreadIndex());
-		//printf("%d, %d, %d \n", coord[0], coord[1], coord[2]);
 	}
 }
 
@@ -60,7 +59,7 @@ BOOST_AUTO_TEST_CASE(IdentityWithPreload)
 	typedef decltype(inView) InView;
 	typedef decltype(outView) OutView;
 	testIdentitySharedMemory<
-		InView, 
+		InView,
 		OutView,
 		StaticSize<8, 8, 8> ><<<gridSize, blockSize>>>(inView, view(outImage));
 	CUGIP_CHECK_RESULT(cudaThreadSynchronize());
@@ -86,7 +85,7 @@ BOOST_AUTO_TEST_CASE(IdentityWithPreload8LoadsPerThread)
 	typedef decltype(inView) InView;
 	typedef decltype(outView) OutView;
 	testIdentitySharedMemory<
-		InView, 
+		InView,
 		OutView,
 		StaticSize<8, 8, 8> ><<<gridSize, blockSize>>>(inView, view(outImage));
 	CUGIP_CHECK_RESULT(cudaThreadSynchronize());

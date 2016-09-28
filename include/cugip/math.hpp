@@ -28,6 +28,7 @@ inline constexpr float zero<float>()
 }
 //TODO handle other types properly
 
+struct FillFlag{};
 
 template<typename TCoordinateType, int tDim>
 class simple_vector//: public boost::array<TCoordinateType, tDim>
@@ -35,15 +36,24 @@ class simple_vector//: public boost::array<TCoordinateType, tDim>
 public:
 	typedef TCoordinateType coord_t;
 	typedef simple_vector<TCoordinateType, tDim> this_t;
-	static const int dim = tDim;
+	static constexpr int dim = tDim;
 
-	CUGIP_DECL_HYBRID constexpr
+	CUGIP_DECL_HYBRID //constexpr
 	simple_vector()
-		: mValues{ zero<TCoordinateType>() }
+		//: mValues{ zero<TCoordinateType>() }
 	{
-		/*for (int i = 0; i < tDim; ++i) {
-			mValues[i] = 0;
-		}*/
+		for (int i = 0; i < tDim; ++i) {
+			mValues[i] = zero<TCoordinateType>();
+		}
+	}
+
+	CUGIP_DECL_HYBRID //constexpr
+	simple_vector(TCoordinateType aValue, FillFlag)
+		//: mValues{ aValue }
+	{
+		for (int i = 0; i < tDim; ++i) {
+			mValues[i] = aValue;
+		}
 	}
 
 	CUGIP_DECL_HYBRID constexpr explicit
@@ -182,7 +192,7 @@ public:
 	}
 
 
-	static CUGIP_DECL_HYBRID this_t
+	/*static CUGIP_DECL_HYBRID this_t
 	fill(TCoordinateType aValue)
 	{
 		this_t val;
@@ -190,7 +200,7 @@ public:
 			val[i] = aValue;
 		}
 		return val;
-	}
+	}*/
 
 	TCoordinateType mValues[tDim];
 };
@@ -491,6 +501,10 @@ typedef simple_vector<int, 3> size3_t;
 
 typedef simple_vector<int, 2> Int2;
 typedef simple_vector<int, 3> Int3;
+
+typedef simple_vector<float, 2> Float2;
+typedef simple_vector<float, 3> Float3;
+
 /** \ingroup traits
  * @{
  **/

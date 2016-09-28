@@ -20,17 +20,17 @@
 using namespace cugip;
 
 void relabeling(
-	host_image_view<int64_t, 3> aInput,
-	int64_t aStart)
+	host_image_view<int, 3> aInput,
+	int aStart)
 {
-	std::vector<int64_t> usedLabels(elementCount(aInput) + 1);
+	std::vector<int> usedLabels(elementCount(aInput) + 1);
 
-	cugip::for_each(aInput, [&](int64_t aValue) {
+	cugip::for_each(aInput, [&](int aValue) {
 			usedLabels[aValue] = 1;
 			return aValue;
 		});
 	thrust::inclusive_scan(usedLabels.begin(), usedLabels.end(), usedLabels.begin());
-	cugip::for_each(aInput, [&](int64_t aValue) {
+	cugip::for_each(aInput, [&](int aValue) {
 			return usedLabels[aValue] + aStart;
 		});
 }

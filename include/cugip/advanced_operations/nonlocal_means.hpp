@@ -30,6 +30,7 @@ struct compute_weight
 	run(TLocator aOrigin, TLocator aPatchCenter, float aVariance)
 	{
 		float weight = 0;
+		//for_each_neighbor(simple_vector<int, dimension<TLocator>::value>(tPatchRadius, FillFlag()),
 		for_each_in_radius<tPatchRadius>(
 			[&](simple_vector<int, dimension<TLocator>::value> aOffset){
 				weight += sqr(aOrigin[aOffset] - aPatchCenter[aOffset]);
@@ -84,8 +85,8 @@ kernel_nonlocal_means(TInImageView aIn, TOutImageView aOut, TParameters aParamet
 	typedef decltype(dataView) DataView;
 	auto coords = mapBlockIdxAndThreadIdxToViewCoordinates<cDimension>();
 	auto extents = aIn.dimensions();
-	auto searchRadius = simple_vector<int, cDimension>::fill(TParameters::search_radius);
-	auto border = simple_vector<int, cDimension>::fill(cBorder);
+	auto searchRadius = simple_vector<int, cDimension>(TParameters::search_radius, FillFlag());
+	auto border = simple_vector<int, cDimension>(cBorder, FillFlag());
 	auto corner = mapBlockIdxToViewCoordinates<cDimension>() - border;
 	auto preloadCoords = coords - corner;// current element coords in the preload buffer
 	typedef image_locator<DataView, BorderHandlingTraits<border_handling_enum::NONE>> Locator;
@@ -97,7 +98,8 @@ kernel_nonlocal_means(TInImageView aIn, TOutImageView aOut, TParameters aParamet
 	float acc = 0;
 	float value = 0;
 	if (coords < extents) {
-		for_each_in_radius2<TParameters::search_radius>(
+		for_each_in_radius<TParameters::search_radius>(
+		//for_each_neighbor(simple_vector<int, cDimension>(TParameters::search_radius, FillFlag()),
 			[&](const simple_vector<int, cDimension> &aCoord){
 				Locator loc(dataView, preloadCoords + aCoord);
 				auto weight = compute_weight<TParameters::patch_radius>::run(originLocator, loc, aParameters.variance);
@@ -116,8 +118,8 @@ kernel_nonlocal_means3(TInImageView aIn, TOutImageView aOut, TParameters aParame
 	constexpr int cBorder = TParameters::patch_radius + TParameters::search_radius;
 	typedef StaticSize<2*cBorder + 16, 2*cBorder + 8, 2*cBorder + 8> Size;
 	__shared__ cugip::detail::SharedMemory<int, Size> buffer;
-	const auto searchRadius = simple_vector<int, cDimension>::fill(TParameters::search_radius);
-	const auto border = simple_vector<int, cDimension>::fill(cBorder);
+	const auto searchRadius = simple_vector<int, cDimension>(TParameters::search_radius, FillFlag());
+	const auto border = simple_vector<int, cDimension>(cBorder, FillFlag());
 
 
 	auto dataView = buffer.view();
@@ -180,8 +182,8 @@ kernel_nonlocal_means2(TInImageView aIn, TOutImageView aOut, TParameters aParame
 	typedef image_locator<DataView, BorderHandlingTraits<border_handling_enum::NONE>> Locator;
 	auto coords = mapBlockIdxAndThreadIdxToViewCoordinates<cDimension>();
 	auto extents = aIn.dimensions();
-	auto searchRadius = simple_vector<int, cDimension>::fill(TParameters::search_radius);
-	auto border = simple_vector<int, cDimension>::fill(cBorder);
+	auto searchRadius = simple_vector<int, cDimension>(TParameters::search_radius, FillFlag());
+	auto border = simple_vector<int, cDimension>(cBorder, FillFlag());
 	auto corner = mapBlockIdxToViewCoordinates<cDimension>() - border;
 
 	auto preloadCoords = coords - corner;// current element coords in the preload buffer
@@ -255,6 +257,7 @@ nonlocal_means(TInImageView aIn, TOutImageView aOut, TParameters aParameters)
 		auto interval = timers.start<0>(0);
 		/*cugip::detail::kernel_nonlocal_means2<TInImageView, TOutImageView, TParameters, 4>
 			<<<gridSize, blockSize>>>(aIn, aOut, aParameters);*/
+		D_PRINT("Variance " << aParameters.variance);
 		cugip::detail::kernel_nonlocal_means<TInImageView, TOutImageView, TParameters>
 			<<<gridSize, blockSize>>>(aIn, aOut, aParameters);
 		/*cugip::detail::kernel_nonlocal_means3<TInImageView, TOutImageView, TParameters>

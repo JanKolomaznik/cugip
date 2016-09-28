@@ -13,6 +13,7 @@
 #include <cugip/copy.hpp>
 #include <cugip/host_image_view.hpp>
 #include <cugip/basic_filters/convolution.hpp>
+#include <cugip/timers.hpp>
 
 //typedef itk::Image<float, 3> ImageType;
 using namespace cugip;
@@ -52,12 +53,16 @@ coherenceEnhancingDiffusion(float *aInput, float *aOutput, size_t aWidth, size_t
 
 	cugip::copy(inView, cugip::view(images[0]));
 
-	coherence_enhancing_diffusion<3> ceDiffusion(vect3i_t(aWidth, aHeight, aDepth), 0.05f, 0.5f, 0.5f);
+	coherence_enhancing_diffusion<3> ceDiffusion(vect3i_t(aWidth, aHeight, aDepth), 0.05f, 0.001f, 15.0f);
 
 	int i = 0;
+	AggregatingTimerSet<1, int> timer;
 	for (i = 0; i < aIterationCount; ++i) {
+		auto interval = timer.start(0, i);
 		ceDiffusion.iteration(const_view(images[i % 2]), view(images[(i+1) % 2]));
+		CUGIP_CHECK_RESULT(cudaThreadSynchronize());
 	}
+	std::cout << timer.createReport({"\nCED iterations"});
 
 	cugip::copy(cugip::const_view(images[i % 2]), outView);
 

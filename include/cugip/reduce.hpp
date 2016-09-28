@@ -35,6 +35,8 @@ TOutputValue sum(TView view, TOutputValue initial_value);
 template<typename TView, class = typename std::enable_if<is_image_view<TView>::value>::type>
 typename TView::value_type sum(TView view);
 
+template<typename TView1, typename TView2, typename TOutputValue, class = typename std::enable_if<is_image_view<TView1>::value && is_image_view<TView2>::value>::type>
+TOutputValue sum_differences(TView1 view1, TView2 view2, TOutputValue initial_value);
 
 }  // namespace cugip
 

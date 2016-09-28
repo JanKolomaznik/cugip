@@ -67,7 +67,7 @@ public:
 	}
 
 	CUGIP_DECL_DEVICE
-	void
+	TClassId
 	merge(TClassId aFirst, TClassId aSecond)
 	{
 		CUGIP_ASSERT(mBuffer != nullptr);
@@ -76,9 +76,14 @@ public:
 		CUGIP_ASSERT(aSecond < mSize);
 		TClassId minId = min(aFirst, aSecond);
 		TClassId maxId = max(aFirst, aSecond);
-		if (mBuffer[maxId] > minId) {
+		//TClassId minRoot = mBuffer[minId];
+		TClassId maxRoot = mBuffer[maxId];
+		if (maxRoot > minId) {
+		//if (maxRoot > minRoot) {
+			//mBuffer[maxId] = minRoot;
 			mBuffer[maxId] = minId;
 		}
+		return minRoot;
 	}
 
 	CUGIP_DECL_HOST

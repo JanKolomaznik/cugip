@@ -117,7 +117,8 @@ void compute_structural_tensor(TGradientView aGradient, TTensorView aStructuralT
 template<typename TInputTensorView, typename TOutputTensorView, typename TTmpTensorView>
 void blur_structural_tensor(TInputTensorView aStructuralTensor, TOutputTensorView aBluredStructuralTensor, TTmpTensorView aTmpTensorView)
 {
-	cugip::separable_convolution(aStructuralTensor, aBluredStructuralTensor, aTmpTensorView, gaussian_kernel<5>());
+	//cugip::separable_convolution(aStructuralTensor, aBluredStructuralTensor, aTmpTensorView, gaussian_kernel<5>());
+	cugip::separable_convolution(aStructuralTensor, aBluredStructuralTensor, aTmpTensorView, gaussian_kernel<2>());
 	//convolution(aStructuralTensor, aBluredStructuralTensor, gaussian_kernel<float, intraits_2d<9,9> >());
 }
 

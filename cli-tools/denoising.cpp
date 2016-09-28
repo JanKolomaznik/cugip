@@ -12,7 +12,7 @@ typedef itk::Image<float, 3> ImageType;
 //denoise(ImageType::Pointer aInput, ImageType::Pointer aOutput);
 
 void
-denoise(float *aInput, float *aOutput, size_t aWidth, size_t aHeight, size_t aDepth, float aVariance);
+denoise(float *aInput, float *aOutput, size_t aWidth, size_t aHeight, size_t aDepth, float aVariance, int aPatchRadius, int aSearchRadius);
 
 
 int main( int argc, char* argv[] )
@@ -20,14 +20,16 @@ int main( int argc, char* argv[] )
 	std::string input_file;
 	std::string output_file;
 	float variance;
-
+	int patchRadius;
+	int searchRadius;
 	po::options_description desc("Allowed options");
 	desc.add_options()
 		("help", "produce help message")
 		("input,i", po::value<std::string>(&input_file), "input file")
 		("output,o", po::value<std::string>(&output_file), "output file")
 		("variance,v", po::value<float>(&variance)->default_value(10.0), "variance")
-
+		("patch-radius,p", po::value<int>(&patchRadius)->default_value(2), "patch radius")
+		("search-radius,s", po::value<int>(&searchRadius)->default_value(4), "search radius")
 		;
 
 	po::variables_map vm;
@@ -76,7 +78,9 @@ int main( int argc, char* argv[] )
 		image->GetLargestPossibleRegion().GetSize()[0],
 		image->GetLargestPossibleRegion().GetSize()[1],
 		image->GetLargestPossibleRegion().GetSize()[2],
-		variance);
+		variance,
+		patchRadius,
+		searchRadius);
 
 
 	WriterType::Pointer writer = WriterType::New();

@@ -362,7 +362,9 @@ protected:
 		transform_locator(
 			this->currentInputView(),
 			this->currentOutputView(),
-			CellOperationWithGlobalState<TNeighborhood, TRule, TGlobalState>(this->mIteration, this->mRule, mGlobalState));
+			CellOperationWithGlobalState<TNeighborhood, TRule, TGlobalState>(this->mIteration, this->mRule, mGlobalState)
+			//,PreloadingTransformLocatorPolicy<decltype(this->currentInputView()), 1>()
+			);
 		mGlobalState.postprocess(this->currentOutputView());
 	}
 
@@ -370,59 +372,6 @@ protected:
 };
 
 
-template<typename TGrid, typename TNeighborhood, typename TRule, typename TGlobalState = DummyGlobalState/*, typename TOptions*/>
-class AsyncCellularAutomatonWithGlobalState
-	: public CellularAutomatonBaseCRTP<
-		AsyncCellularAutomatonWithGlobalState<TGrid, TNeighborhood, TRule, TGlobalState>,
-		TRule,
-		device_image<typename TGrid::Element, TGrid::cDimension>,
-		1>
-{
-public:
-	typedef device_image<typename TGrid::Element, TGrid::cDimension> State;
-	typedef CellularAutomatonBaseCRTP<
-			AsyncCellularAutomatonWithGlobalState<TGrid, TNeighborhood, TRule, TGlobalState>,
-			TRule,
-			State,
-			1> Predecessor;
-	typedef TGrid Grid;
-	typedef TRule Rule;
-	friend Predecessor;
 
-	using Predecessor::initialize;
-
-	template<typename TInputView>
-	void
-	initialize(TRule aRule, TInputView aView, TGlobalState aGlobalState)
-	{
-		mGlobalState = aGlobalState;
-		initialize(aRule, aView);
-	}
-
-	template<typename TInputView>
-	void
-	initialize(TInputView aView, TGlobalState aGlobalState)
-	{
-		mGlobalState = aGlobalState;
-		initialize(aView);
-	}
-
-protected:
-	void postInitialization()
-	{
-		mGlobalState.initialize();
-	}
-
-	void computeNextIteration()
-	{
-		transform_locator(
-			this->currentInputView(),
-			this->currentOutputView(),
-			CellOperationWithGlobalState<TNeighborhood, TRule, TGlobalState>(this->mIteration, this->mRule, mGlobalState));
-		mGlobalState.postprocess(this->currentOutputView());
-	}
-
-	TGlobalState mGlobalState;
-};
 
 } //namespace cugip

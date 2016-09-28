@@ -10,7 +10,7 @@
 
 namespace po = boost::program_options;
 
-typedef itk::Image<int64_t, 3> ImageType;
+typedef itk::Image<int, 3> ImageType;
 
 using namespace cugip;
 
@@ -61,13 +61,13 @@ int main( int argc, char* argv[] )
 
 	ImageType::Pointer image = reader->GetOutput();
 
-	cugip::simple_vector<int, tDimension> size;
-	for (int i = 0; i < tDimension; ++i) {
+	cugip::simple_vector<int, 3> size;
+	for (int i = 0; i < 3; ++i) {
 		size[i] = image->GetLargestPossibleRegion().GetSize()[i];
 	}
 
 	auto inView = makeHostImageView(image->GetPixelContainer()->GetBufferPointer(), size);
-	relabel(inView, 1);
+	relabeling(inView, 1);
 
 	WriterType::Pointer writer = WriterType::New();
 	writer->SetFileName(output_file);

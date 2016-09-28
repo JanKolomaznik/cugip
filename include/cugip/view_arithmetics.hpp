@@ -116,7 +116,7 @@ public:
 
 	CUGIP_DECL_DEVICE
 	accessed_type operator[](coord_t index) const {
-		return this->view1_[index] * this->view2_[index];
+		return this->mView1[index] * this->mView2[index];
 	}
 };
 
@@ -133,6 +133,46 @@ MultiplicationImageView<TView1, TView2>
 multiply(TView1 view1, TView2 view2) {
 	return MultiplicationImageView<TView1, TView2>(view1, view2);
 }
+
+template<typename TView1, typename TView2>
+class MaskedImageView : public BinaryOperatorDeviceImageView<TView1, TView2> {
+public:
+	typedef BinaryOperatorDeviceImageView<TView1, TView2> predecessor_type;
+	typedef typename TView1::value_type value_type1;
+	typedef typename TView2::value_type value_type2;
+	typedef value_type1 result_type;
+	CUGIP_VIEW_TYPEDEFS_VALUE(result_type, dimension<TView1>::value)
+
+	MaskedImageView(TView1 view1, TView2 view2, value_type1 aDefaultValue) :
+		predecessor_type(view1, view2),
+		mDefaultValue(aDefaultValue)
+	{}
+
+	CUGIP_DECL_DEVICE
+	accessed_type operator[](coord_t index) const {
+		if (this->mView2[index]) {
+			return this->mView1[index];
+		}
+		return mDefaultValue;
+	}
+
+	value_type1 mDefaultValue;
+};
+
+CUGIP_DECLARE_VIEW_TRAITS(
+	(MaskedImageView<TView1, TView2>),
+	dimension<TView1>::value,
+	(is_device_view<TView1>::value && is_device_view<TView2>::value),
+	(is_host_view<TView1>::value && is_host_view<TView2>::value),
+	typename TView1, typename TView2);
+
+/// Utility function to create MultiplicationImageView without the need to specify template parameters.
+template<typename TView1, typename TView2>
+MaskedImageView<TView1, TView2>
+maskView(TView1 view1, TView2 view2, typename TView1::value_type aDefaultValue) {
+	return MaskedImageView<TView1, TView2>(view1, view2, aDefaultValue);
+}
+
 
 /// Image view, which returns per element division.
 /// R = I1 ./ I2
@@ -158,7 +198,7 @@ public:
 
 	CUGIP_DECL_DEVICE
 	Element operator[](coord_t index) const {
-		return this->view1_[index] / this->view2_[index];
+		return this->mView1[index] / this->mView2[index];
 	}
 };
 
@@ -327,6 +367,11 @@ square(TView view) {
 	return UnaryOperatorImageView<TView, SquareFunctor>(view, SquareFunctor());
 }
 
+template<typename TView>
+UnaryOperatorImageView<TView, AbsFunctor>
+abs_view(TView view) {
+	return UnaryOperatorImageView<TView, AbsFunctor>(view, AbsFunctor());
+}
 
 /// Creates view which returns square root of the values from the original view
 template<typename TView>
