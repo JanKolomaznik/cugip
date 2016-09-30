@@ -72,7 +72,8 @@ kernel_hidden_updates(TInView aInView, TOutView aOutView, TRule aRule, TPolicy a
 
 	auto dataView = makeDeviceImageView(&(buffer.get(Int3())), to_vector(Size()));
 	typedef decltype(dataView) DataView;
-	buffer.loadZeroOut(aInView, corner);
+	buffer.load(aInView, corner);
+	//buffer.loadZeroOut(aInView, corner);
 	__syncthreads();
 
 	/*if (is_in_block(0,1,0) && is_in_thread(0,0,0)) {

@@ -19,34 +19,39 @@
 #include "watershed_options.hpp"
 
 #include <cugip/timers.hpp>
+#include <limits>
 
 using namespace cugip;
 
 struct BlockEquivalenceView
 {
+	static constexpr int cItemCount = (32*6*6)*4;
+
 	CUGIP_DECL_DEVICE
 	int updateMapping(int aVal, int aNewMap)
 	{
-		int idx = (aVal *11 + 17) % (32*6*6);
+		int idx = (aVal *11 + 17) % cItemCount;
 		while ((hash_map_ptr[idx][0] != 0 && hash_map_ptr[idx][0] != aVal)
 			|| (hash_map_ptr[idx][0] == 0) && atomicCAS(&(hash_map_ptr[idx][0]), 0, aVal) != 0)
 		{
-			idx = (idx + 1) % (32*6*6);
+			idx = (idx + 1) % cItemCount;
 		}
 		/*if (hash_map_ptr[idx][1] == 0 && atomicCAS(&(hash_map_ptr[idx][1]), 0, aNewMap) == 0) {
 			return aNewMap;
 		}*/
-		/*atomicMin(&(hash_map_ptr[idx][1]), aNewMap);*/
-		hash_map_ptr[idx][1] = hash_map_ptr[idx][1] == 0 ? aNewMap : min(hash_map_ptr[idx][1], aNewMap);
+		//atomicMin(&(hash_map_ptr[idx][1]), aNewMap);
+		//hash_map_ptr[idx][1] = hash_map_ptr[idx][1] == 0 ? aNewMap : min(hash_map_ptr[idx][1], aNewMap);
+		hash_map_ptr[idx][1] = min(hash_map_ptr[idx][1], aNewMap);
+
 		return hash_map_ptr[idx][1];
 	}
 
 	CUGIP_DECL_DEVICE
 	Int2 &findMapping(int aVal)
 	{
-		int idx = (aVal *11 + 17) % (32*6*6);
+		int idx = (aVal *11 + 17) % cItemCount;
 		while (hash_map_ptr[idx][0] != 0 && hash_map_ptr[idx][0] != aVal) {
-			idx = (idx + 1) % (32*6*6);
+			idx = (idx + 1) % cItemCount;
 		}
 		return hash_map_ptr[idx];
 	}
@@ -66,7 +71,7 @@ struct BlockEquivalenceView
 	void update_global(TGlobalState &aGlobalState)
 	{
 		int index = threadOrderFromIndex();
-		while (index < (32*6*6)) {
+		while (index < cItemCount) {
 			if (hash_map_ptr[index][0] != 0) {
 				aGlobalState.merge(hash_map_ptr[index][1], hash_map_ptr[index][0]);
 			}
@@ -93,8 +98,8 @@ struct BlockEquivalence: public BlockEquivalenceView
 		this->hash_map_ptr = (Int2*)hash_map;
 		iteration = 0;
 		int index = threadOrderFromIndex();
-		while (index < 2*(32*6*6)) {
-			hash_map[index] = 0;
+		while (index < 2*cItemCount) {
+			hash_map[index] = index % 2 == 0 ? 0 : INT_MAX;
 			index += currentBlockSize();
 		}
 	}
@@ -123,7 +128,7 @@ struct BlockEquivalence: public BlockEquivalenceView
 	int iteration;
 
 	//Int2 hash_map[32*6*6];
-	int hash_map[2*32*6*6];
+	int hash_map[2*cItemCount];
 };
 
 

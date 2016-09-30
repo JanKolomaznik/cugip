@@ -83,7 +83,8 @@ public:
 			//mBuffer[maxId] = minRoot;
 			mBuffer[maxId] = minId;
 		}
-		return minRoot;
+		//return minRoot;
+		return minId;
 	}
 
 	CUGIP_DECL_HOST
