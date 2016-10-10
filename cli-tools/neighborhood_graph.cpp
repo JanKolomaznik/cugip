@@ -10,49 +10,47 @@
 #include <cugip/host_image_view.hpp>
 #include <cugip/image_locator.hpp>
 
-#include <unordered_set>
-#include <map>
-#include <unordered_map>
-
-using namespace cugip;
+#include "../benchmarks/graph_cut/graph.hpp"
 
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 
-typedef itk::Image<int, 3> ImageType;
+typedef itk::Image<int, 3> LabelsType;
+typedef itk::Image<float, 3> ImageType;
 
-struct Hash {
-  size_t operator()(const Int2 &val) const {
-	  return val[0] + val[1];
-  }
-};
-template<typename TView>
-std::unordered_set<Int2, Hash> outputGraphEdges(TView aView)
+
+template<typename TRegionsView, typename TView>
+GraphStats createGraph(TRegionsView aRegions, TView aView)
 {
-	std::unordered_set<Int2, Hash> edges;
+	//std::unordered_set<Int2, Hash> edges;
+	GraphStats graph;
 	simple_vector<int, 3> index;
 	auto size = aView.dimensions();
 	for(index[2] = 0; index[2] < size[2] - 1; ++index[2]) {
 		for(index[1] = 0; index[1] < size[1] - 1; ++index[1]) {
 			for(index[0] = 0; index[0] < size[0] - 1; ++index[0]) {
-				std::array<Int3, 3> offsets = {index, index, index};
-				auto v1 = aView[index];
+				//std::array<Int3, 3> offsets = {index, index, index};
+				auto label1 = aRegions[index];
+				auto value1 = aView[index];
+				graph.nodes[label1].add(value1);
 				for (int i = 0; i < 3; ++i) {
 					auto index2 = index;
 					index2[i] += 1;
-					auto v2 = aView[index2];
-					if (v1 != v2) {
-						edges.insert(Int2(std::min(v1, v2), std::max(v1, v2)));
+					auto label2 = aRegions[index2];
+					if (label1 != label2) {
+						auto value2 = aView[index2];
+						auto edgeId = Int2(std::min(label1, label2), std::max(label1, label2));
+						graph.edges[edgeId].add(value1, value2);
 						//std::cout << v1 << ';' << v2 << ';' << edges.size() << '\n';
 					}
 				}
 			}
 		}
 	}
-	return edges;
+	return graph;
 }
 
-template<typename TSet>
+/*template<typename TSet>
 std::map<int, int> countEdges(const TSet &aEdges, std::string output_file)
 {
 	std::map<int, int> vertexDegrees;
@@ -65,17 +63,19 @@ std::map<int, int> countEdges(const TSet &aEdges, std::string output_file)
 		outFile << rec.second << '\n';
 	}
 	return vertexDegrees;
-}
+}*/
 
 int main( int argc, char* argv[] )
 {
 	std::string input_file;
+	std::string labels_file;
 	std::string output_file;
 
 	po::options_description desc("Allowed options");
 	desc.add_options()
 		("help", "produce help message")
 		("input,i", po::value<std::string>(&input_file), "input file")
+		("labels,l", po::value<std::string>(&labels_file), "labels file")
 		("output,o", po::value<std::string>(&output_file), "output file")
 		;
 
@@ -93,6 +93,11 @@ int main( int argc, char* argv[] )
 	    return 1;
 	}
 
+	if (vm.count("labels") == 0) {
+	    std::cout << "Missing labels filename\n" << desc << "\n";
+	    return 1;
+	}
+
 	if (vm.count("output") == 0) {
 	    std::cout << "Missing output filename\n" << desc << "\n";
 	    return 1;
@@ -103,22 +108,30 @@ int main( int argc, char* argv[] )
 
 	try
 	{
-		typedef itk::ImageFileReader<ImageType>  ReaderType;
+		typedef itk::ImageFileReader<LabelsType>  LabelsReaderType;
+		typedef itk::ImageFileReader<ImageType>  ImageReaderType;
 
-		ReaderType::Pointer reader = ReaderType::New();
-		reader->SetFileName(input_file);
-		reader->Update();
+		LabelsReaderType::Pointer labelsReader = LabelsReaderType::New();
+		labelsReader->SetFileName(labels_file);
+		labelsReader->Update();
+		LabelsType::Pointer labels = labelsReader->GetOutput();
 
-		ImageType::Pointer image = reader->GetOutput();
+		ImageReaderType::Pointer imageReader = ImageReaderType::New();
+		imageReader->SetFileName(input_file);
+		imageReader->Update();
+		ImageType::Pointer image = imageReader->GetOutput();
 
 		cugip::simple_vector<int, 3> size;
 		for (int i = 0; i < 3; ++i) {
 			size[i] = image->GetLargestPossibleRegion().GetSize()[i];
 		}
 
-		auto inView = makeHostImageView(image->GetPixelContainer()->GetBufferPointer(), size);
-		auto edges = outputGraphEdges(inView);
-		countEdges(edges, output_file);
+		auto labelsView = makeHostImageView(labels->GetPixelContainer()->GetBufferPointer(), size);
+		auto imageView = makeHostImageView(image->GetPixelContainer()->GetBufferPointer(), size);
+		auto graph = createGraph(labelsView, imageView);
+		saveGraph(graph, output_file);
+		//auto edges = outputGraphEdges(inView);
+		//countEdges(edges, output_file);
 
 	}
 	catch( itk::ExceptionObject & error )

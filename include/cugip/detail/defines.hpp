@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 #define CUGIP_ASSERT(EXPR) assert(EXPR)
 
 #if defined(__CUDACC__)

@@ -141,6 +141,20 @@ struct MooreNeighborhood<2>
 		}
 		return Int2();
 	}
+
+	template<typename TLocator, typename TCallable>
+	CUGIP_DECL_HYBRID void
+	iterate_over(TLocator aLocator, TCallable aCallable)
+	{
+		simple_vector<int, 2> index;
+		#pragma unroll
+		for(index[1] = -1; index[1] <= 1; ++index[1]) {
+			#pragma unroll
+			for(index[0] = -1; index[0] <= 1; ++index[0]) {
+				aCallable(aLocator[index]);
+			}
+		}
+	}
 };
 
 template<>
@@ -229,6 +243,22 @@ struct MooreNeighborhood<3>
 		}
 		return Int3();
 	}
+
+	template<typename TLocator, typename TCallable>
+	CUGIP_DECL_HYBRID void
+	iterate_over(TLocator aLocator, TCallable aCallable)
+	{
+		simple_vector<int, 3> index;
+		for(index[2] = -1; index[2] <= 1; ++index[2]) {
+			#pragma unroll
+			for(index[1] = -1; index[1] <= 1; ++index[1]) {
+				#pragma unroll
+				for(index[0] = -1; index[0] <= 1; ++index[0]) {
+					aCallable(aLocator[index]);
+				}
+			}
+		}
+	}
 };
 
 template<typename TLocator, typename TNeighborhood>
@@ -259,6 +289,13 @@ struct NeighborhoodAccessor
 	coords() const {
 		return mLocator.coords();
 	}
+
+	template<typename TCallable>
+	CUGIP_DECL_HYBRID void
+	apply(TCallable &&aCallable) {
+		mNeighborhood.iterate_over(mLocator, aCallable);
+	}
+
 
 	TLocator mLocator;
 	TNeighborhood mNeighborhood;

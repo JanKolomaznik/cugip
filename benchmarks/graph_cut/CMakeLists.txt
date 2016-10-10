@@ -1,7 +1,7 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 PROJECT(graph_cut_benchmarks)
 
-set(CMAKE_CXX_FLAGS --std=c++11 )
+#set(CMAKE_CXX_FLAGS --std=c++11 )
 add_definitions("-DVCL_CAN_STATIC_CONST_INIT_FLOAT=0")
 # Due to error in CUDA 7.0 we need this:
 add_definitions("-DBOOST_RESULT_OF_USE_TR1")
@@ -15,7 +15,7 @@ set(BK301_SOURCES
 
 find_path(GRIDCUT_DIRECTORY "GridCut/GridGraph_3D_6C.h" "../../GridCut")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_FORCE_INLINES")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_FORCE_INLINES")
 
 set(Boost_USE_STATIC_LIBS   OFF)
 set(Boost_USE_MULTITHREADED ON)
@@ -25,13 +25,15 @@ FIND_PACKAGE(Boost REQUIRED COMPONENTS program_options filesystem chrono system 
 MESSAGE(  ${Boost_LIBRARIES} )
 INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIRS} ${CUB_INCLUDE_DIRECTORY} "../../include" "${BK301_DIRECTORY}/.." ${GRIDCUT_DIRECTORY})
 
-SET(CUDA_HOST_COMPILER "/usr/bin/gcc-4.9")
+SET(CUDA_PROPAGATE_HOST_FLAGS OFF )
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -fPIC  -DVCL_CAN_STATIC_CONST_INIT_FLOAT=0")
 #set(CUDA_SEPARABLE_COMPILATION TRUE)
 #SET(CUDA_NVCC_FLAGS "--std=c++11 -gencode arch=compute_20,code=sm_20 --use_fast_math --generate-line-info")
 #SET(CUDA_NVCC_FLAGS "-G --std=c++11 -gencode arch=compute_30,code=sm_30 --use_fast_math -lineinfo")
 #SET(CUDA_NVCC_FLAGS "--std=c++11 -gencode arch=compute_30,code=sm_30 --use_fast_math -Xptxas=-v")
 #SET(CUDA_NVCC_FLAGS "-rdc=true -std=c++11 -gencode arch=compute_52,code=sm_52 --use_fast_math --generate-line-info -D_FORCE_INLINES")
-SET(CUDA_NVCC_FLAGS "-rdc=true -std=c++11 -gencode arch=compute_30,code=sm_30 --use_fast_math --generate-line-info -D_FORCE_INLINES")
+#SET(CUDA_NVCC_FLAGS "-rdc=true -std=c++11 -gencode arch=compute_30,code=sm_30 --use_fast_math --generate-line-info -D_FORCE_INLINES")
+SET(CUDA_NVCC_FLAGS "-rdc=true -std=c++11 -gencode arch=compute_61,code=sm_61 --use_fast_math --generate-line-info -D_FORCE_INLINES")
 #SET(CUDA_NVCC_FLAGS "-gencode arch=compute_20,code=sm_20 -gencode arch=compute_30,code=sm_30 --use_fast_math")
 #SET(CUDA_NVCC_FLAGS "-gencode arch=compute_20,code=sm_20 -gencode arch=compute_30,code=sm_30 -gencode arch=compute_35,code=sm_35 -gencode arch=compute_37,code=sm_37 -gencode arch=compute_50,code=sm_50 -gencode arch=compute_50,code=compute_50 --use_fast_math")
 
@@ -172,10 +174,19 @@ DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/libgraph_cut.so")
 
 
 
-add_executable(${PROJECT_NAME} segmentation.cpp boykov_kolmogorov.cpp grid_cut.cpp graph_cut.cpp ${BK301_SOURCES})
+add_executable(grid_segmentation segmentation.cpp boykov_kolmogorov.cpp grid_cut.cpp graph_cut.cpp ${BK301_SOURCES})
+add_executable(region_segmentation segmentation_regions.cpp boykov_kolmogorov.cpp grid_cut.cpp graph_cut.cpp ${BK301_SOURCES})
 
 #cuda_add_executable(${PROJECT_NAME} segmentation.cpp boykov_kolmogorov.cpp grid_cut.cpp graph_cut.cpp graph_cut.cu ${BK301_SOURCES})
-target_link_libraries(${PROJECT_NAME}
+target_link_libraries(grid_segmentation
+	#${PROJECT_NAME}_cuda_cut
+	"${CMAKE_CURRENT_BINARY_DIR}/libgraph_cut.so"
+	${ITK_LIBRARIES}
+	${Boost_LIBRARIES}
+	${CUDA_LIBRARIES}
+	)
+
+target_link_libraries(region_segmentation
 	#${PROJECT_NAME}_cuda_cut
 	"${CMAKE_CURRENT_BINARY_DIR}/libgraph_cut.so"
 	${ITK_LIBRARIES}

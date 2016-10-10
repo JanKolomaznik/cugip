@@ -9,6 +9,7 @@
 
 #include <boost/log/trivial.hpp>
 #include <boost/timer/timer.hpp>
+#include "graph.hpp"
 
 static void printErrorMessage(char * aMessage) {
 	BOOST_LOG_TRIVIAL(error) << aMessage;
@@ -78,4 +79,12 @@ computeBoykovKolmogorovGrid(
 		[&](const Int3 &coordinate) {
 			aOutput[coordinate] = graph.what_segment(get_linear_access_index(size, coordinate)) == GraphType::SINK ? aMaskValue : 0;
 		});
+}
+
+std::vector<int>
+computeBoykovKolmogorovGrid(
+	const GraphStats &aGraph,
+	const std::vector<int> &aMarkers)
+{
+
 }

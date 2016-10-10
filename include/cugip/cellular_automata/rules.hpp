@@ -166,20 +166,21 @@ struct ConnectedComponentLabelingRule2
 	{
 		auto value = aNeighborhood[0];
 		auto minValue = value;
+		using Value = decltype(value);
 		if (value) {
-			for (int i = 1; i < aNeighborhood.size(); ++i) {
-				//printf("%d %d - %d val = %d -> %d\n", threadIdx.x, threadIdx.y, i, aNeighborhood[0], aNeighborhood[i]);
+			/*for (int i = 1; i < aNeighborhood.size(); ++i) {
 				if (aNeighborhood[i] > 0 && aNeighborhood[i] < minValue) {
 					minValue = aNeighborhood[i];
 				}
-			}
+			}*/
+			aNeighborhood.apply([&minValue](Value aValue) {
+					if (aValue > 0 && aValue < minValue) {
+						minValue = aValue;
+					}
+				});
 			if (minValue < value) {
 				minValue = aEquivalence.merge(minValue, value);
 				aEquivalence.signal();
-				/*if (aIteration > 30) {
-					printf("%d, %d, %d, %d, %d;   %d, %d, %d\n", minValue, value, threadIdx.x, threadIdx.y, threadIdx.z, blockIdx.x, blockIdx.y, blockIdx.z);
-				}*/
-
 			}
 		}
 		return minValue;

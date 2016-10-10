@@ -46,5 +46,8 @@ TARGET_LINK_LIBRARIES(create_sample_dataset ${Boost_LIBRARIES} ${ITK_LIBRARIES})
 CUDA_ADD_EXECUTABLE(neighborhood_graph neighborhood_graph.cpp)
 TARGET_LINK_LIBRARIES(neighborhood_graph ${Boost_LIBRARIES} ${ITK_LIBRARIES})
 
+CUDA_ADD_EXECUTABLE(print_masked_labels print_masked_labels.cpp)
+TARGET_LINK_LIBRARIES(print_masked_labels ${Boost_LIBRARIES} ${ITK_LIBRARIES})
+
 CUDA_ADD_EXECUTABLE(ccl ccl.cpp ccl.cu)
 TARGET_LINK_LIBRARIES(ccl ${Boost_LIBRARIES} ${ITK_LIBRARIES})
