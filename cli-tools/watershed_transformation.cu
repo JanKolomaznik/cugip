@@ -140,7 +140,7 @@ void steepestDescentWShedSimple(
 	lowerCompletion<tDimension>(view(deviceGradient));
 	//auto wshed = nAryOperator(ZipGradientAndLabel(), const_view(deviceGradient), view(labels));
 	//auto wshed = nAryOperator(ZipGradientAndLabel(), const_view(deviceGradient), UniqueIdDeviceImageView<tDimension, int32_t>(aInput.dimensions()));
-	auto wshed = zipViews(const_view(deviceGradient), UniqueIdDeviceImageView<tDimension, int32_t>(aInput.dimensions()));
+	auto wshed = zipViews(const_view(deviceGradient), UniqueIdDeviceImageView<tDimension>(aInput.dimensions()));
 
 	device_flag convergenceFlag;
 	ConvergenceFlag convergenceGlobalState;
@@ -190,7 +190,7 @@ void steepestDescentWShedGlobalState(
 	lowerCompletion<tDimension>(view(deviceGradient));
 	//auto wshed = nAryOperator(ZipGradientAndLabel(), const_view(deviceGradient), view(labels));
 	//auto wshed = nAryOperator(ZipGradientAndLabel(), const_view(deviceGradient), UniqueIdDeviceImageView<tDimension, int32_t>(aInput.dimensions()));
-	auto wshed = zipViews(const_view(deviceGradient), UniqueIdDeviceImageView<tDimension, int32_t>(aInput.dimensions()));
+	auto wshed = zipViews(const_view(deviceGradient), UniqueIdDeviceImageView<tDimension>(aInput.dimensions()));
 
 	device_flag convergenceFlag;
 	LocalMinimaEquivalenceGlobalState<int32_t> globalState;

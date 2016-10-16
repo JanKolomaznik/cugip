@@ -5,6 +5,13 @@
 #include <map>
 #include <unordered_map>
 
+#include <boost/spirit/home/x3.hpp>
+#include <boost/format.hpp>
+#include <boost/fusion/adapted/std_tuple.hpp>
+
+namespace x3 = boost::spirit::x3;
+namespace ascii = boost::spirit::x3::ascii;
+
 using namespace cugip;
 
 struct Hash {
@@ -44,12 +51,26 @@ inline void saveGraph(const GraphStats &aGraph, const std::string &aOutputPath)
 
 inline void parseAndAddNode(GraphStats &aGraph, const std::string &aLine)
 {
+	using x3::int_;
+	using x3::char_;
+	using x3::float_;
+	using ascii::blank;
 
+	std::tuple<int, int, float> result;
+	bool const res = x3::phrase_parse(aLine.begin(), aLine.end(), "n;" >> int_ >> ';' >> int_ >> ';' >> float_, blank, result);
+	aGraph.nodes[get<0>(result)] = NodeStats{ get<2>(result), get<1>(result) };
 }
 
 inline void parseAndAddEdge(GraphStats &aGraph, const std::string &aLine)
 {
+	using x3::int_;
+	using x3::char_;
+	using x3::float_;
+	using ascii::blank;
 
+	std::tuple<int, int, int, float> result;
+	bool const res = x3::phrase_parse(aLine.begin(), aLine.end(), "e;" >> int_ >> ';' >> int_ >> ';' >> int_ >> ';' >> float_, blank, result);
+	aGraph.edges[Int2(get<0>(result), get<1>(result))] = EdgeStats{ get<3>(result), get<2>(result) };
 }
 
 inline GraphStats loadGraph(const std::string &aInputPath)
@@ -63,8 +84,10 @@ inline GraphStats loadGraph(const std::string &aInputPath)
 		}
 		switch (line[0]) {
 		case 'n':
+			parseAndAddNode(graph, aLine);
 			break;
 		case 'e':
+			parseAndAddEdge(graph, aLine);
 			break;
 		default:
 			std::cout << "Unknown line identifier '" << line[0] << "'\n";

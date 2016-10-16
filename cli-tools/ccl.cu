@@ -149,7 +149,7 @@ void cclAsyncGlobalState(
 	device_image<int32_t, tDimension> labels(aInput.dimensions());
 	copy(aInput, view(masks));
 
-	auto firstGeneration = maskView(UniqueIdDeviceImageView<tDimension, int32_t>(aInput.dimensions()), const_view(masks), 0);
+	auto firstGeneration = maskView(UniqueIdDeviceImageView<tDimension>(aInput.dimensions()), const_view(masks), 0);
 
 	device_flag convergenceFlag;
 	LocalMinimaEquivalenceGlobalState<int32_t> globalState;
@@ -192,7 +192,7 @@ void cclSyncGlobalState(
 	device_image<int32_t, tDimension> labels(aInput.dimensions());
 	copy(aInput, view(masks));
 
-	auto firstGeneration = maskView(UniqueIdDeviceImageView<tDimension, int32_t>(aInput.dimensions()), const_view(masks), 0);
+	auto firstGeneration = maskView(UniqueIdDeviceImageView<tDimension>(aInput.dimensions()), const_view(masks), 0);
 
 	device_flag convergenceFlag;
 	LocalMinimaEquivalenceGlobalState<int32_t> globalState;

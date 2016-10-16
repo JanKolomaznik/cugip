@@ -15,8 +15,8 @@ typedef itk::Image<int, 3> ImageType;
 using namespace cugip;
 
 void relabeling(
-	host_image_view<int64_t, 3> aInput,
-	int64_t aStart);
+	host_image_view<int, 3> aInput,
+	int aStart);
 
 int main( int argc, char* argv[] )
 {

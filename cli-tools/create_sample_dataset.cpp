@@ -284,8 +284,106 @@ void initObjects() {
 	}
 }
 
+Tube parseTube(const std::string &aLine)
+{
+	using x3::int_;
+	using x3::lit;
+	using x3::char_;
+	using x3::float_;
+	using ascii::blank;
+
+	std::tuple<int, int, int, float, float, float, float, float, float> result;
+	auto rule = lit('t') >>
+		lit('[') >> int_ >> ',' >> int_ >> ',' >> int_ >> lit(']') >>
+		lit('[') >> float_ >> ',' >> float_ >> ',' >> float_ >> lit(']') >>
+		float_ >>
+		float_ >>
+		float_;
+	bool const res = x3::phrase_parse(aLine.begin(), aLine.end(), rule, blank, result);
+	return Tube{
+		Int3(get<0>(result), get<1>(result), get<2>(result)),
+		Float3(get<3>(result), get<4>(result), get<5>(result)),
+		get<6>(result),
+		get<7>(result),
+		get<8>(result)};
+}
+
+Plate parsePlate(const std::string &aLine)
+{
+	using x3::int_;
+	using x3::lit;
+	using x3::char_;
+	using x3::float_;
+	using ascii::blank;
+
+	std::tuple<int, int, int, float, float, float, float, float, float> result;
+	auto rule = lit('p') >>
+		lit('[') >> int_ >> lit(',') >> int_ >> lit(',') >> int_ >> lit(']') >>
+		lit('[') >> float_ >> lit(',') >> float_ >> lit(',') >> float_ >> lit(']') >>
+		float_ >>
+		float_ >>
+		float_;
+	bool const res = x3::phrase_parse(aLine.begin(), aLine.end(), rule, blank, result);
+	return Plate{
+		Int3(get<0>(result), get<1>(result), get<2>(result)),
+		Float3(get<3>(result), get<4>(result), get<5>(result)),
+		get<6>(result),
+		get<7>(result),
+		get<8>(result)};
+}
+
+Ellipsoid parseEllipsoid(const std::string &aLine)
+{
+	using x3::int_;
+	using x3::lit;
+	using x3::char_;
+	using x3::float_;
+	using ascii::blank;
+
+	std::tuple<int, int, int, float, float> result;
+	auto rule = lit('e') >>
+		lit('[') >> int_ >> lit(',') >> int_ >> lit(',') >> int_ >> lit(']') >>
+		float_ >>
+		float_;
+	bool const res = x3::phrase_parse(aLine.begin(), aLine.end(), rule, blank, result);
+	return Ellipsoid{
+		Int3(get<0>(result), get<1>(result), get<2>(result)),
+		get<3>(result),
+		get<4>(result)};
+}
+
+void loadConfiguration(
+	const std::string &aInputPath,
+	std::vector<Ellipsoid> &aEllipsoids,
+	std::vector<Tube> &aTubes,
+	std::vector<Plate> &aPlates)
+{
+	std::ifstream file(aInputPath, std::ifstream::in);
+	std::string line;
+	while (file >> line) {
+		if (line.empty() || line[0] == '#') {
+			continue;
+		}
+		switch (line[0]) {
+		case 't':
+			aTubes.push_back(parseTube(line));
+			break;
+		case 'e':
+			aEllipsoids.push_back(parseEllipsoid(line));
+			break;
+		case 'p':
+			aPlates.push_back(parsePlate(line));
+			break;
+		default:
+			std::cout << "Unknown line identifier '" << line[0] << "'\n";
+		}
+	}
+}
+
+
 int main( int argc, char* argv[] )
 {
+	fs::path input_file;
 	fs::path output_file;
 	double sigma;
 
@@ -296,6 +394,7 @@ int main( int argc, char* argv[] )
 	po::options_description desc("Allowed options");
 	desc.add_options()
 		("help,h", "produce help message")
+		("input,i", po::value<fs::path>(&input_file), "configuration file")
 		("output,o", po::value<fs::path>(&output_file), "output file")
 		("resolution,r", po::value<std::string>(&resolution), "Resolution WIDTHxHEIGHTxDEPTH")
 		("background,b", po::value<int>(&background)->default_value(0), "background value")
@@ -308,6 +407,10 @@ int main( int argc, char* argv[] )
 
 	if (vm.count("help")) {
 	    std::cout << desc << "\n";
+	    return 1;
+	}
+	if (vm.count("input") == 0) {
+	    std::cout << "Missing input filename\n" << desc << "\n";
 	    return 1;
 	}
 
@@ -331,8 +434,8 @@ int main( int argc, char* argv[] )
 	}
 	std::cout << boost::format("Generating image of size [%1%, %2%, %3%] ...\n") % std::get<0>(size) % std::get<1>(size) % std::get<2>(size);
 
-	initObjects();
-
+	//initObjects();
+	loadConfiguration(input_file.string(), ellipsoids, tubes, plates);
 
 	const unsigned int Dimension = 3;
 

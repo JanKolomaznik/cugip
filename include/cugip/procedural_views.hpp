@@ -82,18 +82,44 @@ checkerBoard(
 	return CheckerBoardImageView<TElement, tDimension>(white, black, tile_size, size);
 }
 
+template<typename TId = int>
+struct LinearAccessIndex
+{
+	typedef TId id_type;
 
-template<int tDimension, typename TId = int>
+	template<typename TExtents, typename TCoordinates>
+	CUGIP_DECL_HYBRID
+	static id_type compute(TExtents aSize, TCoordinates aIndex)
+	{
+		return get_linear_access_index(aSize, aIndex);
+	}
+};
+
+template<int tBlockSize = 2, typename TId = int>
+struct BlockedAccessIndex
+{
+	typedef TId id_type;
+
+	template<typename TExtents, typename TCoordinates>
+	CUGIP_DECL_HYBRID
+	static id_type compute(TCoordinates aSize, TCoordinates aIndex)
+	{
+		return get_blocked_order_access_index<>(aSize, aIndex);
+	}
+};
+
+template<int tDimension, typename TIdGenerator = LinearAccessIndex<int>>
 class UniqueIdDeviceImageView
 	: public device_image_view_crtp<
 		tDimension,
-		UniqueIdDeviceImageView<tDimension>>
+		UniqueIdDeviceImageView<tDimension, TIdGenerator>>
 {
 public:
 	//TODO - bigger int
-	typedef UniqueIdDeviceImageView<tDimension> this_t;
+	typedef UniqueIdDeviceImageView<tDimension, TIdGenerator> this_t;
 	typedef device_image_view_crtp<tDimension, this_t> predecessor_type;
-	CUGIP_VIEW_TYPEDEFS_VALUE(TId, tDimension)
+	typedef typename TIdGenerator::id_type id_type;
+	CUGIP_VIEW_TYPEDEFS_VALUE(id_type, tDimension)
 
 	UniqueIdDeviceImageView(extents_t aSize)
 		: predecessor_type(aSize)
@@ -104,7 +130,8 @@ public:
 	value_type operator[](coord_t index) const {
 		//return get_zorder_access_index(this->dimensions(), index) + 1;
 		//return get_blocked_order_access_index(this->dimensions(), index) + 1;
-		return get_linear_access_index(this->dimensions(), index) + 1;
+		//return get_linear_access_index(this->dimensions(), index) + 1;
+		return TIdGenerator::compute(this->dimensions(), index) + 1;
 	}
 
 protected:
