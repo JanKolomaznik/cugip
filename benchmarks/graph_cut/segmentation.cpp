@@ -83,6 +83,7 @@ main(int argc, char* argv[])
 	boost::filesystem::path markersFile;
 	boost::filesystem::path outputFile;
 	float sigma;
+	float threshold;
 	uint8_t maskValue;
 
 	Algorithm algorithm;
@@ -95,6 +96,7 @@ main(int argc, char* argv[])
 		("algorithm,a", po::value<std::string>(&algorithmName)->default_value("boykov-kolmogorov"), "boykov-kolmogorov, gridcut, cudacut")
 		("output,o", po::value<boost::filesystem::path>(&outputFile), "output mask file")
 		("sigma,s", po::value<float>(&sigma)->default_value(1.0f), "input noise deviation")
+		("residual-threshold,r", po::value<float>(&threshold)->default_value(0.0f), "residual threshold")
 		("mask-value,v", po::value<uint8_t>(&maskValue)->default_value(255), "mask value")
 		;
 	/*std::string inputFile;
@@ -202,7 +204,8 @@ main(int argc, char* argv[])
 			CudacutConfig config(
 				cugip::view(*(saturated.GetPointer())),
 				cugip::view(*(excess.GetPointer())),
-				cugip::view(*(label.GetPointer()))
+				cugip::view(*(label.GetPointer())),
+				threshold
 			);
 
 			computeCudaGraphCut(

@@ -124,6 +124,7 @@ struct MinCut
 		TGraphData &aGraph,
 		ParallelQueueView<int> &aVertexQueue,
 		thrust::host_vector<int> &aLevelStarts,
+		TPolicy &aPolicy,
 		TTraceObject &aTraceObject)
 	{
 		boost::timer::cpu_timer timer;
@@ -141,8 +142,10 @@ struct MinCut
 		//std::cout << timer.format(9, "%w") << "\n";
 		bool done = false;
 		int iteration = 0;
+
+		CUGIP_DPRINT("threshold" << aPolicy.relabelPolicy.edgeTraversalCheck.minimalResidual);
 		//float flow = -1.0f;
-		typename TPolicy::RelabelPolicy relabelPolicy;
+		//typename TPolicy::RelabelPolicy relabelPolicy;
 		//relabelPolicy.edgeTraversalCheck.minimalResidual = 0.7f;
 		Relabel<TGraphData, typename TPolicy::RelabelPolicy> relabel;
 		Push<TGraphData, typename TPolicy::PushPolicy> push;
@@ -152,7 +155,7 @@ struct MinCut
 			aTraceObject.beginIteration(iteration);
 
 			//cudaProfilerStart();
-			relabel.compute(aGraph, aVertexQueue, aLevelStarts, relabelPolicy);
+			relabel.compute(aGraph, aVertexQueue, aLevelStarts, aPolicy.relabelPolicy);
 			//relabel.compute_dynamic(aGraph, aVertexQueue, aLevelStarts, typename TPolicy::RelabelPolicy());
 			//return 0.0f;
 			aTraceObject.afterRelabel(iteration, aLevelStarts);
@@ -233,7 +236,7 @@ struct MinCut
 };
 
 
-template<typename TGraph, typename TTraceObject>
+template<typename TGraph>
 class MinimalGraphCutComputation
 {
 public:
@@ -272,8 +275,17 @@ public:
 		mVertexQueue.reserve(mGraphData.mVertexCount);
 	}
 
+	template<typename TTraceObject>
 	Flow
 	run(TTraceObject &aTraceObject)
+	{
+		GraphCutPolicy policy;
+		return run(policy, aTraceObject);
+	}
+
+	template<typename TPolicy, typename TTraceObject>
+	Flow
+	run(TPolicy &aPolicy, TTraceObject &aTraceObject)
 	{
 		CUGIP_ASSERT(mGraphData.connectionIndices != nullptr);
 		CUGIP_ASSERT(mGraphData.labels != nullptr);
@@ -287,10 +299,11 @@ public:
 		CUGIP_ASSERT(mGraphData.secondVertices != nullptr);
 		CUGIP_ASSERT(mGraphData.vertexExcess != nullptr);
 		init_residuals();
-		return MinCut<GraphCutData<Flow>, GraphCutPolicy, TTraceObject>::compute(
+		return MinCut<GraphCutData<Flow>, TPolicy, TTraceObject>::compute(
 						mGraphData,
 						mVertexQueue.view(),
 						mLevelStarts,
+						aPolicy,
 						aTraceObject);
 	}
 

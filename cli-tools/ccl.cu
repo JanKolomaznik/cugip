@@ -176,7 +176,7 @@ void cclAsyncGlobalState(
 	copy(const_view(labels), aOutput);
 }
 
-template<int tDimension>
+template<int tDimension, typename TIdAssignment>
 void cclSyncGlobalState(
 		const_host_image_view<const int8_t, tDimension> aInput,
 		host_image_view<int32_t, tDimension> aOutput)
@@ -192,7 +192,7 @@ void cclSyncGlobalState(
 	device_image<int32_t, tDimension> labels(aInput.dimensions());
 	copy(aInput, view(masks));
 
-	auto firstGeneration = maskView(UniqueIdDeviceImageView<tDimension>(aInput.dimensions()), const_view(masks), 0);
+	auto firstGeneration = maskView(UniqueIdDeviceImageView<tDimension, TIdAssignment>(aInput.dimensions()), const_view(masks), 0);
 
 	device_flag convergenceFlag;
 	LocalMinimaEquivalenceGlobalState<int32_t> globalState;
@@ -228,7 +228,13 @@ void runConnectedComponentLabelingDim(
 		const std::string &aName)
 {
 	if (aName == "sync_gs") {
-		cclSyncGlobalState<tDimension>(aInput, aOutput);
+		cclSyncGlobalState<tDimension, LinearAccessIndex<int>>(aInput, aOutput);
+	} else if (aName == "sync_gs2") {
+		cclSyncGlobalState<tDimension, BlockedAccessIndex<2, int>>(aInput, aOutput);
+	} else if (aName == "sync_gs4") {
+		cclSyncGlobalState<tDimension, BlockedAccessIndex<4, int>>(aInput, aOutput);
+	} else if (aName == "sync_gs8") {
+		cclSyncGlobalState<tDimension, BlockedAccessIndex<8, int>>(aInput, aOutput);
 	} else if (aName == "async_gs") {
 		cclAsyncGlobalState<tDimension>(aInput, aOutput);
 	} else {

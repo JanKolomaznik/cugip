@@ -73,7 +73,7 @@ int main( int argc, char* argv[] )
 		("help", "produce help message")
 		("input,i", po::value<fs::path>(&inputFile), "input file")
 		("output,o", po::value<fs::path>(&outputFile), "output file")
-		("type,t", po::value<std::string>(&methodName)->default_value("async_gs"), "async_gs, sync_gs")
+		("type,t", po::value<std::string>(&methodName)->default_value("async_gs"), "async_gs, sync_gs, sync_gs2, sync_gs4, sync_gs8")
 		//("normalize,n", po::value<bool>(&normalize)->default_value(false), "normalize")
 		;
 

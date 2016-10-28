@@ -102,9 +102,9 @@ struct BlockedAccessIndex
 
 	template<typename TExtents, typename TCoordinates>
 	CUGIP_DECL_HYBRID
-	static id_type compute(TCoordinates aSize, TCoordinates aIndex)
+	static id_type compute(TExtents aSize, TCoordinates aIndex)
 	{
-		return get_blocked_order_access_index<>(aSize, aIndex);
+		return get_blocked_order_access_index<tBlockSize>(aSize, aIndex);
 	}
 };
 

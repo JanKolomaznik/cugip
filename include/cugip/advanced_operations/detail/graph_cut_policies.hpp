@@ -84,6 +84,8 @@ struct GraphCutPolicy
 
 	typedef RelabelPolicy<512, 64, EdgeReverseTraversable> RelabelPolicy;
 	typedef PushPolicy<512> PushPolicy;
+
+	RelabelPolicy relabelPolicy;
 };
 
 } // namespace cugip

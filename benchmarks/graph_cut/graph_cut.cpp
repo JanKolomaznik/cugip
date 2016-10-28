@@ -9,6 +9,13 @@
 
 #include "graph_cut_trace_utils.hpp"
 
+#include <boost/accumulators/accumulators.hpp>
+#include <boost/accumulators/statistics/stats.hpp>
+#include <boost/accumulators/statistics/min.hpp>
+#include <boost/accumulators/statistics/max.hpp>
+#include <boost/accumulators/statistics/mean.hpp>
+#include <boost/accumulators/statistics/moment.hpp>
+namespace ba = boost::accumulators;
 
 constexpr float cTLinkWeight = 1000000.f;
 //constexpr float cTLinkWeight = 1.0e10f;
@@ -39,6 +46,7 @@ computeCudaGraphCut(
 	auto size = aData.dimensions();
 	BOOST_LOG_TRIVIAL(info) << "Setting edge weights...";
 	region<3> imageRegion{ Int3(), size };
+	ba::accumulator_set< double, ba::features< ba::tag::min, ba::tag::max, ba::tag::mean > > acc;
 	for_each(
 		imageRegion,
 		[&](const Int3 &coordinate) {
@@ -57,6 +65,7 @@ computeCudaGraphCut(
 				//int neighborIdx = get_linear_access_index(size, neighbor);
 				if (isInsideRegion(aData.dimensions(), neighbor)) {
 					float weight =  std::exp(-sqr(aData[coordinate] - aData[neighbor]) / 2.0f * sqr(aSigma));
+					acc(weight);
 					graphData.addEdge(neighborIdx, centerIdx, weight, weight);
 				}
 			}
@@ -77,6 +86,7 @@ computeCudaGraphCut(
 		graphData.tlinksSink.data());
 
 	float flow = graph.max_flow();*/
+	BOOST_LOG_TRIVIAL(info) << boost::str(boost::format("Edge weights statistics: min %1%, max %2%, mean %3%") % ba::extract_result<ba::tag::min>(acc) % ba::extract_result<ba::tag::max>(acc) % ba::extract_result<ba::tag::mean>(acc));
 	BOOST_LOG_TRIVIAL(info) << "Computing max flow ...";
 	computeCudaGraphCutImplementation(graphData, aOutput, aMaskValue, aConfig);
 }

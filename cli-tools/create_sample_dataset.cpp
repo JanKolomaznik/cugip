@@ -61,12 +61,12 @@ void for_each_in_radius(TCallable aCallable, int aRadius)
 template<typename TView>
 void putObject(const Ellipsoid &aEllipsoid, TView aView)
 {
-	auto loc = image_locator<TView>(aView, aEllipsoid.center);
+	auto loc = image_locator<TView, BorderHandlingTraits<border_handling_enum::REPEAT>>(aView, aEllipsoid.center);
 	for_each_in_radius(
 		[&](Int3 coord) {
 			auto res = sqr(coord[0]) + sqr(coord[1]) + sqr(coord[2]);
 			if (res <= sqr(aEllipsoid.radius)) {
-				loc[coord] = aEllipsoid.value;
+				loc[coord] = static_cast<typename TView::value_type>(aEllipsoid.value);
 			}
 		},
 		int(aEllipsoid.radius) + 1);
@@ -75,7 +75,7 @@ void putObject(const Ellipsoid &aEllipsoid, TView aView)
 template<typename TView>
 void putObject(const Tube &aTube, TView aView)
 {
-	auto loc = image_locator<TView>(aView, aTube.center);
+	auto loc = image_locator<TView, BorderHandlingTraits<border_handling_enum::REPEAT>>(aView, aTube.center);
 	for_each_in_radius(
 		[&](Int3 coord) {
 			Float3 pos(coord);
@@ -83,7 +83,7 @@ void putObject(const Tube &aTube, TView aView)
 			auto norm = pos - proj * aTube.direction;
 			auto dist = magnitude(norm);
 			if (dist <= aTube.radius) {
-				loc[coord] = aTube.value;
+				loc[coord] = static_cast<typename TView::value_type>(aTube.value);
 			}
 		},
 		int(aTube.length / 2) + 1);
@@ -92,14 +92,14 @@ void putObject(const Tube &aTube, TView aView)
 template<typename TView>
 void putObject(const Plate &aPlate, TView aView)
 {
-	auto loc = image_locator<TView>(aView, aPlate.center);
+	auto loc = image_locator<TView, BorderHandlingTraits<border_handling_enum::REPEAT>>(aView, aPlate.center);
 	for_each_in_radius(
 		[&](Int3 coord) {
 			Float3 pos(coord);
 			float proj = abs(dot(pos, aPlate.normal));
 			auto dist = proj/magnitude(aPlate.normal);
 			if (dist <= aPlate.thickness / 2.0f) {
-				loc[coord] = aPlate.value;
+				loc[coord] = static_cast<typename TView::value_type>(aPlate.value);
 			}
 		},
 		int(aPlate.radius));
@@ -157,6 +157,7 @@ void generateData(
 	typedef itk::ImageFileWriter<TImageType> WriterType;
 	typename WriterType::Pointer writer = WriterType::New();
 
+	std::cout << "Writing file " << aOutputPath.string() << '\n';
 	writer->SetFileName(aOutputPath.string());
 	writer->SetInput(image);
 	writer->Update();
@@ -346,6 +347,9 @@ Ellipsoid parseEllipsoid(const std::string &aLine)
 		float_ >>
 		float_;
 	bool const res = x3::phrase_parse(aLine.begin(), aLine.end(), rule, blank, result);
+	if (!res) {
+		std::cout << "XXX " << aLine << "\n";
+	}
 	return Ellipsoid{
 		Int3(get<0>(result), get<1>(result), get<2>(result)),
 		get<3>(result),
@@ -360,7 +364,7 @@ void loadConfiguration(
 {
 	std::ifstream file(aInputPath, std::ifstream::in);
 	std::string line;
-	while (file >> line) {
+	while (std::getline(file, line)) {
 		if (line.empty() || line[0] == '#') {
 			continue;
 		}
@@ -432,18 +436,21 @@ int main( int argc, char* argv[] )
 		std::get<1>(size) = 400;
 		std::get<2>(size) = 400;
 	}
-	std::cout << boost::format("Generating image of size [%1%, %2%, %3%] ...\n") % std::get<0>(size) % std::get<1>(size) % std::get<2>(size);
 
-	//initObjects();
-	loadConfiguration(input_file.string(), ellipsoids, tubes, plates);
-
-	const unsigned int Dimension = 3;
-
-	//typedef uint8_t                              PixelType;
-	typedef float                              PixelType;
-	typedef itk::Image< PixelType, Dimension > ImageType;
 
 	try {
+		std::cout << "Loading configuration ...\n";
+		//initObjects();
+		loadConfiguration(input_file.string(), ellipsoids, tubes, plates);
+
+		const unsigned int Dimension = 3;
+
+		typedef uint8_t                              PixelType;
+		//typedef float                              PixelType;
+		typedef itk::Image< PixelType, Dimension > ImageType;
+
+
+		std::cout << boost::format("Generating image of size [%1%, %2%, %3%] ...\n") % std::get<0>(size) % std::get<1>(size) % std::get<2>(size);
 		ImageType::SizeType imageSize;
 		imageSize[0] = std::get<0>(size);
 		imageSize[1] = std::get<1>(size);

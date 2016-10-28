@@ -69,17 +69,34 @@ public:
 	TFlow
 	max_flow() {
 		DummyTraceObject dummyTraceObject;
-		return max_flow_with_tracing<DummyTraceObject>(dummyTraceObject);
+		return max_flow_with_tracing(dummyTraceObject);
+	}
+
+	template<typename TPolicy>
+	TFlow
+	max_flow(TPolicy &aPolicy) {
+		DummyTraceObject dummyTraceObject;
+		return max_flow_with_tracing(aPolicy, dummyTraceObject);
 	}
 
 	template<typename TTraceObject>
 	TFlow
 	max_flow_with_tracing(TTraceObject &aTraceObject) {
-		MinimalGraphCutComputation<Graph<TFlow>, TTraceObject> maxFlowComputation;
+		MinimalGraphCutComputation<Graph<TFlow>> maxFlowComputation;
 
 		maxFlowComputation.setGraph(*this);
 
 		return maxFlowComputation.run(aTraceObject);
+	}
+
+	template<typename TPolicy, typename TTraceObject>
+	TFlow
+	max_flow_with_tracing(TPolicy &aPolicy, TTraceObject &aTraceObject) {
+		MinimalGraphCutComputation<Graph<TFlow>> maxFlowComputation;
+
+		maxFlowComputation.setGraph(*this);
+
+		return maxFlowComputation.run(aPolicy, aTraceObject);
 	}
 
 	template<typename THostArrayView>

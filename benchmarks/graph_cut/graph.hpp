@@ -21,14 +21,20 @@ struct Hash {
 };
 
 struct EdgeStats {
-	void add(float aVal1, float aVal2) {}
+	void add(float aVal1, float aVal2) {
+		++count;
+		sum += sqr(1.0f / (1.0f + std::max(aVal1, aVal2)));
+	}
 
 	float sum = 0.0f;
 	int count = 0;
 };
 
 struct NodeStats {
-	void add(float aValue) {}
+	void add(float aValue) {
+		++count;
+		sum += aValue;
+	}
 	float sum = 0;
 	int count = 0;
 };
@@ -84,10 +90,10 @@ inline GraphStats loadGraph(const std::string &aInputPath)
 		}
 		switch (line[0]) {
 		case 'n':
-			parseAndAddNode(graph, aLine);
+			parseAndAddNode(graph, line);
 			break;
 		case 'e':
-			parseAndAddEdge(graph, aLine);
+			parseAndAddEdge(graph, line);
 			break;
 		default:
 			std::cout << "Unknown line identifier '" << line[0] << "'\n";

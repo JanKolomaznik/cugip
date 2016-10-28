@@ -182,4 +182,68 @@ protected:
 	TGlobalState mGlobalState;
 };
 
+template<typename TGrid, typename TNeighborhood, typename TRule, typename TGlobalState, typename TSemiGlobalState/*, typename TOptions*/>
+class AsyncCellularAutomatonWithGlobalStateAndPointer
+	: public CellularAutomatonBaseCRTP<
+		AsyncCellularAutomatonWithGlobalStateAndPointer<TGrid, TNeighborhood, TRule, TGlobalState, TSemiGlobalState>,
+		TRule,
+		device_image<typename TGrid::Element, TGrid::cDimension>,
+		2>
+{
+public:
+	typedef device_image<typename TGrid::Element, TGrid::cDimension> State;
+	typedef CellularAutomatonBaseCRTP<
+			AsyncCellularAutomatonWithGlobalStateAndPointer<TGrid, TNeighborhood, TRule, TGlobalState, TSemiGlobalState>,
+			TRule,
+			State,
+			2> Predecessor;
+	typedef TGrid Grid;
+	typedef TRule Rule;
+	friend Predecessor;
+
+	using Predecessor::initialize;
+
+	template<typename TInputView>
+	void
+	initialize(TRule aRule, TInputView aView, TGlobalState aGlobalState)
+	{
+		mGlobalState = aGlobalState;
+		initialize(aRule, aView);
+	}
+
+	template<typename TInputView>
+	void
+	initialize(TInputView aView, TGlobalState aGlobalState)
+	{
+		mGlobalState = aGlobalState;
+		initialize(aView);
+	}
+
+protected:
+	void postInitialization()
+	{
+		mGlobalState.initialize();
+	}
+
+	void computeNextIteration()
+	{
+		typedef AsyncCellOperationWithGlobalState<
+				TNeighborhood,
+				TRule,
+				TGlobalState> RuleWrapper;
+		mGlobalState.preprocess(this->currentInputView());
+		hidden_updates<
+			decltype(this->currentInputView()),
+			decltype(this->currentOutputView()),
+			RuleWrapper,
+			TSemiGlobalState>(
+				this->currentInputView(),
+				this->currentOutputView(),
+				RuleWrapper(this->mIteration, this->mRule, mGlobalState));
+		mGlobalState.postprocess(this->currentOutputView());
+	}
+
+	TGlobalState mGlobalState;
+};
+
 } //namespace cugip

@@ -10,6 +10,8 @@
 #include <boost/log/trivial.hpp>
 #include <boost/timer/timer.hpp>
 
+#include <chrono>
+
 #include "graph_cut_trace_utils.hpp"
 
 using namespace cugip;
@@ -120,7 +122,10 @@ struct TraceObject
 	}
 
 	void
-	beginIteration(int aIteration) {}
+	beginIteration(int aIteration)
+	{
+		iterationStartTime = std::chrono::high_resolution_clock::now();
+	}
 
 	void
 	afterRelabel(int aIteration, const thrust::host_vector<int> &aLevelStarts) {}
@@ -140,7 +145,9 @@ struct TraceObject
 				thrust::device_pointer_cast(aGraph.mSinkFlow),
 				thrust::device_pointer_cast(aGraph.mSinkFlow + aGraph.vertexCount()));
 
-		BOOST_LOG_TRIVIAL(info) << "Iteration: " << aIteration << " Flow: " << flow;
+		std::chrono::duration<double> iterationDuration = std::chrono::high_resolution_clock::now() - iterationStartTime;
+		sumOfIterationDurations += iterationDuration;
+		BOOST_LOG_TRIVIAL(info) << "Iteration " << aIteration << ": Flow: " << flow << ", Time " << iterationDuration.count() << " s, Aggregated time " << sumOfIterationDurations.count() << " s";
 	}
 
 	void
@@ -165,14 +172,16 @@ struct TraceObject
 	cugip::host_image_view<uint8_t, 3> saturated;
 	cugip::host_image_view<uint8_t, 3> excess;
 	cugip::host_image_view<float, 3> labels;
+	std::chrono::high_resolution_clock::time_point iterationStartTime;
+	std::chrono::duration<double> sumOfIterationDurations;
 };
 
 
 void
 computeCudaGraphCutImplementation(const cugip::GraphData<float> &aGraphData, cugip::host_image_view<uint8_t, 3> aOutput, uint8_t aMaskValue, CudacutConfig &aConfig)
 {
-	BOOST_LOG_TRIVIAL(info) << cugip::cudaMemoryInfoText();
 	BOOST_LOG_TRIVIAL(info) << cugip::cudaDeviceInfoText();
+	BOOST_LOG_TRIVIAL(info) << cugip::cudaMemoryInfoText();
 
 	cugip::Graph<float> graph;
 	graph.set_vertex_count(aGraphData.tlinksSource.size());
@@ -196,8 +205,11 @@ computeCudaGraphCutImplementation(const cugip::GraphData<float> &aGraphData, cug
 			aConfig.excess,
 			aConfig.labels);
 
-	float flow = graph.max_flow();
-	//float flow = graph.max_flow_with_tracing(traceObject);
+	GraphCutPolicy policy;
+	policy.relabelPolicy.edgeTraversalCheck.minimalResidual = aConfig.residualThreshold;
+	BOOST_LOG_TRIVIAL(info) << "threshold" << policy.relabelPolicy.edgeTraversalCheck.minimalResidual;
+	//float flow = graph.max_flow(policy);
+	float flow = graph.max_flow_with_tracing(policy, traceObject);
 	computationTimer.stop();
 	BOOST_LOG_TRIVIAL(info) << "Max flow: " << flow;
 	//BOOST_LOG_TRIVIAL(info) << "Computation time: " << computationTimer.format(9, "%w");
