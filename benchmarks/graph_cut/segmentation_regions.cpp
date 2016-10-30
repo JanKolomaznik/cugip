@@ -53,9 +53,33 @@ Algorithm getAlgorithmFromString(const std::string &token)
 	return Algorithm::BoykovKolmogorov;
 }
 
-std::vector<int> loadMarkers(const boost::filesystem::path &aPath)
+std::vector<std::pair<bool, int>> loadMarkers(const boost::filesystem::path &aPath)
 {
-	return std::vector<int>();
+	using x3::int_;
+	using x3::char_;
+	using ascii::blank;
+	std::ifstream file(aPath, std::ifstream::in);
+	std::vector<std::pair<bool, int>> markers;
+	std::string line;
+	while (file >> line) {
+		if (line.empty() || line[0] == '#') {
+			continue;
+		}
+		std::tuple<char, int> result;
+
+		bool const res = x3::phrase_parse(aLine.begin(), aLine.end(), char_ >> int_, blank, result);
+		switch (std::get<0>(result)) {
+		case 'f':
+			markers.emplace_back(true, std:get<1>(result));
+			break;
+		case 'b':
+			markers.emplace_back(false, std:get<1>(result));
+			break;
+		default:
+			std::cout << "Unknown line identifier '" << std::get<0>(result) << "'\n";
+		}
+	}
+	return markers;
 }
 
 int
