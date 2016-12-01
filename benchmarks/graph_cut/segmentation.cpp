@@ -215,9 +215,9 @@ main(int argc, char* argv[])
 				sigma,
 				maskValue,
 				config);
-			saveImage<MaskType>(saturated, outputDir / (stem + "_saturated.mrc"));
-			saveImage<MaskType>(excess, outputDir / (stem + "_excess.mrc"));
-			saveImage<ImageType>(label, outputDir / (stem + "_label.mrc"));
+			//saveImage<MaskType>(saturated, outputDir / (stem + "_saturated.mrc"));
+			//saveImage<MaskType>(excess, outputDir / (stem + "_excess.mrc"));
+			//saveImage<ImageType>(label, outputDir / (stem + "_label.mrc"));
 		}
 		break;
 	default:

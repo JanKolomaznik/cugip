@@ -34,7 +34,7 @@ TARGET_LINK_LIBRARIES(ce_diffusion ${Boost_LIBRARIES} ${ITK_LIBRARIES})
 CUDA_ADD_EXECUTABLE(gauss gauss.cpp gauss.cu)
 TARGET_LINK_LIBRARIES(gauss ${Boost_LIBRARIES} ${ITK_LIBRARIES})
 
-CUDA_ADD_EXECUTABLE(normalize_labeling normalize_labeling.cpp normalize_labeling.cu)
+CUDA_ADD_EXECUTABLE(normalize_labeling normalize_labeling.cpp )
 TARGET_LINK_LIBRARIES(normalize_labeling ${Boost_LIBRARIES} ${ITK_LIBRARIES})
 
 CUDA_ADD_EXECUTABLE(watershed_transformation watershed_transformation.cpp watershed_transformation.cu)
@@ -46,8 +46,17 @@ TARGET_LINK_LIBRARIES(create_sample_dataset ${Boost_LIBRARIES} ${ITK_LIBRARIES})
 CUDA_ADD_EXECUTABLE(neighborhood_graph neighborhood_graph.cpp)
 TARGET_LINK_LIBRARIES(neighborhood_graph ${Boost_LIBRARIES} ${ITK_LIBRARIES})
 
+CUDA_ADD_EXECUTABLE(region_markers_from_masks region_markers_from_masks.cpp)
+TARGET_LINK_LIBRARIES(region_markers_from_masks ${Boost_LIBRARIES} ${ITK_LIBRARIES})
+
+CUDA_ADD_EXECUTABLE(mask_difference mask_difference.cpp)
+TARGET_LINK_LIBRARIES(mask_difference ${Boost_LIBRARIES} ${ITK_LIBRARIES})
+
 CUDA_ADD_EXECUTABLE(print_masked_labels print_masked_labels.cpp)
 TARGET_LINK_LIBRARIES(print_masked_labels ${Boost_LIBRARIES} ${ITK_LIBRARIES})
 
 CUDA_ADD_EXECUTABLE(ccl ccl.cpp ccl.cu)
 TARGET_LINK_LIBRARIES(ccl ${Boost_LIBRARIES} ${ITK_LIBRARIES})
+
+CUDA_ADD_EXECUTABLE(image_info image_info.cpp)
+TARGET_LINK_LIBRARIES(image_info ${Boost_LIBRARIES} ${ITK_LIBRARIES})

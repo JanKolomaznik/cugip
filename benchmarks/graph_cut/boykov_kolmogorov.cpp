@@ -71,6 +71,7 @@ computeBoykovKolmogorovGrid(
 	computationTimer.start();
 	float flow = graph.maxflow();
 	computationTimer.stop();
+	BOOST_LOG_TRIVIAL(info) << "Max flow: " << flow;
 	BOOST_LOG_TRIVIAL(info) << "Computation time: " << computationTimer.format(9, "%w");
 
 	BOOST_LOG_TRIVIAL(info) << "Filling output ...";
@@ -82,9 +83,59 @@ computeBoykovKolmogorovGrid(
 }
 
 std::vector<int>
-computeBoykovKolmogorovGrid(
+computeBoykovKolmogorov(
 	const GraphStats &aGraph,
-	const std::vector<int> &aMarkers)
+	const std::vector<std::pair<bool, int>> &aMarkers)
 {
+	typedef Graph<float, float, float> GraphType;
+	int edgeCount = aGraph.edges.size();//product(aData.dimensions()) * neighborhood.size() / 2;
+	int vertexCount = aGraph.nodes.size();// product(aData.dimensions());
+	BOOST_LOG_TRIVIAL(info) << "Edge count " << edgeCount;
+	BOOST_LOG_TRIVIAL(info) << "Vertex count " << vertexCount;
+	GraphType graph(vertexCount, edgeCount, &printErrorMessage);
 
+	graph.add_node(vertexCount);
+
+	BOOST_LOG_TRIVIAL(info) << "Node count = " << graph.get_node_num();
+	BOOST_LOG_TRIVIAL(info) << "Adding edges ...";
+	for (const auto &edge : aGraph.edges) {
+		if (edge.first[0] > vertexCount || edge.first[1] > vertexCount ||
+		edge.first[0] <= 0 || edge.first[1] <= 0) {
+			BOOST_LOG_TRIVIAL(info) << "Wrong edge id: " << edge.first[0] << "; " << edge.first[1];
+			throw "error";
+		}
+		//BOOST_LOG_TRIVIAL(info) << edge.first[0] << "; " << edge.first[1];
+		graph.add_edge(
+			edge.first[0]-1,
+			edge.first[1]-1,
+			edge.second.sum,
+			edge.second.sum);
+	}
+
+	int inMarkerCount = 0;
+	int outMarkerCount = 0;
+	for (auto &marker : aMarkers) {
+		graph.add_tweights(marker.second - 1, !marker.first ? 10000.0f : 0.0f, marker.first ? 10000.0f : 0.0f);
+		if (marker.first) {
+			++inMarkerCount;
+		} else {
+			++outMarkerCount;
+		}
+	}
+	BOOST_LOG_TRIVIAL(info) << "in marker count " << inMarkerCount << ", out marker count " << outMarkerCount;
+	BOOST_LOG_TRIVIAL(info) << "Computing max flow ...";
+	boost::timer::cpu_timer computationTimer;
+	computationTimer.start();
+	float flow = graph.maxflow();
+	computationTimer.stop();
+	BOOST_LOG_TRIVIAL(info) << "Max flow: " << flow;
+	BOOST_LOG_TRIVIAL(info) << "Computation time: " << computationTimer.format(9, "%w");
+
+	std::vector<int> markers;
+	for (int i = 0; i < vertexCount; ++i) {
+		if (graph.what_segment(i) == GraphType::SINK) {
+			markers.push_back(i + 1);
+		}
+	}
+	return markers;
 }

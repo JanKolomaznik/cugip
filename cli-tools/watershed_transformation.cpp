@@ -65,8 +65,16 @@ WatershedVariant getWatershedVariantFromString(const std::string &token)
 {
 	if (token == "distance") {
 		return WatershedVariant::DistanceBased;
+	} else if (token == "distance_async") {
+		return WatershedVariant::DistanceBasedAsync;
+	} else if (token == "distance_async_lim") {
+		return WatershedVariant::DistanceBasedAsyncLimited;
+	} else if (token == "descent_pointer") {
+		return WatershedVariant::SteepestDescentPointer;
 	} else if (token == "descent_simple") {
 		return WatershedVariant::SteepestDescentSimple;
+	} else if (token == "descent_simple_async") {
+		return WatershedVariant::SteepestDescentSimpleAsync;
 	} else if (token == "descent_gs") {
 		return WatershedVariant::SteepestDescentGlobalState;
 	} else {
@@ -87,7 +95,8 @@ int main( int argc, char* argv[] )
 		("help", "produce help message")
 		("input,i", po::value<fs::path>(&inputFile), "input file")
 		("output,o", po::value<fs::path>(&outputFile), "output file")
-		("watershed,w", po::value<std::string>(&watershedName)->default_value("distance"), "distance, descent_simple, descent_gs")
+		("watershed,w", po::value<std::string>(&watershedName)->default_value("distance"),
+			"distance, distance_async, distance_async_lim, descent_simple, descent_gs, descent_simple_async, descent_pointer")
 		//("normalize,n", po::value<bool>(&normalize)->default_value(false), "normalize")
 		;
 

@@ -6,7 +6,7 @@
 #include <boost/program_options.hpp>
 
 #include <cugip/host_image_view.hpp>
-//#include <cugip/for_each.hpp>
+#include <cugip/for_each.hpp>
 
 namespace po = boost::program_options;
 
@@ -16,7 +16,23 @@ using namespace cugip;
 
 void relabeling(
 	host_image_view<int, 3> aInput,
-	int aStart);
+	int aStart)
+{
+	std::vector<int> usedLabels(elementCount(aInput) + 1);
+
+	cugip::for_each(aInput, [&](int aValue) {
+			usedLabels[aValue] = 1;
+		});
+	int sum = 0;
+	for (auto &label : usedLabels) {
+		auto previous = label;
+		label = sum;
+		sum += previous;
+	}
+	cugip::for_each(aInput, [&](int &aValue) {
+			aValue = usedLabels[aValue] + aStart;
+		});
+}
 
 int main( int argc, char* argv[] )
 {

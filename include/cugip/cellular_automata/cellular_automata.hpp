@@ -31,6 +31,18 @@ struct is_callable
 	enum { value = sizeof(check<PotentiallyCallable>(0)) == sizeof(yes) };
 };
 
+/*template <typename TRule, typename TView>
+class has_image_view_assignable
+{
+	typedef char (&no)  [1];
+	typedef char (&yes) [2];
+
+	template <typename C> static yes test(decltype(&C::set_view<TView>)) ;
+	template <typename C> static no test(...);
+
+public:
+	static constexpr bool value = sizeof(test<TRule>(0)) == sizeof(char);
+};*/
 
 template<typename TNeighborhood, typename TRule>
 struct CellOperation

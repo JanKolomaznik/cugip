@@ -26,27 +26,33 @@ GraphStats createGraph(TRegionsView aRegions, TView aView)
 	GraphStats graph;
 	simple_vector<int, 3> index;
 	auto size = aView.dimensions();
-	for(index[2] = 0; index[2] < size[2] - 1; ++index[2]) {
-		for(index[1] = 0; index[1] < size[1] - 1; ++index[1]) {
-			for(index[0] = 0; index[0] < size[0] - 1; ++index[0]) {
+	auto secondCorner = size - simple_vector<int, 3>(1, 1, 1);
+	int maxLabel = 0;
+	for(index[2] = 0; index[2] < size[2]; ++index[2]) {
+		for(index[1] = 0; index[1] < size[1]; ++index[1]) {
+			for(index[0] = 0; index[0] < size[0]; ++index[0]) {
 				//std::array<Int3, 3> offsets = {index, index, index};
 				auto label1 = aRegions[index];
+				maxLabel = std::max(maxLabel, label1);
 				auto value1 = aView[index];
 				graph.nodes[label1].add(value1);
-				for (int i = 0; i < 3; ++i) {
-					auto index2 = index;
-					index2[i] += 1;
-					auto label2 = aRegions[index2];
-					if (label1 != label2) {
-						auto value2 = aView[index2];
-						auto edgeId = Int2(std::min(label1, label2), std::max(label1, label2));
-						graph.edges[edgeId].add(value1, value2);
-						//std::cout << v1 << ';' << v2 << ';' << edges.size() << '\n';
+				if (index < secondCorner) {
+					for (int i = 0; i < 3; ++i) {
+						auto index2 = index;
+						index2[i] += 1;
+						auto label2 = aRegions[index2];
+						if (label1 != label2) {
+							auto value2 = aView[index2];
+							auto edgeId = Int2(std::min(label1, label2), std::max(label1, label2));
+							graph.edges[edgeId].add(value1, value2);
+							//std::cout << v1 << ';' << v2 << ';' << edges.size() << '\n';
+						}
 					}
 				}
 			}
 		}
 	}
+	std::cout << "Max label " << maxLabel << "\n";
 	return graph;
 }
 
@@ -129,6 +135,8 @@ int main( int argc, char* argv[] )
 		auto labelsView = makeHostImageView(labels->GetPixelContainer()->GetBufferPointer(), size);
 		auto imageView = makeHostImageView(image->GetPixelContainer()->GetBufferPointer(), size);
 		auto graph = createGraph(labelsView, imageView);
+		std::cout << "Node count " << graph.nodes.size() << "\n";
+		std::cout << "Edge count " << graph.edges.size() << "\n";
 		saveGraph(graph, output_file);
 		//auto edges = outputGraphEdges(inView);
 		//countEdges(edges, output_file);

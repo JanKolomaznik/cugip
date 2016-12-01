@@ -55,6 +55,11 @@ public:
 		return mLocator[this->neighbor_offset(aIdx)];
 	}
 
+	CUGIP_DECL_HYBRID 
+	TImageLocator locator() const {
+		return mLocator;
+	}
+
 protected:
 	TImageLocator mLocator;
 };

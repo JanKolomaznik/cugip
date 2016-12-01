@@ -176,6 +176,51 @@ struct TraceObject
 	std::chrono::duration<double> sumOfIterationDurations;
 };
 
+void
+computeCudaGraphCutImplementation(const cugip::GraphData<float> &aGraphData, CudacutSimpleConfig &aConfig, std::vector<int> &aMaskedMarkers)
+{
+	BOOST_LOG_TRIVIAL(info) << cugip::cudaDeviceInfoText();
+	BOOST_LOG_TRIVIAL(info) << cugip::cudaMemoryInfoText();
+
+	cugip::Graph<float> graph;
+	graph.set_vertex_count(aGraphData.tlinksSource.size());
+
+	graph.set_nweights(
+		aGraphData.edges.size(),
+		aGraphData.edges.data(),
+		aGraphData.weights.data(),
+		aGraphData.weightsBackward.data());
+
+	graph.set_tweights(
+		aGraphData.tlinksSource.data(),
+		aGraphData.tlinksSink.data());
+
+	BOOST_LOG_TRIVIAL(info) << "Computing max flow ...";
+	boost::timer::cpu_timer computationTimer;
+	computationTimer.start();
+
+	/*TraceObject traceObject(
+			aConfig.saturated,
+			aConfig.excess,
+			aConfig.labels);*/
+
+	GraphCutPolicy policy;
+	policy.relabelPolicy.edgeTraversalCheck.minimalResidual = aConfig.residualThreshold;
+	BOOST_LOG_TRIVIAL(info) << "threshold" << policy.relabelPolicy.edgeTraversalCheck.minimalResidual;
+	auto flow = 0.0f;
+	/*if (aConfig.doTrace) {
+		flow = graph.max_flow_with_tracing(policy, traceObject);
+	} else*/ {
+		flow = graph.max_flow(policy);
+	}
+	computationTimer.stop();
+	BOOST_LOG_TRIVIAL(info) << "Max flow: " << flow;
+	//BOOST_LOG_TRIVIAL(info) << "Computation time: " << computationTimer.format(9, "%w");
+	//BOOST_LOG_TRIVIAL(info) << "Computation time: " << boost::timer::format(computationTimer.elapsed(), 9, "%w");
+	BOOST_LOG_TRIVIAL(info) << "Computation time: " << (computationTimer.elapsed().wall / 1000000000.0f);
+
+	graph.fill_segments(aMaskedMarkers.data(), 100, 0);
+}
 
 void
 computeCudaGraphCutImplementation(const cugip::GraphData<float> &aGraphData, cugip::host_image_view<uint8_t, 3> aOutput, uint8_t aMaskValue, CudacutConfig &aConfig)
@@ -208,8 +253,12 @@ computeCudaGraphCutImplementation(const cugip::GraphData<float> &aGraphData, cug
 	GraphCutPolicy policy;
 	policy.relabelPolicy.edgeTraversalCheck.minimalResidual = aConfig.residualThreshold;
 	BOOST_LOG_TRIVIAL(info) << "threshold" << policy.relabelPolicy.edgeTraversalCheck.minimalResidual;
-	//float flow = graph.max_flow(policy);
-	float flow = graph.max_flow_with_tracing(policy, traceObject);
+	auto flow = 0.0f;
+	if (aConfig.doTrace) {
+		flow = graph.max_flow_with_tracing(policy, traceObject);
+	} else {
+		flow = graph.max_flow(policy);
+	}
 	computationTimer.stop();
 	BOOST_LOG_TRIVIAL(info) << "Max flow: " << flow;
 	//BOOST_LOG_TRIVIAL(info) << "Computation time: " << computationTimer.format(9, "%w");

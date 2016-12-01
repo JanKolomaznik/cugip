@@ -163,6 +163,47 @@ void generateData(
 	writer->Update();
 }
 
+template<typename TImageType>
+void generateData(
+	fs::path aOutputPath,
+	typename TImageType::SizeType size
+	)
+{
+	typename TImageType::RegionType region;
+	typename TImageType::IndexType start;
+	start[0] = 0;
+	start[1] = 0;
+	start[2] = 0;
+
+	region.SetSize(size);
+	region.SetIndex(start);
+
+	typename TImageType::Pointer image = TImageType::New();
+	image->SetRegions(region);
+	image->Allocate();
+
+	cugip::simple_vector<int, 3> tmpSize;
+	for (int i = 0; i < 3; ++i) {
+		tmpSize[i] = image->GetLargestPossibleRegion().GetSize()[i];
+	}
+	auto outView = makeHostImageView(image->GetPixelContainer()->GetBufferPointer(), tmpSize);
+
+	auto center = div(tmpSize, 2);
+	cugip::for_each_position(
+		outView,
+		[=](auto &aValue, auto aPosition){
+			return aValue = magnitude(aPosition - center);
+		});
+
+	typedef itk::ImageFileWriter<TImageType> WriterType;
+	typename WriterType::Pointer writer = WriterType::New();
+
+	std::cout << "Writing file " << aOutputPath.string() << '\n';
+	writer->SetFileName(aOutputPath.string());
+	writer->SetInput(image);
+	writer->Update();
+}
+
 std::vector<Ellipsoid> ellipsoids = {
 	Ellipsoid{ Int3(300, 80, 100), 20.0f, 100.0f },
 	Ellipsoid{ Int3(300, 180, 100), 10.0f, 100.0f },
@@ -413,10 +454,10 @@ int main( int argc, char* argv[] )
 	    std::cout << desc << "\n";
 	    return 1;
 	}
-	if (vm.count("input") == 0) {
+	/*if (vm.count("input") == 0) {
 	    std::cout << "Missing input filename\n" << desc << "\n";
 	    return 1;
-	}
+    }*/
 
 	if (vm.count("output") == 0) {
 	    std::cout << "Missing output filename\n" << desc << "\n";
@@ -445,8 +486,8 @@ int main( int argc, char* argv[] )
 
 		const unsigned int Dimension = 3;
 
-		typedef uint8_t                              PixelType;
-		//typedef float                              PixelType;
+		//typedef uint8_t                              PixelType;
+		typedef float                              PixelType;
 		typedef itk::Image< PixelType, Dimension > ImageType;
 
 
@@ -456,6 +497,7 @@ int main( int argc, char* argv[] )
 		imageSize[1] = std::get<1>(size);
 		imageSize[2] = std::get<2>(size);
 		generateData<ImageType>(output_file, imageSize, ellipsoids, tubes, plates, background);
+		//generateData<ImageType>(output_file, imageSize);
 		//generateEllipsoids<ImageType>(output_file, imageSize, sigma);
 	} catch( itk::ExceptionObject & error ) {
 		std::cerr << "Error: " << error << std::endl;

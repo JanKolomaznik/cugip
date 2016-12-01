@@ -244,6 +244,7 @@ Graph<TFlow>::set_nweights(
 	const EdgeWeight *aWeightsForward,
 	const EdgeWeight *aWeightsBackward)
 {
+	CUGIP_DPRINT("Edge count: " << aEdgeCount);
 	std::vector<std::vector<std::pair<int, int> > > edges(mLabels.size());
 	for (int i = 0; i < aEdgeCount; ++i) {
 		const EdgeRecord &edge = aEdges[i];

@@ -2,8 +2,12 @@
 
 enum class WatershedVariant {
 	DistanceBased,
+	DistanceBasedAsync,
+	DistanceBasedAsyncLimited,
 	SteepestDescentSimple,
-	SteepestDescentGlobalState
+	SteepestDescentSimpleAsync,
+	SteepestDescentGlobalState,
+	SteepestDescentPointer,
 };
 
 struct WatershedOptions

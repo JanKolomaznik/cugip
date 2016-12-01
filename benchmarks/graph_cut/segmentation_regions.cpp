@@ -22,19 +22,16 @@ typedef itk::Image<uint8_t, 3> MarkersType;
 typedef itk::Image<uint8_t, 3> MaskType;
 
 std::vector<int>
-computeBoykovKolmogorovGrid(
+computeBoykovKolmogorov(
 	const GraphStats &aGraph,
-	const std::vector<int> &aMarkers);
+	const std::vector<std::pair<bool, int>> &aMarkers);
 
-
-/*void
+std::vector<int>
 computeCudaGraphCut(
-	cugip::const_host_image_view<const float, 3> aData,
-	cugip::const_host_image_view<const uint8_t, 3> aMarkers,
-	cugip::host_image_view<uint8_t, 3> aOutput,
-	float aSigma,
-	uint8_t aMaskValue,
-	CudacutConfig &aConfig);*/
+	const GraphStats &aGraph,
+	const std::vector<std::pair<bool, int>> &aMarkers,
+	CudacutSimpleConfig aConfig);
+
 
 enum class Algorithm {
 	BoykovKolmogorov,
@@ -57,26 +54,27 @@ std::vector<std::pair<bool, int>> loadMarkers(const boost::filesystem::path &aPa
 {
 	using x3::int_;
 	using x3::char_;
+	using x3::lit;
 	using ascii::blank;
-	std::ifstream file(aPath, std::ifstream::in);
+	std::ifstream file(aPath.string(), std::ifstream::in);
 	std::vector<std::pair<bool, int>> markers;
 	std::string line;
-	while (file >> line) {
+	while (std::getline(file, line)) {
 		if (line.empty() || line[0] == '#') {
 			continue;
 		}
-		std::tuple<char, int> result;
+		int result;
 
-		bool const res = x3::phrase_parse(aLine.begin(), aLine.end(), char_ >> int_, blank, result);
-		switch (std::get<0>(result)) {
+		bool const res = x3::phrase_parse(line.begin() + 1, line.end(), int_, blank, result);
+		switch (line[0]) {
 		case 'f':
-			markers.emplace_back(true, std:get<1>(result));
+			markers.emplace_back(true, result);
 			break;
 		case 'b':
-			markers.emplace_back(false, std:get<1>(result));
+			markers.emplace_back(false, result);
 			break;
 		default:
-			std::cout << "Unknown line identifier '" << std::get<0>(result) << "'\n";
+			std::cout << "Unknown marker line identifier '" << line[0] << "' on line '" << line << "'\n";
 		}
 	}
 	return markers;
@@ -89,6 +87,7 @@ main(int argc, char* argv[])
 	boost::filesystem::path markersFile;
 	boost::filesystem::path outputFile;
 	float sigma;
+	float threshold;
 	uint8_t maskValue;
 
 	Algorithm algorithm;
@@ -100,6 +99,7 @@ main(int argc, char* argv[])
 		("markers,m", po::value<boost::filesystem::path>(&markersFile), "markers file")
 		("algorithm,a", po::value<std::string>(&algorithmName)->default_value("boykov-kolmogorov"), "boykov-kolmogorov, cudacut")
 		("output,o", po::value<boost::filesystem::path>(&outputFile), "output file")
+		("residual-threshold,r", po::value<float>(&threshold)->default_value(0.0f), "residual threshold")
 		//("sigma,s", po::value<float>(&sigma)->default_value(1.0f), "input noise deviation")
 		//("mask-value,v", po::value<uint8_t>(&maskValue)->default_value(255), "mask value")
 		;
@@ -138,46 +138,21 @@ main(int argc, char* argv[])
 		switch (algorithm) {
 		case Algorithm::BoykovKolmogorov:
 			BOOST_LOG_TRIVIAL(info) << "Running Boykov-Kolmogorov graph cut ...";
-			outputs = computeBoykovKolmogorovGrid(
+			outputs = computeBoykovKolmogorov(
 				graph,
 				markers
 				);
 			break;
 		case Algorithm::CudaCut: {
 				BOOST_LOG_TRIVIAL(info) << "Running CUDACut ...";
-				/*boost::filesystem::path outputDir = outputFile.parent_path();
-				std::string stem = outputFile.stem().string();
-				MaskType::Pointer saturated = MaskType::New();
-				saturated->SetRegions(image->GetLargestPossibleRegion());
-				saturated->Allocate();
-				saturated->SetSpacing(image->GetSpacing());
-
-				MaskType::Pointer excess = MaskType::New();
-				excess->SetRegions(image->GetLargestPossibleRegion());
-				excess->Allocate();
-				excess->SetSpacing(image->GetSpacing());
-
-				ImageType::Pointer label = ImageType::New();
-				label->SetRegions(image->GetLargestPossibleRegion());
-				label->Allocate();
-				label->SetSpacing(image->GetSpacing());
-
-				CudacutConfig config(
-					cugip::view(*(saturated.GetPointer())),
-					cugip::view(*(excess.GetPointer())),
-					cugip::view(*(label.GetPointer()))
+				CudacutSimpleConfig config(
+					threshold
 				);
-
-				computeCudaGraphCut(
-					cugip::const_view(*(image.GetPointer())),
-					cugip::const_view(*(markers.GetPointer())),
-					cugip::view(*(outputImage.GetPointer())),
-					sigma,
-					maskValue,
-					config);
-				saveImage<MaskType>(saturated, outputDir / (stem + "_saturated.mrc"));
-				saveImage<MaskType>(excess, outputDir / (stem + "_excess.mrc"));
-				saveImage<ImageType>(label, outputDir / (stem + "_label.mrc"));*/
+				outputs = computeCudaGraphCut(
+					graph,
+					markers,
+					config
+					);
 			}
 			break;
 		default:
@@ -185,8 +160,15 @@ main(int argc, char* argv[])
 		}
 
 		BOOST_LOG_TRIVIAL(info) << "Saving output `" << outputFile << "` ...";
+		std::ofstream file(outputFile.string(), std::ofstream::out);
+		for (auto id : outputs) {
+			file << id << '\n';
+		}
 	} catch (itk::ExceptionObject & error) {
 		std::cerr << "Error: " << error << std::endl;
+		return EXIT_FAILURE;
+	} catch (...) {
+		std::cerr << "Unknown error\n";
 		return EXIT_FAILURE;
 	}
 

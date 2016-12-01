@@ -252,9 +252,9 @@ struct WatershedRule
 	template<typename T>
 	using remove_reference = typename std::remove_reference<T>::type;
 	//TODO - global state by reference
-	template<typename TNeighborhood>
+	template<typename TNeighborhood, typename TConvergenceFlag>
 	CUGIP_DECL_DEVICE
-	auto operator()(int aIteration, TNeighborhood aNeighborhood, ConvergenceFlag aConvergenceState) -> remove_reference<decltype(aNeighborhood[0])> const
+	auto operator()(int aIteration, TNeighborhood aNeighborhood, TConvergenceFlag aConvergenceState) -> remove_reference<decltype(aNeighborhood[0])> const
 	{
 		//input, label, distance
 		auto value = aNeighborhood[0];
@@ -345,9 +345,9 @@ struct WatershedSteepestDescentRule : WatershedSteepestDescentRuleBase
 	using remove_reference = typename std::remove_reference<T>::type;
 
 	//TODO - global state by reference
-	template<typename TNeighborhood>
+	template<typename TNeighborhood, typename TConvergenceFlag>
 	CUGIP_DECL_DEVICE
-	auto operator()(int aIteration, TNeighborhood aNeighborhood, ConvergenceFlag aConvergenceState) -> remove_reference<decltype(aNeighborhood[0])> const
+	auto operator()(int aIteration, TNeighborhood aNeighborhood, TConvergenceFlag aConvergenceState) -> remove_reference<decltype(aNeighborhood[0])> const
 	{
 		//input, label
 		auto value = aNeighborhood[0];

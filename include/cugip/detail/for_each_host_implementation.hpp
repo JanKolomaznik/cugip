@@ -26,7 +26,8 @@ void
 for_each_position_host(TInView aInView, TFunctor aOperator, TPolicy aPolicy)
 {
 	for (int i = 0; i < elementCount(aInView); ++i) {
-		aOperator(linear_access(aInView, i));
+		auto index = index_from_linear_access_index(aInView, i);
+		aOperator(aInView[index], index);
 	}
 }
 

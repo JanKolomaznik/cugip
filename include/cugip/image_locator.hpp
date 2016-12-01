@@ -186,6 +186,10 @@ public:
 		return mView.dimensions();
 	}
 
+	CUGIP_DECL_HYBRID 
+	TImageView view() const {
+		return mView;
+	}
 protected:
 	TImageView mView;
 	coord_t mCoords;

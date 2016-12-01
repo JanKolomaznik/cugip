@@ -23,7 +23,7 @@ typedef itk::Image<uint8_t, 3> MaskType;
 
 
 template<typename TRegionsView, typename TMaskView>
-generateMarkers(TRegionsView aRegions, TMaskView aMask, std::set<int> &aForeground, std::set<int> &aBackground)
+void generateMarkers(TRegionsView aRegions, TMaskView aMask, std::set<int> &aForeground, std::set<int> &aBackground)
 {
 	simple_vector<int, 3> index;
 	auto size = aMask.dimensions();
@@ -98,7 +98,7 @@ int main( int argc, char* argv[] )
 
 		cugip::simple_vector<int, 3> size;
 		for (int i = 0; i < 3; ++i) {
-			size[i] = image->GetLargestPossibleRegion().GetSize()[i];
+			size[i] = mask->GetLargestPossibleRegion().GetSize()[i];
 		}
 
 		auto labelsView = makeHostImageView(labels->GetPixelContainer()->GetBufferPointer(), size);

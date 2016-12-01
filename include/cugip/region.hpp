@@ -20,6 +20,14 @@ isInsideRegion(const simple_vector<int, tDimension> &aSize, const simple_vector<
 	return aCoords >= simple_vector<int, tDimension>() && aCoords < aSize;
 }
 
+template<int tDimension>
+CUGIP_DECL_HYBRID
+bool
+isInsideRegion(const region<tDimension> &aRegion, const simple_vector<int, tDimension> &aCoords)
+{
+	return aCoords >= aRegion.corner && aCoords < aRegion.corner + aRegion.size;
+}
+
 CUGIP_HD_WARNING_DISABLE
 template<int tDimension>
 CUGIP_DECL_HYBRID auto

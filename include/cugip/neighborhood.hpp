@@ -267,6 +267,9 @@ struct NeighborhoodAccessor
 	typedef typename TLocator::accessed_type accessed_type;
 	typedef typename TLocator::value_type value_type;
 
+	TLocator mLocator;
+	TNeighborhood mNeighborhood;
+
 	CUGIP_DECL_HYBRID
 	NeighborhoodAccessor(TLocator aLocator, TNeighborhood aNeighborhood)
 		: mLocator(aLocator)
@@ -296,9 +299,29 @@ struct NeighborhoodAccessor
 		mNeighborhood.iterate_over(mLocator, aCallable);
 	}
 
+	CUGIP_DECL_HYBRID
+	TLocator locator() const {
+		return mLocator;
+	}
 
-	TLocator mLocator;
-	TNeighborhood mNeighborhood;
+	CUGIP_DECL_HYBRID
+	auto offset(int aIndex) const -> decltype(this->mNeighborhood.offset(aIndex))
+	{
+		return mNeighborhood.offset(aIndex);
+	}
+
+	CUGIP_DECL_HYBRID
+	auto view_index(int aIndex) const -> decltype(this->mNeighborhood.offset(aIndex))
+	{
+		return mNeighborhood.offset(aIndex) + mLocator.coords();
+	}
+
+	CUGIP_DECL_HYBRID
+	bool is_inside_valid_region(int aIndex) const
+	{
+		return isInsideRegion(mLocator.view().dimensions(), view_index(aIndex));
+	}
+
 };
 
 } // namespace cugip
