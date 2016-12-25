@@ -5,8 +5,8 @@
 
 namespace cugip {
 
-/** \defgroup meta_algorithm
- *
+/** \addtogroup meta_algorithm
+ *  Generic algorithms
  **/
 namespace detail {
 

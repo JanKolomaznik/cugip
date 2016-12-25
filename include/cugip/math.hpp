@@ -8,6 +8,11 @@
 
 namespace cugip {
 
+/** \addtogroup math
+ *  Mathematical structures and operations
+ * @{
+ **/
+
 template<typename TType>
 CUGIP_DECL_HYBRID constexpr TType
 zero()
@@ -463,6 +468,10 @@ multiply(const simple_vector<TCoordType, tDim> &aVector)
 	}
 	return ret;
 }
+
+/**
+ * @}
+ **/
 
 /** \ingroup auxiliary_function
  * @{

@@ -47,7 +47,8 @@ struct dimension_helper<4>
 };
 
 
-/** \defgroup traits
+/** \addtogroup traits
+ *  Traits
  * @{
  **/
 template<typename TType>

@@ -9,6 +9,9 @@
 
 namespace cugip {
 
+/** \addtogroup math
+ * @{
+ **/
 
 struct DummyGlobalState
 {
@@ -59,5 +62,10 @@ struct DeviceFlagMixin : TBaseClass
 };
 
 typedef DeviceFlagMixin<DummyGlobalState> ConvergenceFlag;
+
+
+/**
+ * @}
+ **/
 
 } // namespace cugip

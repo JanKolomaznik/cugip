@@ -12,6 +12,9 @@
 
 namespace cugip {
 
+/** \addtogroup math
+ * @{
+ **/
 template<typename TNeighborhood, typename TRule, typename TGlobalState>
 struct AsyncCellOperationWithGlobalState
 {
@@ -245,5 +248,9 @@ protected:
 
 	TGlobalState mGlobalState;
 };
+
+/**
+ * @}
+ **/
 
 } //namespace cugip

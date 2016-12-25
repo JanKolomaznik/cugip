@@ -11,6 +11,10 @@
 
 namespace cugip {
 
+/** \addtogroup math
+ * @{
+ **/
+
 struct ConwayRule
 {
 	template<typename TNeighborhood>
@@ -543,6 +547,11 @@ struct ReactionDiffusionRule
 	float beta = 0.1f;
 	vect2f_t k = vect2f_t(0.64f, 0.32f);
 };
+
+
+/**
+ * @}
+ **/
 
 
 

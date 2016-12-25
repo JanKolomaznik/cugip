@@ -5,6 +5,11 @@
 #include <cugip/math/matrix.hpp>
 
 namespace cugip {
+
+/** \addtogroup math
+ * @{
+ **/
+
 // TODO handle constants properly
 #define M_SQRT3    1.73205080756887729352744634151   // sqrt(3)
 
@@ -144,5 +149,9 @@ matrix_from_eigen_vectors_and_values(const matrix<float, 3, 3> &aEigenVectors, c
 	}
 	return result;
 }
+
+/**
+ * @}
+ **/
 
 }  // namespace cugip

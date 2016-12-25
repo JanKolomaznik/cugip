@@ -53,7 +53,7 @@ kernel_scan_block_dim(TInputView aInput, TOutputView aOutput, TOutputView aInter
 		}
 		offset *= 2;
 	}
-	if (thid == 0) { 
+	if (thid == 0) {
 		tmpData[tBlockSize] = tmpData[tBlockSize-1];
 		tmpData[tBlockSize-1] = 0;
 		if (tBlockSize < get<tDim>(extents)) {
@@ -65,24 +65,24 @@ kernel_scan_block_dim(TInputView aInput, TOutputView aOutput, TOutputView aInter
 			++get<tDim>(blockSumCoord);
 			aIntermediateResultsView[blockSumCoord] = tmpData[tBlockSize];
 		}
-	} // clear the last element  
-                     
-  	
+	} // clear the last element
 
-	for (int d = 1; d < tBlockSize; d *= 2) {// traverse down tree & build scan  
+
+
+	for (int d = 1; d < tBlockSize; d *= 2) {// traverse down tree & build scan
 		offset >>= 1;
-		__syncthreads();  
-		if (thid < d) {  
+		__syncthreads();
+		if (thid < d) {
 
-			int ai = offset*(2*thid+1)-1;  
-			int bi = offset*(2*thid+2)-1;  
+			int ai = offset*(2*thid+1)-1;
+			int bi = offset*(2*thid+2)-1;
 
-			value_type t = tmpData[ai];  
-			tmpData[ai] = tmpData[bi];  
-			tmpData[bi] = aOperator(tmpData[bi], t);  
-		}  
+			value_type t = tmpData[ai];
+			tmpData[ai] = tmpData[bi];
+			tmpData[bi] = aOperator(tmpData[bi], t);
+		}
 	}
-	__syncthreads();  
+	__syncthreads();
 	if (cugip::less(coord1, extents)) {
 		aOutput[coord1] = tmpData[bufferIdx1 + 1];
 	}
@@ -111,7 +111,7 @@ kernel_update_block_dim(TOutputView aOutput, TOutputView aIntermediateResultsVie
 	get<tDim>(coord2) += offset;
 	coord_t blockSumCoord(blockIdx.x, blockIdx.y, blockIdx.z);
 	CUGIP_SHARED value_type intermediateValue;
-       	if (thid == 0) { 
+       	if (thid == 0) {
 		intermediateValue = aIntermediateResultsView[blockSumCoord];
 		//printf("%dx%d -  %d\n", (int)blockIdx.x, (int)blockIdx.y, (int)intermediateValue);
 	}
@@ -136,7 +136,7 @@ scan_block_dim(TInputView aInput, TOutputView aOutput, TOutputView aTmpView, TOp
 	get<tDim>(threadBlockSize) = SCAN_BLOCK_SIZE;
 	dim3 processedBlockSize(1, 1, 1);
 	get<tDim>(processedBlockSize) = 2*SCAN_BLOCK_SIZE;
-	dim3 gridSize((aInput.dimensions().template get<0>() / processedBlockSize.x + 1), 
+	dim3 gridSize((aInput.dimensions().template get<0>() / processedBlockSize.x + 1),
 			aInput.dimensions().template get<1>() / processedBlockSize.y + 1, 1);
 
 	D_PRINT("Executing kernel: threadBlockSize = "
@@ -146,7 +146,7 @@ scan_block_dim(TInputView aInput, TOutputView aOutput, TOutputView aTmpView, TOp
 	       );
 
 	detail::kernel_scan_block_dim<
-				TInputView, 
+				TInputView,
 				TOutputView,
 				TOperator,
 				tDim,
@@ -165,7 +165,7 @@ update_block_dim(TOutputView aOutput, TOutputView aTmpView, TOperator aOperator)
 	get<tDim>(threadBlockSize) = SCAN_BLOCK_SIZE;
 	dim3 processedBlockSize(1, 1, 1);
 	get<tDim>(processedBlockSize) = 2*SCAN_BLOCK_SIZE;
-	dim3 gridSize((aOutput.dimensions().template get<0>() / processedBlockSize.x + 1), 
+	dim3 gridSize((aOutput.dimensions().template get<0>() / processedBlockSize.x + 1),
 			aOutput.dimensions().template get<1>() / processedBlockSize.y + 1, 1);
 
 	D_PRINT("Executing kernel: threadBlockSize = "
@@ -175,9 +175,9 @@ update_block_dim(TOutputView aOutput, TOutputView aTmpView, TOperator aOperator)
 	       );
 
 	detail::kernel_update_block_dim<
-				TOutputView, 
-				TOperator, 
-				tDim, 
+				TOutputView,
+				TOperator,
+				tDim,
 				SCAN_BLOCK_SIZE*2
 			>
 		<<<gridSize, threadBlockSize>>>(aOutput, aTmpView, aOperator);
@@ -192,24 +192,24 @@ scan_dim(TInputView aInput, TOutputView aOutput, TOutputView aTmpView, TOperator
 	TOutputView intermediateResults = aTmpView;
 	//TOutputView intermediateResults = sub_image_view(aTmpView, typename TOutputView::coord_t(), TOutputView::extents_t(adafaf));
 	detail::scan_block_dim<
-				TInputView, 
-				TOutputView, 
-				TOperator, 
+				TInputView,
+				TOutputView,
+				TOperator,
 				tDim
 			>(aInput, aOutput, intermediateResults, aOperator);
 
 	CUGIP_ASSERT(get<tDim>(aInput.dimensions()) < (4*SCAN_BLOCK_SIZE*SCAN_BLOCK_SIZE) );
 	//TODO handle intermediate results - proper recursive call
 	scan_dim<
-		TOutputView, 
-		TOutputView, 
-		TOperator, 
+		TOutputView,
+		TOutputView,
+		TOperator,
 		tDim
 		>(intermediateResults, intermediateResults, intermediateResults, aOperator);
-	
+
 	detail::update_block_dim<
-				TOutputView, 
-				TOperator, 
+				TOutputView,
+				TOperator,
 				tDim
 			>(aOutput, intermediateResults, aOperator);
 }
@@ -217,24 +217,33 @@ scan_dim(TInputView aInput, TOutputView aOutput, TOutputView aTmpView, TOperator
 
 } //namespace detail
 
+/** \addtogroup meta_algorithm
+ * @{
+ **/
+
 template<typename TInputView, typename TOutputView, typename TOperator>
 void
 scan(TInputView aInput, TOutputView aOutput, TOutputView aTmpView, TOperator aOperator)
 {
 	detail::scan_dim<
-				TInputView, 
-				TOutputView, 
-				TOperator, 
+				TInputView,
+				TOutputView,
+				TOperator,
 				0
 			//>(aInput, aTmpView, aOutput, aOperator);
 			>(aInput, aOutput, aTmpView, aOperator);
 
 /*	detail::scan_dim<
-				TOutputView, 
-				TOutputView, 
-				TOperator, 
+				TOutputView,
+				TOutputView,
+				TOperator,
 				1
 			>(aTmpView, aOutput, aTmpView, aOperator);*/
 }
+
+/**
+ * @}
+ **/
+
 
 } //namespace cugip

@@ -29,9 +29,17 @@ struct ForEachPositionImplementation;
 
 namespace cugip {
 
-/** \ingroup meta_algorithm
+/** \addtogroup meta_algorithm
  * @{
  **/
+
+template <int tDimension, typename TFunctor>
+TFunctor
+for_each(region<tDimension> aRegion, TFunctor aOperator)
+{
+	return cugip::detail::for_each_implementation(aRegion, aOperator);
+}
+
 
 template<typename TView>
 struct DefaultForEachPolicy {
@@ -47,7 +55,6 @@ struct DefaultForEachPolicy {
 	}
 #endif //defined(__CUDACC__)
 };
-
 
 template <typename TView, typename TFunctor>
 void

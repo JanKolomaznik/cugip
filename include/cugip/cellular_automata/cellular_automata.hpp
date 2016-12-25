@@ -11,6 +11,9 @@
 
 namespace cugip {
 
+/** \addtogroup math
+ * @{
+ **/
 
 struct Options
 {};
@@ -383,6 +386,11 @@ protected:
 	TGlobalState mGlobalState;
 };
 
+
+
+/**
+ * @}
+ **/
 
 
 

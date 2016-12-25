@@ -67,7 +67,7 @@ struct DefaultTransformPolicy {
 
 
 
-/** \ingroup meta_algorithm
+/** \addtogroup meta_algorithm
  * @{
  **/
 

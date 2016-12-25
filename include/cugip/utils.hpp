@@ -94,8 +94,8 @@ swap(TType &aArg1, TType &aArg2)
 	aArg2 = tmp;
 }*/
 
-/** \defgroup auxiliary_function
- *
+/** \addtogroup auxiliary_function
+ *  Auxiliary functions
  **/
 
 #ifdef __CUDACC__
