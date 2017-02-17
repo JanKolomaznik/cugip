@@ -8,12 +8,16 @@ var classcugip_1_1const__device__image__view =
     [ "memory_t", "classcugip_1_1const__device__image__view.html#a0d55b41adf01a2e50390acb097c4969b", null ],
     [ "this_t", "classcugip_1_1const__device__image__view.html#af5bc7be395009df944e0c0c4f6e702c8", null ],
     [ "value_type", "classcugip_1_1const__device__image__view.html#abe8d48fbb017e9846ba12b9287b4c8c3", null ],
-    [ "const_device_image_view", "classcugip_1_1const__device__image__view.html#ad27276c8ca3b94a5407b684a83131772", null ],
-    [ "const_device_image_view", "classcugip_1_1const__device__image__view.html#ade88092ae5ad75884c83e1228e6a3cb4", null ],
+    [ "const_device_image_view", "classcugip_1_1const__device__image__view.html#aeccd34be445c12dd38e635467b3f1e47", null ],
     [ "const_device_image_view", "classcugip_1_1const__device__image__view.html#a37293fcac23b69003d26c9679a693757", null ],
-    [ "data", "classcugip_1_1const__device__image__view.html#aa146b728a7b69fbcb5f572cee31a9ecd", null ],
     [ "dimensions", "classcugip_1_1const__device__image__view.html#a2d796db5d77f72861f4e65b18856da37", null ],
-    [ "locator", "classcugip_1_1const__device__image__view.html#a3957b34a7e25b891ff39bac94971dc68", null ],
-    [ "operator[]", "classcugip_1_1const__device__image__view.html#a3651065aac666c293eaec160e94cbe57", null ],
-    [ "mData", "classcugip_1_1const__device__image__view.html#ad7ef7ddc1e89476ad7473b78b528f42a", null ]
+    [ "locator", "classcugip_1_1const__device__image__view.html#aa71c26d930758e65b42534c4259520e0", null ],
+    [ "operator[]", "classcugip_1_1const__device__image__view.html#aca1e97bb15b35225f20872897f075e6e", null ],
+    [ "pointer", "classcugip_1_1const__device__image__view.html#a1e89d3dac86f9b8893aa49c89906a145", null ],
+    [ "strides", "classcugip_1_1const__device__image__view.html#a48759bb63f75922305a2a99d4abcf9e2", null ],
+    [ "subview", "classcugip_1_1const__device__image__view.html#a804c84a14c7f04ea98447fd97b9ae468", null ],
+    [ "cDimension", "classcugip_1_1const__device__image__view.html#af5cc5e651fa01e6f84c8426bed1b3bda", null ],
+    [ "mDevicePtr", "classcugip_1_1const__device__image__view.html#a8ade22c2c788b9c3d1ef7db378db33f9", null ],
+    [ "mSize", "classcugip_1_1const__device__image__view.html#a9530b3eedbf401c66c346ba7c8b906f9", null ],
+    [ "mStrides", "classcugip_1_1const__device__image__view.html#a2770bf22e9f678fffa9562209e4d8363", null ]
 ];

@@ -1,0 +1,4 @@
+var structcugip_1_1detail_1_1_last_item_in_int_sequence_impl_3_01_int_sequence_3_01t_head_00_01t_tail_8_8_8_01_4_01_4 =
+[
+    [ "value", "structcugip_1_1detail_1_1_last_item_in_int_sequence_impl_3_01_int_sequence_3_01t_head_00_01t_tail_8_8_8_01_4_01_4.html#a3675d1235ecec3ca22f00ab300e67b7e", null ]
+];

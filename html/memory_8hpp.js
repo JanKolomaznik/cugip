@@ -1,6 +1,27 @@
 var memory_8hpp =
 [
-    [ "const_view", "namespacecugip.html#a2ceff51736e3fafdd181e6a08efa6aa5", null ],
-    [ "operator*", "namespacecugip.html#a717774f02a0c02d4ee4f967acbec0174", null ],
-    [ "view", "namespacecugip.html#a3ba8b09544d31c570e8700e79079a7b0", null ]
+    [ "device_base_ptr", "structcugip_1_1device__base__ptr.html", "structcugip_1_1device__base__ptr" ],
+    [ "device_ptr", "structcugip_1_1device__ptr.html", "structcugip_1_1device__ptr" ],
+    [ "const_device_ptr", "structcugip_1_1const__device__ptr.html", "structcugip_1_1const__device__ptr" ],
+    [ "device_memory_1d", "structcugip_1_1device__memory__1d.html", "structcugip_1_1device__memory__1d" ],
+    [ "const_device_memory_1d", "structcugip_1_1const__device__memory__1d.html", "structcugip_1_1const__device__memory__1d" ],
+    [ "device_memory_2d", "structcugip_1_1device__memory__2d.html", "structcugip_1_1device__memory__2d" ],
+    [ "const_device_memory_2d", "structcugip_1_1const__device__memory__2d.html", "structcugip_1_1const__device__memory__2d" ],
+    [ "device_memory_3d", "structcugip_1_1device__memory__3d.html", "structcugip_1_1device__memory__3d" ],
+    [ "const_device_memory_3d", "structcugip_1_1const__device__memory__3d.html", "structcugip_1_1const__device__memory__3d" ],
+    [ "device_memory_1d_owner", "structcugip_1_1device__memory__1d__owner.html", "structcugip_1_1device__memory__1d__owner" ],
+    [ "device_memory_2d_owner", "structcugip_1_1device__memory__2d__owner.html", "structcugip_1_1device__memory__2d__owner" ],
+    [ "device_memory_3d_owner", "structcugip_1_1device__memory__3d__owner.html", "structcugip_1_1device__memory__3d__owner" ],
+    [ "host_memory_1d", "structcugip_1_1host__memory__1d.html", "structcugip_1_1host__memory__1d" ],
+    [ "const_host_memory_1d", "structcugip_1_1const__host__memory__1d.html", "structcugip_1_1const__host__memory__1d" ],
+    [ "host_memory_2d", "structcugip_1_1host__memory__2d.html", "structcugip_1_1host__memory__2d" ],
+    [ "const_host_memory_2d", "structcugip_1_1const__host__memory__2d.html", "structcugip_1_1const__host__memory__2d" ],
+    [ "host_memory_3d", "structcugip_1_1host__memory__3d.html", "structcugip_1_1host__memory__3d" ],
+    [ "const_host_memory_3d", "structcugip_1_1const__host__memory__3d.html", "structcugip_1_1const__host__memory__3d" ],
+    [ "memory_management", "structcugip_1_1memory__management.html", null ],
+    [ "memory_management< TElement, 1 >", "structcugip_1_1memory__management_3_01_t_element_00_011_01_4.html", "structcugip_1_1memory__management_3_01_t_element_00_011_01_4" ],
+    [ "memory_management< TElement, 2 >", "structcugip_1_1memory__management_3_01_t_element_00_012_01_4.html", "structcugip_1_1memory__management_3_01_t_element_00_012_01_4" ],
+    [ "memory_management< TElement, 3 >", "structcugip_1_1memory__management_3_01_t_element_00_013_01_4.html", "structcugip_1_1memory__management_3_01_t_element_00_013_01_4" ],
+    [ "operator<<", "memory_8hpp.html#a6d93b1b0e732b08486cf34109731bb0c", null ],
+    [ "view", "memory_8hpp.html#a97073e54a21ab072e017616db36974f8", null ]
 ];

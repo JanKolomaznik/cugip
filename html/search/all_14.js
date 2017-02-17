@@ -1,0 +1,25 @@
+var searchData=
+[
+  ['watershed2equivalenceglobalstate',['Watershed2EquivalenceGlobalState',['../group__math.html#ga8b4dd05d78d0d2de4b56acaeffdfc067',1,'cugip']]],
+  ['watershed2globalstaterule',['Watershed2GlobalStateRule',['../structcugip_1_1_watershed2_global_state_rule.html',1,'cugip']]],
+  ['watershed2rule',['Watershed2Rule',['../structcugip_1_1_watershed2_rule.html',1,'cugip']]],
+  ['watershed2rulebase',['Watershed2RuleBase',['../structcugip_1_1_watershed2_rule_base.html',1,'cugip']]],
+  ['watershed3rule',['Watershed3Rule',['../structcugip_1_1_watershed3_rule.html',1,'cugip']]],
+  ['watershed_5fevolution',['watershed_evolution',['../namespacecugip.html#af58a34fb71fba403affb54ed6ea65eb3',1,'cugip']]],
+  ['watershed_5fevolution_5fkernel',['watershed_evolution_kernel',['../namespacecugip.html#a263038d5a02afed94c997437492be4c1',1,'cugip']]],
+  ['watershed_5ftransformation',['watershed_transformation',['../namespacecugip.html#aea028e29632e4dce5de0efa8633b6fbc',1,'cugip']]],
+  ['watershed_5ftransformation_2ehpp',['watershed_transformation.hpp',['../watershed__transformation_8hpp.html',1,'']]],
+  ['watershed_5ftransformation1',['watershed_transformation1',['../namespacecugip.html#af83da7b2df5b1040408a8c68088a949c',1,'cugip']]],
+  ['watershed_5ftransformation2',['watershed_transformation2',['../namespacecugip.html#a90d49745eeee3ac20835e37fdbe24ad8',1,'cugip']]],
+  ['watershedrule',['WatershedRule',['../structcugip_1_1_watershed_rule.html',1,'cugip']]],
+  ['watershedsteepestdescentglobalstaterule',['WatershedSteepestDescentGlobalStateRule',['../structcugip_1_1_watershed_steepest_descent_global_state_rule.html',1,'cugip']]],
+  ['watershedsteepestdescentrule',['WatershedSteepestDescentRule',['../structcugip_1_1_watershed_steepest_descent_rule.html',1,'cugip']]],
+  ['watershedsteepestdescentrulebase',['WatershedSteepestDescentRuleBase',['../structcugip_1_1_watershed_steepest_descent_rule_base.html',1,'cugip']]],
+  ['weight',['weight',['../structcugip_1_1sobel__weighted__divergence.html#a3fb5f0a9f12f7ad1a7e6b12b71233f90',1,'cugip::sobel_weighted_divergence']]],
+  ['weights',['weights',['../structcugip_1_1_graph_data.html#a9ee809108f113297511adb3dfcaf0304',1,'cugip::GraphData']]],
+  ['weightsbackward',['weightsBackward',['../structcugip_1_1_graph_data.html#aaa9b9ca6a25bb9604562f7ceb95f17b7',1,'cugip::GraphData']]],
+  ['width',['width',['../structcugip_1_1intraits__1d.html#ac2e3d98ce6261978a227a5996dd09a9e',1,'cugip::intraits_1d::width()'],['../structcugip_1_1intraits__2d.html#ac4be3bca52f191ddeef33ae934e60852',1,'cugip::intraits_2d::width()'],['../structcugip_1_1intraits__3d.html#aa067e6de180a2e1cae08848065860ded',1,'cugip::intraits_3d::width()']]],
+  ['workdistribution',['WorkDistribution',['../structcugip_1_1_work_distribution.html#a16a2ede1d735c981a6c418d815aa0767',1,'cugip::WorkDistribution']]],
+  ['workdistribution',['WorkDistribution',['../structcugip_1_1_work_distribution.html',1,'cugip']]],
+  ['worklimits',['WorkLimits',['../structcugip_1_1_work_limits.html',1,'cugip']]]
+];
