@@ -1,3 +1,6 @@
+#pragma once
+
+#include <cugip/region.hpp>
 
 namespace cugip {
 namespace detail {

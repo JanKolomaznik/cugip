@@ -3,6 +3,7 @@
 #include <cugip/detail/include.hpp>
 #include <cugip/meta_algorithm.hpp>
 #include <cugip/exception.hpp>
+#include <cugip/image_view.hpp>
 
 #if defined(__CUDACC__)
 #include <cugip/cuda_utils.hpp>
@@ -142,9 +143,9 @@ for_each_locator(TView aView, TFunctor aOperator)
 	dim3 gridSize = detail::defaultGridSizeForBlockDim(aView.dimensions(), blockSize);
 
 	D_PRINT("Executing kernel: for_each_locator(); blockSize = "
-	               << blockSize
-	               << "; gridSize = "
-	               << gridSize
+		       << blockSize
+		       << "; gridSize = "
+		       << gridSize
 	       );
 	detail::kernel_for_each_locator<TView, TFunctor>
 		<<<gridSize, blockSize>>>(aView, aOperator);
