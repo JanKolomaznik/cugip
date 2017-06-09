@@ -35,6 +35,8 @@ template<int tDimension>
 CUGIP_DECL_HYBRID simple_vector<int, tDimension>
 index_from_linear_access_index(const simple_vector<int, tDimension> &aExtents, int aIdx)
 {
+	CUGIP_ASSERT(multiply(aExtents) > aIdx);
+	CUGIP_ASSERT(aIdx >= 0);
 	simple_vector<int, tDimension> coords;
 	for(int i = 0; i < tDimension; ++i) {
 		coords[i] = aIdx % aExtents[i];

@@ -9,6 +9,7 @@
 //#include <cugip/memory.hpp>
 #include <cugip/copy.hpp>
 #include <cugip/host_image_view.hpp>
+#include <cugip/unified_image_view.hpp>
 #include <cugip/cellular_automata/cellular_automata.hpp>
 #include <cugip/cellular_automata/async_cellular_automata.hpp>
 #include <cugip/procedural_views.hpp>
@@ -25,21 +26,23 @@ using namespace cugip;
 
 struct InitWatershed
 {
+	template<typename TLabel>
 	CUGIP_DECL_HYBRID
-	Tuple<float, int32_t, float>
-	operator()(float aGradient, int32_t aLocalMinimum) const
+	Tuple<float, TLabel, float>
+	operator()(float aGradient, TLabel aLocalMinimum) const
 	{
-		return Tuple<float, int32_t, float>(aGradient, aLocalMinimum, aLocalMinimum > 0 ? 0 : 1.0e15);
+		return Tuple<float, TLabel, float>(aGradient, aLocalMinimum, aLocalMinimum > 0 ? 0 : 1.0e15);
 	}
 };
 
 struct ZipGradientAndLabel
 {
+	template<typename TLabel>
 	CUGIP_DECL_HYBRID
-	Tuple<float, int32_t>
-	operator()(float aGradient, int32_t aLocalMinimum) const
+	Tuple<float, TLabel>
+	operator()(float aGradient, TLabel aLocalMinimum) const
 	{
-		return Tuple<float, int32_t>(aGradient, aLocalMinimum);
+		return Tuple<float, TLabel>(aGradient, aLocalMinimum);
 	}
 };
 
@@ -163,19 +166,27 @@ void initLocalMinimaLabels(
 	device_flag &convergenceFlag
 )
 {
-	typedef Tuple<float, int32_t> Value2;
+	typedef typename TLabelView::value_type Label;
+	typedef Tuple<float, Label> Value2;
 	typedef CellularAutomatonWithGlobalState<
 			Grid<Value2, tDimension>,
 			VonNeumannNeighborhood<tDimension>,
 			LocalMinimaConnectedComponentRule,
-			LocalMinimaEquivalenceGlobalState<int32_t>> LocalMinimaAutomaton;
+			LocalMinimaEquivalenceGlobalState<Label>> LocalMinimaAutomaton;
 	auto localMinima = unaryOperatorOnLocator(deviceGradient, LocalMinimumLabel());
 
-	LocalMinimaEquivalenceGlobalState<int32_t> globalState;
+	LocalMinimaEquivalenceGlobalState<Label> globalState;
 
-	thrust::device_vector<int32_t> buffer;
-	buffer.resize(elementCount(deviceGradient) + 1);
-	globalState.manager = EquivalenceManager<int32_t>(thrust::raw_pointer_cast(&buffer[0]), buffer.size());
+	//thrust::device_vector<Label> buffer;
+	//buffer.resize(elementCount(deviceGradient) + 1);
+
+	auto count = elementCount(deviceGradient) + 1;
+	using deleted_unique_ptr = std::unique_ptr<Label, void(*)(Label*)>;
+	Label *ptr = nullptr;
+	CUGIP_CHECK_RESULT(cudaMallocManaged(&ptr, sizeof(Label) * count));
+        auto pointer = deleted_unique_ptr(ptr, [](Label *buffer) { cudaFree(buffer); });
+
+	globalState.manager = EquivalenceManager<Label>(/*thrust::raw_pointer_cast(&buffer[0])*/pointer.get(), count);
 	globalState.mDeviceFlag = convergenceFlag.view();
 	globalState.manager.initialize();
 
@@ -193,15 +204,15 @@ void initLocalMinimaLabels(
 	copy(getDimension(localMinimumAutomaton.getCurrentState(), IntValue<1>()), labels);
 }
 
-template<int tDimension>
+template<typename TLabel, int tDimension>
 void distanceBasedWShed(
 		const_host_image_view<const float, tDimension> aInput,
-		host_image_view<int32_t, tDimension> aOutput,
+		host_image_view<TLabel, tDimension> aOutput,
 		const WatershedOptions &aOptions)
 {
-	typedef Tuple<float, int32_t, float> Value;
+	typedef Tuple<float, TLabel, float> Value;
 	device_image<float, tDimension> deviceGradient(aInput.dimensions());
-	device_image<int32_t, tDimension> labels(aInput.dimensions());
+	device_image<TLabel, tDimension> labels(aInput.dimensions());
 	copy(aInput, view(deviceGradient));
 	device_flag convergenceFlag;
 	AggregatingTimerSet<2, int> timer;
@@ -232,15 +243,15 @@ void distanceBasedWShed(
 	copy(const_view(labels), aOutput);
 }
 
-template<int tDimension, int tIterationLimit>
+template<typename TLabel, int tDimension, int tIterationLimit>
 void distanceBasedWShedAsync(
 		const_host_image_view<const float, tDimension> aInput,
-		host_image_view<int32_t, tDimension> aOutput,
+		host_image_view<TLabel, tDimension> aOutput,
 		const WatershedOptions &aOptions)
 {
-	typedef Tuple<float, int32_t, float> Value;
+	typedef Tuple<float, TLabel, float> Value;
 	device_image<float, tDimension> deviceGradient(aInput.dimensions());
-	device_image<int32_t, tDimension> labels(aInput.dimensions());
+	device_image<TLabel, tDimension> labels(aInput.dimensions());
 	copy(aInput, view(deviceGradient));
 	device_flag convergenceFlag;
 	AggregatingTimerSet<2, int> timer;
@@ -282,20 +293,20 @@ void lowerCompletion(TView aInput)
 	copy(const_view(tmp), aInput);
 }
 
-template<int tDimension>
+template<typename TLabel, int tDimension>
 void steepestDescentWShedSimple(
 		const_host_image_view<const float, tDimension> aInput,
-		host_image_view<int32_t, tDimension> aOutput,
+		host_image_view<TLabel, tDimension> aOutput,
 		const WatershedOptions &aOptions)
 {
-	typedef Tuple<float, int32_t> Value;
+	typedef Tuple<float, TLabel> Value;
 	typedef CellularAutomatonWithGlobalState<
 			Grid<Value, tDimension>,
 			MooreNeighborhood<tDimension>,
 			WatershedSteepestDescentRule,
 			ConvergenceFlag> WatershedAutomaton;
 	device_image<float, tDimension> deviceGradient(aInput.dimensions());
-	device_image<int32_t, tDimension> labels(aInput.dimensions());
+	device_image<TLabel, tDimension> labels(aInput.dimensions());
 	copy(aInput, view(deviceGradient));
 
 	lowerCompletion<tDimension>(view(deviceGradient));
@@ -323,20 +334,22 @@ void steepestDescentWShedSimple(
 	copy(const_view(labels), aOutput);
 }
 
-template<int tDimension>
+template<int tDimension, typename TLabel>
 void steepestDescentWShedPointer(
 		const_host_image_view<const float, tDimension> aInput,
-		host_image_view<int32_t, tDimension> aOutput,
+		host_image_view<TLabel, tDimension> aOutput,
 		const WatershedOptions &aOptions)
 {
-	typedef Tuple<float, int32_t> Value;
+	typedef Tuple<float, TLabel> Value;
 	typedef CellularAutomatonWithGlobalState<
 			Grid<Value, tDimension>,
 			MooreNeighborhood<tDimension>,
 			WatershedByPointer,
 			ConvergenceFlag> WatershedAutomaton;
-	device_image<float, tDimension> deviceGradient(aInput.dimensions());
-	device_image<int32_t, tDimension> labels(aInput.dimensions());
+	unified_image<float, tDimension> deviceGradient(aInput.dimensions());
+	unified_image<TLabel, tDimension> labels(aInput.dimensions());
+	//device_image<float, tDimension> deviceGradient(aInput.dimensions());
+	//device_image<TLabel, tDimension> labels(aInput.dimensions());
 	copy(aInput, view(deviceGradient));
 	AggregatingTimerSet<2, int> timer;
 	device_flag convergenceFlag;
@@ -344,7 +357,7 @@ void steepestDescentWShedPointer(
 	lowerCompletion<tDimension>(view(deviceGradient));
 	initLocalMinimaLabels<tDimension>(const_view(deviceGradient), view(labels), timer, convergenceFlag);
 	//auto wshed = nAryOperator(ZipGradientAndLabel(), const_view(deviceGradient), view(labels));
-	//auto wshed = nAryOperator(ZipGradientAndLabel(), const_view(deviceGradient), UniqueIdDeviceImageView<tDimension, int32_t>(aInput.dimensions()));
+	//auto wshed = nAryOperator(ZipGradientAndLabel(), const_view(deviceGradient), UniqueIdDeviceImageView<tDimension, TLabel>(aInput.dimensions()));
 	auto wshed = zipViews(const_view(deviceGradient), const_view(labels));
 
 	ConvergenceFlag convergenceGlobalState;
@@ -359,20 +372,20 @@ void steepestDescentWShedPointer(
 		automaton.iterate(1);
 	} while (!convergenceGlobalState.is_finished());
 
-	std::cout << timer.createReport({"Local minima search", "Wshed iterations"});
+	std::cout << timer.createReport(std::array<std::string, 2>{"Local minima search", "Wshed iterations"} );
 	auto state = automaton.getCurrentState();
 	copy(getDimension(state, IntValue<1>()), view(labels));
 	copy(const_view(labels), aOutput);
 }
 
 
-template<int tDimension>
+template<int tDimension, typename TLabel>
 void steepestDescentWShedSimpleAsync(
 		const_host_image_view<const float, tDimension> aInput,
-		host_image_view<int32_t, tDimension> aOutput,
+		host_image_view<TLabel, tDimension> aOutput,
 		const WatershedOptions &aOptions)
 {
-	typedef Tuple<float, int32_t> Value;
+	typedef Tuple<float, TLabel> Value;
 	typedef AsyncCellularAutomatonWithGlobalState<
 			Grid<Value, tDimension>,
 			MooreNeighborhood<tDimension>,
@@ -385,12 +398,12 @@ void steepestDescentWShedSimpleAsync(
 			WatershedSteepestDescentRule,
 			ConvergenceFlag> WatershedAutomaton;*/
 	device_image<float, tDimension> deviceGradient(aInput.dimensions());
-	device_image<int32_t, tDimension> labels(aInput.dimensions());
+	device_image<TLabel, tDimension> labels(aInput.dimensions());
 	copy(aInput, view(deviceGradient));
 
 	lowerCompletion<tDimension>(view(deviceGradient));
 	//auto wshed = nAryOperator(ZipGradientAndLabel(), const_view(deviceGradient), view(labels));
-	//auto wshed = nAryOperator(ZipGradientAndLabel(), const_view(deviceGradient), UniqueIdDeviceImageView<tDimension, int32_t>(aInput.dimensions()));
+	//auto wshed = nAryOperator(ZipGradientAndLabel(), const_view(deviceGradient), UniqueIdDeviceImageView<tDimension, TLabel>(aInput.dimensions()));
 	auto wshed = zipViews(const_view(deviceGradient), UniqueIdDeviceImageView<tDimension>(aInput.dimensions()));
 
 	device_flag convergenceFlag;
@@ -413,20 +426,20 @@ void steepestDescentWShedSimpleAsync(
 	copy(const_view(labels), aOutput);
 }
 
-template<int tDimension>
+template<typename TLabel, int tDimension>
 void steepestDescentWShedGlobalState(
 		const_host_image_view<const float, tDimension> aInput,
-		host_image_view<int32_t, tDimension> aOutput,
+		host_image_view<TLabel, tDimension> aOutput,
 		const WatershedOptions &aOptions)
 {
-	typedef Tuple<float, int32_t> Value;
+	typedef Tuple<float, TLabel> Value;
 	typedef CellularAutomatonWithGlobalState<
 			Grid<Value, tDimension>,
 			MooreNeighborhood<tDimension>,
 			WatershedSteepestDescentGlobalStateRule,
-			LocalMinimaEquivalenceGlobalState<int32_t>> WatershedAutomaton;
+			LocalMinimaEquivalenceGlobalState<TLabel>> WatershedAutomaton;
 	device_image<float, tDimension> deviceGradient(aInput.dimensions());
-	device_image<int32_t, tDimension> labels(aInput.dimensions());
+	device_image<TLabel, tDimension> labels(aInput.dimensions());
 	copy(aInput, view(deviceGradient));
 
 	lowerCompletion<tDimension>(view(deviceGradient));
@@ -435,11 +448,11 @@ void steepestDescentWShedGlobalState(
 	auto wshed = zipViews(const_view(deviceGradient), UniqueIdDeviceImageView<tDimension>(aInput.dimensions()));
 
 	device_flag convergenceFlag;
-	LocalMinimaEquivalenceGlobalState<int32_t> globalState;
+	LocalMinimaEquivalenceGlobalState<TLabel> globalState;
 
-	thrust::device_vector<int32_t> buffer;
+	thrust::device_vector<TLabel> buffer;
 	buffer.resize(elementCount(aInput) + 1);
-	globalState.manager = EquivalenceManager<int32_t>(thrust::raw_pointer_cast(&buffer[0]), buffer.size());
+	globalState.manager = EquivalenceManager<TLabel>(thrust::raw_pointer_cast(&buffer[0]), buffer.size());
 	globalState.mDeviceFlag = convergenceFlag.view();
 	globalState.manager.initialize();
 
@@ -459,18 +472,18 @@ void steepestDescentWShedGlobalState(
 	copy(const_view(labels), aOutput);
 }
 
-template<int tDimension>
+template<typename TLabel, int tDimension>
 void steepestDescentWShedAsyncGlobalState(
 		const_host_image_view<const float, tDimension> aInput,
-		host_image_view<int32_t, tDimension> aOutput,
+		host_image_view<TLabel, tDimension> aOutput,
 		const WatershedOptions &aOptions)
 {
 }
 
-template<int tDimension>
+template<typename TLabel, int tDimension>
 void steepestDescentWShedPointers(
 		const_host_image_view<const float, tDimension> aInput,
-		host_image_view<int32_t, tDimension> aOutput,
+		host_image_view<TLabel, tDimension> aOutput,
 		const WatershedOptions &aOptions)
 {
 
@@ -478,10 +491,10 @@ void steepestDescentWShedPointers(
 
 //******************************************************************************
 
-template<int tDimension>
+template<typename TLabel, int tDimension>
 void runWatershedTransformationDim(
 		const_host_image_view<const float, tDimension> aInput,
-		host_image_view<int32_t, tDimension> aOutput,
+		host_image_view<TLabel, tDimension> aOutput,
 		const WatershedOptions &aOptions)
 {
 	switch (aOptions.wshedVariant) {
@@ -524,5 +537,21 @@ void runWatershedTransformation(
 		host_image_view<int32_t, 3> aOutput,
 		const WatershedOptions &aOptions)
 {
-	runWatershedTransformationDim<3>(aInput, aOutput, aOptions);
+	runWatershedTransformationDim<int32_t, 3>(aInput, aOutput, aOptions);
+}
+
+void runWatershedTransformation(
+		const_host_image_view<const float, 2> aInput,
+		host_image_view<int64_t, 2> aOutput,
+		const WatershedOptions &aOptions)
+{
+	//runWatershedTransformationDim<2>(aInput, aOutput, aOptions);
+}
+
+void runWatershedTransformation(
+		const_host_image_view<const float, 3> aInput,
+		host_image_view<int64_t, 3> aOutput,
+		const WatershedOptions &aOptions)
+{
+	runWatershedTransformationDim<int64_t, 3>(aInput, aOutput, aOptions);
 }

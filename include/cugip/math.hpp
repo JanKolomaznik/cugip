@@ -454,7 +454,8 @@ squared_magnitude(const TType &aVector) -> decltype(dot(aVector, aVector))
 }
 
 template <typename TType>
-inline CUGIP_DECL_HYBRID typename TType::coord_t
+//inline CUGIP_DECL_HYBRID typename TType::coord_t
+inline CUGIP_DECL_HYBRID float
 magnitude(const TType &aVector)
 {
 	return sqrtf(squared_magnitude(aVector));
@@ -730,6 +731,16 @@ div(const simple_vector<TType, tDimension> &aVector1, const simple_vector<TType,
 	return result;
 }
 
+template<typename TType, int tDimension>
+inline CUGIP_DECL_HYBRID simple_vector<TType, tDimension>
+div_up(const simple_vector<TType, tDimension> &aVector1, const simple_vector<TType, tDimension> &aVector2)
+{
+	simple_vector<TType, tDimension> result;
+	for (int i = 0; i < tDimension; ++i) {
+		result[i] = (aVector1[i] + aVector2[i] - 1) / aVector2[i];
+	}
+	return result;
+}
 
 /// \return All vector elements product
 template<typename TType, int tDimension>

@@ -46,13 +46,6 @@ cudaDeviceInfoText()
 	return result;
 }
 
-CUGIP_DECL_HOST inline std::ostream &
-operator<<( std::ostream &stream, const dim3 &v )
-{
-	return stream << "[ " << v.x << ", " << v.y << ", " << v.z << " ]";
-}
-
-
 #endif //__CUDACC__
 
 //TODO - move generic type traits to special header

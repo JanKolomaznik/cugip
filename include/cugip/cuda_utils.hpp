@@ -112,27 +112,18 @@ inline int threadOrderFromIndex()
 }
 
 CUGIP_DECL_DEVICE
+inline int blockOrderFromIndex()
+{
+	return blockIdx.x
+		+ blockIdx.y * gridDim.x
+		+ blockIdx.z * gridDim.x * gridDim.y;
+}
+
+
+CUGIP_DECL_DEVICE
 inline int currentBlockSize()
 {
 	return blockDim.x * blockDim.y * blockDim.z;
-}
-
-CUGIP_DECL_DEVICE
-inline vect3i_t currentThreadIndex()
-{
-	return vect3i_t(threadIdx.x, threadIdx.y, threadIdx.z);
-}
-
-CUGIP_DECL_DEVICE
-inline bool is_in_block(int aX, int aY, int aZ)
-{
-	return blockIdx.x == aX && blockIdx.y == aY && blockIdx.z == aZ;
-}
-
-CUGIP_DECL_DEVICE
-inline bool is_in_thread(int aX, int aY, int aZ)
-{
-	return threadIdx.x == aX && threadIdx.y == aY && threadIdx.z == aZ;
 }
 
 template<int tDimension>
@@ -154,7 +145,48 @@ simple_vector<int, 3> dim3_to_vector<3>(dim3 aValue)
 	return simple_vector<int, 3>(aValue.x, aValue.y, aValue.z);
 }
 
+template<int tDimension>
+CUGIP_DECL_DEVICE
+simple_vector<int, tDimension>
+blockDimensions()
+{
+	return dim3_to_vector<tDimension>(blockDim);
+}
 
+CUGIP_DECL_DEVICE
+inline int gridSize()
+{
+	return gridDim.x * gridDim.y * gridDim.z;
+}
+
+
+CUGIP_DECL_DEVICE
+inline vect3i_t currentThreadIndex()
+{
+	return vect3i_t(threadIdx.x, threadIdx.y, threadIdx.z);
+}
+
+template<int tDimension>
+CUGIP_DECL_DEVICE
+simple_vector<int, tDimension>
+currentThreadIndexDim()
+{
+	return dim3_to_vector<tDimension>(threadIdx);
+}
+
+
+
+CUGIP_DECL_DEVICE
+inline bool is_in_block(int aX, int aY, int aZ)
+{
+	return blockIdx.x == aX && blockIdx.y == aY && blockIdx.z == aZ;
+}
+
+CUGIP_DECL_DEVICE
+inline bool is_in_thread(int aX, int aY, int aZ)
+{
+	return threadIdx.x == aX && threadIdx.y == aY && threadIdx.z == aZ;
+}
 }//namespace cugip
 
 inline std::ostream &operator<<(std::ostream &stream, const cudaPitchedPtr &pointer) {
@@ -170,4 +202,11 @@ inline std::ostream &operator<<(std::ostream &stream, const cudaExtent &extent) 
 		% extent.width
 		% extent.height
 		% extent.depth;
+}
+
+inline std::ostream &operator<<(std::ostream &stream, const dim3 &dimensions) {
+	return stream << boost::format("[%1%; %2%; %3%]")
+		% dimensions.x
+		% dimensions.y
+		% dimensions.z;
 }

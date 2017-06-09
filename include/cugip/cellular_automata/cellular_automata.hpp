@@ -8,6 +8,7 @@
 #include <cugip/neighborhood.hpp>
 #include <cugip/functors.hpp>
 #include <cugip/cellular_automata/rules.hpp>
+#include <cugip/unified_image.hpp>
 
 namespace cugip {
 
@@ -306,10 +307,11 @@ class CellularAutomaton
 	: public CellularAutomatonBaseCRTP<
 			CellularAutomaton<TGrid, TNeighborhood, TRule>,
 			TRule,
-			device_image<typename TGrid::Element, TGrid::cDimension>>
+			unified_image<typename TGrid::Element, TGrid::cDimension>>
 {
 public:
-	typedef device_image<typename TGrid::Element, TGrid::cDimension> State;
+	typedef unified_image<typename TGrid::Element, TGrid::cDimension> State;
+	//typedef device_image<typename TGrid::Element, TGrid::cDimension> State;
 	typedef CellularAutomatonBaseCRTP<CellularAutomaton<TGrid, TNeighborhood, TRule>, TRule, State> Predecessor;
 	typedef TGrid Grid;
 	typedef TRule Rule;
@@ -335,10 +337,10 @@ class CellularAutomatonWithGlobalState
 	: public CellularAutomatonBaseCRTP<
 		CellularAutomatonWithGlobalState<TGrid, TNeighborhood, TRule, TGlobalState>,
 		TRule,
-		device_image<typename TGrid::Element, TGrid::cDimension>>
+		unified_image<typename TGrid::Element, TGrid::cDimension>>
 {
 public:
-	typedef device_image<typename TGrid::Element, TGrid::cDimension> State;
+	typedef unified_image<typename TGrid::Element, TGrid::cDimension> State;
 	typedef CellularAutomatonBaseCRTP<
 			CellularAutomatonWithGlobalState<TGrid, TNeighborhood, TRule, TGlobalState>,
 			TRule,

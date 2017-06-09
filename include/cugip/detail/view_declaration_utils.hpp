@@ -124,6 +124,23 @@ public:
 	extents_t mDimensions;
 };
 
+template<int tDimension>
+class hybrid_image_view_base
+{
+public:
+	typedef typename dim_traits<tDimension>::extents_t extents_t;
+
+	hybrid_image_view_base(extents_t dimensions)
+		: mDimensions(dimensions)
+	{}
+
+	CUGIP_DECL_HYBRID extents_t
+	dimensions() const
+	{ return mDimensions; }
+
+	extents_t mDimensions;
+};
+
 
 template<int tDimension, typename TDerived>
 class device_image_view_crtp
@@ -153,6 +170,13 @@ public:
 
 template<int tDim>
 struct dimension<device_image_view_base<tDim>>: dimension_helper<tDim> {};
+
+
+template<int tDim>
+struct dimension<hybrid_image_view_base<tDim>>: dimension_helper<tDim> {};
+
+template<int tDim>
+struct dimension<host_image_view_base<tDim>>: dimension_helper<tDim> {};
 
 #define CUGIP_VIEW_TYPEDEFS_VALUE(ElementType, aDimension)\
 	static constexpr int cDimension = aDimension;\

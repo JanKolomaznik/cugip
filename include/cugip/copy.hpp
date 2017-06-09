@@ -2,17 +2,21 @@
 
 #include <cugip/detail/include.hpp>
 #include <cugip/utils.hpp>
-#include <cugip/cuda_utils.hpp>
 #include <cugip/access_utils.hpp>
 #include <cugip/math.hpp>
 #include <cugip/memory_view.hpp>
 #include <cugip/meta_algorithm.hpp>
 
+#if defined(__CUDACC__)
+#include <cugip/cuda_utils.hpp>
+#include <cugip/unified_image_view.hpp>
+#endif //defined(__CUDACC__)
+
 namespace cugip {
 
 namespace detail {
 
-template<typename TType>
+/*template<typename TType>
 void
 copy_wrapper(
 	const TType *aFromPointer,
@@ -50,7 +54,7 @@ copy_wrapper(
 			aSize[0]*sizeof(TType),
 			aSize[1] * aSize[2],
 			aMemcpyKind));
-}
+}*/
 /*
 template<bool tFromDevice, bool tToDevice>
 struct copy_methods_impl;
@@ -222,7 +226,7 @@ typedef CopyDirectionTag<false, true> HostToDeviceTag;
 /// \param to_view Target
 /// \param cuda_stream Selected CUDA stream.
 template <typename TFromView, typename TToView>
-void copyAsync(
+void copy_async(
 	TFromView from_view,
 	TToView to_view,
 	cudaStream_t cuda_stream = 0);
@@ -236,6 +240,8 @@ void copy(
 	TToView to_view);
 
 // IMPLEMENTATION - TODO(reorganize)
+
+#if defined(__CUDACC__)
 
 template <typename TFromView, typename TToView>
 CUGIP_GLOBAL void copyKernel(
@@ -282,6 +288,7 @@ void copyDeviceToDeviceAsync(
 
 	CUGIP_CHECK_ERROR_STATE("After CopyKernel");
 }
+#endif //defined(__CUDACC__)
 
 template <typename TFromView, typename TToView>
 void copyHostToHost(
@@ -295,6 +302,7 @@ void copyHostToHost(
 	}
 }
 
+#if defined(__CUDACC__)
 template <typename TFromView, typename TToView>
 void copyDeviceToHostAsync(
 	TFromView from_view,
@@ -372,6 +380,7 @@ void asyncCopyHelper(
 {
 	copyHostToDeviceAsync(from_view, to_view, cuda_stream);
 }
+#endif //defined(__CUDACC__)
 
 template <typename TFromView, typename TToView>
 void asyncCopyHelper(
@@ -389,8 +398,8 @@ void asyncCopyHelper(
 template <bool tFromIsDevice, bool tFromIsHost, bool tToIsDevice, bool tToIsHost>
 struct GetCopyDirection;
 
-template <bool tFromIsHost>
-struct GetCopyDirection<true, tFromIsHost, true, false>
+template <bool tFromIsHost, bool tToIsHost>
+struct GetCopyDirection<true, tFromIsHost, true, tToIsHost>
 {
 	typedef DeviceToDeviceTag Direction;
 };
@@ -400,6 +409,13 @@ struct GetCopyDirection<false, true, true, false>
 {
 	typedef HostToDeviceTag Direction;
 };
+
+template <>
+struct GetCopyDirection<false, true, true, true>
+{
+	typedef HostToDeviceTag Direction;
+};
+
 
 template <bool tFromIsDevice>
 struct GetCopyDirection<tFromIsDevice, true, false, true>
@@ -414,12 +430,12 @@ struct GetCopyDirection<true, false, false, true>
 };
 
 template <typename TFromView, typename TToView>
-void copyAsync(
+void copy_async(
 	TFromView from_view,
 	TToView to_view,
 	cudaStream_t cuda_stream)
 {
-	static_assert(is_device_view<TToView>::value != is_host_view<TToView>::value, "Target view is usable on device and host. Ambiguous copy direction.");
+	//static_assert(is_device_view<TToView>::value != is_host_view<TToView>::value, "Target view is usable on device and host. Ambiguous copy direction.");
 	CUGIP_DFORMAT("Copy sizes: \n  src: %1%\n  dst: %2%", from_view.dimensions(), to_view.dimensions());
 	if (from_view.dimensions() != to_view.dimensions()) {
 		CUGIP_THROW(IncompatibleViewSizes() /*<< GetViewPairSizesErrorInfo(from_view.dimensions(), to_view.dimensions()))*/);
@@ -435,14 +451,27 @@ void copyAsync(
 	asyncCopyHelper(from_view, to_view, direction, cuda_stream);
 }
 
+//TODO remove
+template <typename TFromView, typename TToView>
+void copyAsync(
+	TFromView from_view,
+	TToView to_view,
+	cudaStream_t cuda_stream)
+{
+	copy_async(from_view, to_view, cuda_stream);
+}
+
 
 template <typename TFromView, typename TToView>
 void copy(
 	TFromView from_view,
 	TToView to_view)
 {
-	copyAsync(from_view, to_view);
+	copy_async(from_view, to_view);
+
+#if defined(__CUDACC__)
 	CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+#endif //defined(__CUDACC__)
 }
 
 

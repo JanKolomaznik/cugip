@@ -33,12 +33,36 @@ protected:
 
 CUGIP_DECLARE_HYBRID_VIEW_TRAITS((ConstantDeviceImageView<TElement, tDim>), tDim, typename TElement, int tDim);
 
+/// Procedural image view, which returns same value for all indices.
+template<typename TElement, int tDimension>
+class ConstantImageView : public hybrid_image_view_base<tDimension> {
+public:
+	typedef ConstantImageView<TElement, tDimension> this_t;
+	typedef hybrid_image_view_base<tDimension> predecessor_type;
+	CUGIP_VIEW_TYPEDEFS_VALUE(TElement, tDimension)
+
+	ConstantImageView(TElement element, extents_t size) :
+		predecessor_type(size),
+		mElement(element)
+	{}
+
+	CUGIP_DECL_HYBRID
+	accessed_type operator[](coord_t /*index*/) const {
+		return mElement;
+	}
+
+protected:
+	value_type mElement;
+};
+
+CUGIP_DECLARE_HYBRID_VIEW_TRAITS((ConstantImageView<TElement, tDim>), tDim, typename TElement, int tDim);
+
 /// Utility function to create ConstantDeviceImageView without the need to specify template parameters.
 template<typename TElement, int tDimension>
-ConstantDeviceImageView<TElement, tDimension>
+ConstantImageView<TElement, tDimension>
 constantImage(TElement value, simple_vector<int, tDimension> size)
 {
-	return ConstantDeviceImageView<TElement, tDimension>(value, size);
+	return ConstantImageView<TElement, tDimension>(value, size);
 }
 
 /// Procedural image view, which generates checker board like image.

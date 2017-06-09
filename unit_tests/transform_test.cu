@@ -31,6 +31,22 @@ struct TestTransformFunctor
 	}
 };
 
+BOOST_AUTO_TEST_CASE(TransformDevice)
+{
+
+	device_image<int, 3> deviceImage1(300, 300, 4);
+	device_image<int, 3> deviceImage2(300, 300, 4);
+
+	auto input = constantImage(25, deviceImage1.dimensions());
+
+	copy(input, view(deviceImage1));
+
+	transform(const_view(deviceImage1), view(deviceImage2), []__device__(const int &value) { return value + 1; });
+
+	auto difference = sum_differences(const_view(deviceImage2), constantImage(26, deviceImage1.dimensions()), 0);
+	BOOST_CHECK_EQUAL(difference, 0);
+}
+
 BOOST_AUTO_TEST_CASE(BoundedTransformWithPreload)
 {
 

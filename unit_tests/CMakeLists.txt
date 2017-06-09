@@ -1,7 +1,7 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 PROJECT( test_suite )
 
-find_path(CUB_INCLUDE_DIRECTORY "cub/cub.cuh" "../../cub")
+#find_path(CUB_INCLUDE_DIRECTORY "cub/cub.cuh" "../../cub")
 
 #SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
 
@@ -28,7 +28,8 @@ SET(CUDA_NVCC_FLAGS "-std=c++11 -gencode arch=compute_61,code=sm_61 --use_fast_m
 #ADD_DEFINITIONS(-DBOOST_TEST_DYN_LINK)
 find_package(CUDA)
 
-set(TEST_SUITE_TARGETS utils_test graph_cut_test procedural_view_test cellular_automata_test shared_memory_test transform_test vector_test)
+set(TEST_SUITE_TARGETS utils_test procedural_view_test cellular_automata_test shared_memory_test transform_test for_each_test vector_test)
+#set(TEST_SUITE_TARGETS utils_test graph_cut_test procedural_view_test cellular_automata_test shared_memory_test transform_test for_each_test vector_test)
 foreach(TEST_TARGET ${TEST_SUITE_TARGETS})
 	message(STATUS "Adding test: ${TEST_TARGET}")
 	CUDA_ADD_EXECUTABLE(

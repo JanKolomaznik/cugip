@@ -4,6 +4,7 @@
 #include <cugip/detail/include.hpp>
 #include <cugip/exception.hpp>
 #include <cugip/image_locator.hpp>
+#include <cugip/cuda_utils.hpp>
 
 namespace cugip {
 

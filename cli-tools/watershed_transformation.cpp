@@ -24,12 +24,21 @@ void runWatershedTransformation(
 		host_image_view<int32_t, 3> aOutput,
 		const WatershedOptions &aOptions);
 
+void runWatershedTransformation(
+		const_host_image_view<const float, 2> aInput,
+		host_image_view<int64_t, 2> aOutput,
+		const WatershedOptions &aOptions);
 
-template<int tDimension>
+void runWatershedTransformation(
+		const_host_image_view<const float, 3> aInput,
+		host_image_view<int64_t, 3> aOutput,
+		const WatershedOptions &aOptions);
+
+template<int tDimension, typename tLabel>
 void processImage(fs::path aInput, fs::path aOutput, const WatershedOptions &aOptions)
 {
 	typedef itk::Image<float, tDimension> InputImageType;
-	typedef itk::Image<int32_t, tDimension> OutputImageType;
+	typedef itk::Image<tLabel, tDimension> OutputImageType;
 
 	typedef itk::ImageFileReader<InputImageType>  ReaderType;
 	typedef itk::ImageFileWriter<OutputImageType> WriterType;
@@ -140,10 +149,10 @@ int main( int argc, char* argv[] )
 
 		switch (numDimensions) {
 		case 2:
-			processImage<2>(inputFile, outputFile, options);
+			processImage<2, int64_t>(inputFile, outputFile, options);
 			break;
 		case 3:
-			processImage<3>(inputFile, outputFile, options);
+			processImage<3, int64_t>(inputFile, outputFile, options);
 			break;
 		default:
 			std::cerr << "Error: Unsupported image dimension.\n";
