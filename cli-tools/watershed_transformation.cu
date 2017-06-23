@@ -173,7 +173,7 @@ void initLocalMinimaLabels(
 			VonNeumannNeighborhood<tDimension>,
 			LocalMinimaConnectedComponentRule,
 			LocalMinimaEquivalenceGlobalState<Label>> LocalMinimaAutomaton;
-	auto localMinima = unaryOperatorOnLocator(deviceGradient, LocalMinimumLabel());
+	auto localMinima = unaryOperatorOnLocator(deviceGradient, LocalMinimumLabel<Label>());
 
 	LocalMinimaEquivalenceGlobalState<Label> globalState;
 
@@ -204,7 +204,7 @@ void initLocalMinimaLabels(
 	copy(getDimension(localMinimumAutomaton.getCurrentState(), IntValue<1>()), labels);
 }
 
-template<typename TLabel, int tDimension>
+template<int tDimension, typename TLabel>
 void distanceBasedWShed(
 		const_host_image_view<const float, tDimension> aInput,
 		host_image_view<TLabel, tDimension> aOutput,
@@ -243,7 +243,7 @@ void distanceBasedWShed(
 	copy(const_view(labels), aOutput);
 }
 
-template<typename TLabel, int tDimension, int tIterationLimit>
+template<int tDimension, int tIterationLimit, typename TLabel>
 void distanceBasedWShedAsync(
 		const_host_image_view<const float, tDimension> aInput,
 		host_image_view<TLabel, tDimension> aOutput,
@@ -293,7 +293,7 @@ void lowerCompletion(TView aInput)
 	copy(const_view(tmp), aInput);
 }
 
-template<typename TLabel, int tDimension>
+template<int tDimension, typename TLabel>
 void steepestDescentWShedSimple(
 		const_host_image_view<const float, tDimension> aInput,
 		host_image_view<TLabel, tDimension> aOutput,
@@ -312,7 +312,7 @@ void steepestDescentWShedSimple(
 	lowerCompletion<tDimension>(view(deviceGradient));
 	//auto wshed = nAryOperator(ZipGradientAndLabel(), const_view(deviceGradient), view(labels));
 	//auto wshed = nAryOperator(ZipGradientAndLabel(), const_view(deviceGradient), UniqueIdDeviceImageView<tDimension, int32_t>(aInput.dimensions()));
-	auto wshed = zipViews(const_view(deviceGradient), UniqueIdDeviceImageView<tDimension>(aInput.dimensions()));
+	auto wshed = zipViews(const_view(deviceGradient), UniqueIdDeviceImageView<tDimension, LinearAccessIndex<TLabel>>(aInput.dimensions()));
 
 	device_flag convergenceFlag;
 	ConvergenceFlag convergenceGlobalState;
@@ -404,7 +404,7 @@ void steepestDescentWShedSimpleAsync(
 	lowerCompletion<tDimension>(view(deviceGradient));
 	//auto wshed = nAryOperator(ZipGradientAndLabel(), const_view(deviceGradient), view(labels));
 	//auto wshed = nAryOperator(ZipGradientAndLabel(), const_view(deviceGradient), UniqueIdDeviceImageView<tDimension, TLabel>(aInput.dimensions()));
-	auto wshed = zipViews(const_view(deviceGradient), UniqueIdDeviceImageView<tDimension>(aInput.dimensions()));
+	auto wshed = zipViews(const_view(deviceGradient), UniqueIdDeviceImageView<tDimension, LinearAccessIndex<TLabel>>(aInput.dimensions()));
 
 	device_flag convergenceFlag;
 	ConvergenceFlag convergenceGlobalState;
@@ -426,7 +426,7 @@ void steepestDescentWShedSimpleAsync(
 	copy(const_view(labels), aOutput);
 }
 
-template<typename TLabel, int tDimension>
+template<int tDimension, typename TLabel>
 void steepestDescentWShedGlobalState(
 		const_host_image_view<const float, tDimension> aInput,
 		host_image_view<TLabel, tDimension> aOutput,
@@ -445,7 +445,7 @@ void steepestDescentWShedGlobalState(
 	lowerCompletion<tDimension>(view(deviceGradient));
 	//auto wshed = nAryOperator(ZipGradientAndLabel(), const_view(deviceGradient), view(labels));
 	//auto wshed = nAryOperator(ZipGradientAndLabel(), const_view(deviceGradient), UniqueIdDeviceImageView<tDimension, int32_t>(aInput.dimensions()));
-	auto wshed = zipViews(const_view(deviceGradient), UniqueIdDeviceImageView<tDimension>(aInput.dimensions()));
+	auto wshed = zipViews(const_view(deviceGradient), UniqueIdDeviceImageView<tDimension, LinearAccessIndex<TLabel>>(aInput.dimensions()));
 
 	device_flag convergenceFlag;
 	LocalMinimaEquivalenceGlobalState<TLabel> globalState;
@@ -472,7 +472,7 @@ void steepestDescentWShedGlobalState(
 	copy(const_view(labels), aOutput);
 }
 
-template<typename TLabel, int tDimension>
+template<int tDimension, typename TLabel>
 void steepestDescentWShedAsyncGlobalState(
 		const_host_image_view<const float, tDimension> aInput,
 		host_image_view<TLabel, tDimension> aOutput,
@@ -480,7 +480,7 @@ void steepestDescentWShedAsyncGlobalState(
 {
 }
 
-template<typename TLabel, int tDimension>
+template<int tDimension, typename TLabel>
 void steepestDescentWShedPointers(
 		const_host_image_view<const float, tDimension> aInput,
 		host_image_view<TLabel, tDimension> aOutput,

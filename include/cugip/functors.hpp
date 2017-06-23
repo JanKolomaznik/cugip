@@ -383,15 +383,16 @@ struct UpperLimitReplacementFunctor {
 };
 
 
+template<typename TLabel=int32_t>
 struct LocalMinimumLabel
 {
 	// TODO
 	template<typename TAccessor>
-	CUGIP_DECL_HYBRID int
+	CUGIP_DECL_HYBRID TLabel
 	operator()(TAccessor aAccessor) const
 	{
 		auto value = aAccessor[typename TAccessor::diff_t()];
-		int res = 0;
+		TLabel res = 0;
 		MooreNeighborhood<dimension<TAccessor>::value> neighborhood;
 		bool smallest = true;
 		for (int i = 1; i < neighborhood.size(); ++i) {

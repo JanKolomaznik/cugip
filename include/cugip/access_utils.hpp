@@ -77,14 +77,14 @@ inline int64_t linear_index_from_strides(
 }
 
 template<typename TExtents, typename TCoordinates>
-CUGIP_DECL_HYBRID int
+CUGIP_DECL_HYBRID int64_t
 get_linear_access_index(
 		TExtents aExtents,
 		TCoordinates aCoordinates)
 {
 	int dim = dimension<TExtents>::value;
-	int idx = 0;
-	int stride = 1;
+	int64_t idx = 0;
+	int64_t stride = 1;
 	for(int i = 0; i < dim; ++i) {
 		idx += aCoordinates[i] * stride;
 		stride *= aExtents[i];
