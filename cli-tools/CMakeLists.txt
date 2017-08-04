@@ -61,5 +61,8 @@ TARGET_LINK_LIBRARIES(ccl ${Boost_LIBRARIES} ${ITK_LIBRARIES})
 CUDA_ADD_EXECUTABLE(image_info image_info.cpp)
 TARGET_LINK_LIBRARIES(image_info ${Boost_LIBRARIES} ${ITK_LIBRARIES})
 
+CUDA_ADD_EXECUTABLE(objectness_measure objectness_measure.cpp)
+TARGET_LINK_LIBRARIES(objectness_measure ${Boost_LIBRARIES} ${ITK_LIBRARIES})
+
 CUDA_ADD_EXECUTABLE(create_random_seed_distance_field create_random_seed_distance_field.cpp create_random_seed_distance_field.cu)
 TARGET_LINK_LIBRARIES(create_random_seed_distance_field ${Boost_LIBRARIES} ${ITK_LIBRARIES})

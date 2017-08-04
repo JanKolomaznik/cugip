@@ -61,20 +61,44 @@ CUGIP_GLOBAL void reduceKernel(
 	}
 }
 
+template<bool tOnDevice>
+struct ReduceImplementation
+{
+	template<typename TView, typename TOutputValue, typename TOperator>
+	static TOutputValue
+	run(TView view, TOutputValue initial_value, TOperator reduction_operator) {
+		constexpr int kBucketSize = 4;  // Bundle more computation in one block - prevents thread idling. TODO(johny) - should be specified by call policy.
+		dim3 block(512, 1, 1);
+		dim3 grid(1 + (elementCount(view) - 1) / (block.x * kBucketSize), 1, 1);
+
+		thrust::device_vector<TOutputValue> tmp_vector(grid.x);
+
+		reduceKernel<TView, TOperator, TOutputValue, 512><<<grid, block>>>(view, initial_value, reduction_operator, tmp_vector.data().get());
+		CUGIP_CHECK_ERROR_STATE("After ReduceKernel");
+		CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+		return thrust::reduce(tmp_vector.begin(), tmp_vector.end(), initial_value, reduction_operator);
+	}
+
+};
+
+template<>
+struct ReduceImplementation<false>
+{
+	template<typename TView, typename TOutputValue, typename TOperator>
+	static TOutputValue
+	run(TView view, TOutputValue initial_value, TOperator reduction_operator) {
+		TOutputValue result = initial_value;
+		for (int64_t i = 0; i < elementCount(view); ++i) {
+			result = reduction_operator(result, linear_access(view, i));
+		}
+		return result;
+	}
+};
+
 template<typename TView, typename TOutputValue, typename TOperator>
 TOutputValue reduce(TView view, TOutputValue initial_value, TOperator reduction_operator) {
-	constexpr int kBucketSize = 4;  // Bundle more computation in one block - prevents thread idling. TODO(johny) - should be specified by call policy.
-	dim3 block(512, 1, 1);
-	dim3 grid(1 + (elementCount(view) - 1) / (block.x * kBucketSize), 1, 1);
-
-	thrust::device_vector<TOutputValue> tmp_vector(grid.x);
-
-	reduceKernel<TView, TOperator, TOutputValue, 512><<<grid, block>>>(view, initial_value, reduction_operator, tmp_vector.data().get());
-	CUGIP_CHECK_ERROR_STATE("After ReduceKernel");
-	CUGIP_CHECK_RESULT(cudaThreadSynchronize());
-	return thrust::reduce(tmp_vector.begin(), tmp_vector.end(), initial_value, reduction_operator);
+	return ReduceImplementation<is_device_view<TView>::value>::run(view, initial_value, reduction_operator);
 }
-
 
 template<typename TView, class>
 typename TView::value_type min(TView view)

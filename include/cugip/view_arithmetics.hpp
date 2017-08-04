@@ -56,7 +56,7 @@ public:
 		mFactor2(factor2)
 	{}
 
-	CUGIP_DECL_DEVICE
+	CUGIP_DECL_HYBRID
 	value_type operator[](coord_t index) const {
 		return mFactor1 * this->mView1[index] + mFactor2 * this->mView2[index];
 	}
@@ -114,7 +114,7 @@ public:
 		predecessor_type(view1, view2)
 	{}
 
-	CUGIP_DECL_DEVICE
+	CUGIP_DECL_HYBRID
 	accessed_type operator[](coord_t index) const {
 		return this->mView1[index] * this->mView2[index];
 	}
@@ -148,7 +148,7 @@ public:
 		mDefaultValue(aDefaultValue)
 	{}
 
-	CUGIP_DECL_DEVICE
+	CUGIP_DECL_HYBRID
 	accessed_type operator[](coord_t index) const {
 		if (this->mView2[index]) {
 			return this->mView1[index];
@@ -196,7 +196,7 @@ public:
 		predecessor_type(view1, view2)
 	{}
 
-	CUGIP_DECL_DEVICE
+	CUGIP_DECL_HYBRID
 	Element operator[](coord_t index) const {
 		return this->mView1[index] / this->mView2[index];
 	}
@@ -285,7 +285,7 @@ public:
 		fill_value_(fill_value)
 	{}
 
-	CUGIP_DECL_DEVICE
+	CUGIP_DECL_HYBRID
 	accessed_type operator[](coord_t index) const {
 		index = ModPeriodic(index - offset_, this->dimensions());
 		if (view_.IsIndexInside(index)) {

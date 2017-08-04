@@ -197,6 +197,18 @@ struct dimension<host_image_view_base<tDim>>: dimension_helper<tDim> {};
 	typedef value_type &accessed_type;
 
 
+template<typename TView>
+void dump_view_to_file(TView view, std::string filename) {
+	static_assert(is_host_view<TView>::value, "Dump to file works only for host views");
 
+	std::ofstream out;
+	out.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+	out.open(filename, std::ofstream::out | std::ofstream::binary);
+
+	for (int64_t i = 0; i < elementCount(view); ++i) {
+		auto element = linear_access(view, i);
+		out.write(reinterpret_cast<const char *>(&element), sizeof(element));
+	}
+}
 
 }//namespace cugip

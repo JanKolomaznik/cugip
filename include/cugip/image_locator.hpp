@@ -39,7 +39,7 @@ struct border_handling_periodic_t
 
 template <border_handling_enum tBorderHandling>
 struct BorderHandlingTraits {
-	static constexpr border_handling_enum kValue = tBorderHandling;
+	static constexpr border_handling_enum cValue = tBorderHandling;
 
 	CUGIP_HD_WARNING_DISABLE
 	template<typename TView>
@@ -55,7 +55,7 @@ struct BorderHandlingTraits {
 
 template <>
 struct BorderHandlingTraits<border_handling_enum::MIRROR> {
-	static constexpr border_handling_enum kValue = border_handling_enum::MIRROR;
+	static constexpr border_handling_enum cValue = border_handling_enum::MIRROR;
 
 	CUGIP_HD_WARNING_DISABLE
 	template<typename TView>
@@ -85,7 +85,7 @@ struct BorderHandlingTraits<border_handling_enum::MIRROR> {
 
 template <>
 struct BorderHandlingTraits<border_handling_enum::REPEAT> {
-	static constexpr border_handling_enum kValue = border_handling_enum::REPEAT;
+	static constexpr border_handling_enum cValue = border_handling_enum::REPEAT;
 
 	CUGIP_HD_WARNING_DISABLE
 	template<typename TView>
@@ -100,13 +100,13 @@ struct BorderHandlingTraits<border_handling_enum::REPEAT> {
 		auto minimum = region.corner; //IndexType();
 		auto maximum = region.size - coord_t(1, FillFlag());
 		auto coords = min_per_element(maximum, max_per_element(minimum, coordinates + offset));
-		return view[coords];;
+		return view[coords];
 	}
 };
 
 template <>
 struct BorderHandlingTraits<border_handling_enum::ZERO> {
-	static constexpr border_handling_enum kValue = border_handling_enum::ZERO;
+	static constexpr border_handling_enum cValue = border_handling_enum::ZERO;
 
 	CUGIP_HD_WARNING_DISABLE
 	template<typename TView>
@@ -186,7 +186,7 @@ public:
 		return mView.dimensions();
 	}
 
-	CUGIP_DECL_HYBRID 
+	CUGIP_DECL_HYBRID
 	TImageView view() const {
 		return mView;
 	}

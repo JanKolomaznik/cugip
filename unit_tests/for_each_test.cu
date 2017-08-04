@@ -1,4 +1,4 @@
-#define BOOST_TEST_MODULE ProceduralViewTest
+#define BOOST_TEST_MODULE ForEachTest
 //#include <boost/test/unit_test.hpp>
 #include <boost/test/included/unit_test.hpp>
 
@@ -47,7 +47,7 @@ BOOST_AUTO_TEST_CASE(ForEachDevice)
 	vect3i_t block(32, 4, 4);
 
 	int index = 1;
-	
+
 	auto corner = product(block, index_from_linear_access_index(div_up(extents, block), index));
 	std::cout << "Corner " << corner << "\n";
 	std::cout << "div_up(extents, block) " << div_up(extents, block) << "\n";
@@ -56,4 +56,3 @@ BOOST_AUTO_TEST_CASE(ForEachDevice)
 	BOOST_CHECK_EQUAL(corner, vect3i_t(0, 0, 4));
 
 }*/
-

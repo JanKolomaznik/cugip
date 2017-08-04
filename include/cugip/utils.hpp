@@ -114,4 +114,5 @@ struct fold_and<TBoolTrait, THead> {
 	static constexpr bool value = TBoolTrait<THead>::value;
 };
 
+
 }//namespace cugip

@@ -28,7 +28,16 @@ SET(CUDA_NVCC_FLAGS "-std=c++11 -gencode arch=compute_61,code=sm_61 --use_fast_m
 #ADD_DEFINITIONS(-DBOOST_TEST_DYN_LINK)
 find_package(CUDA)
 
-set(TEST_SUITE_TARGETS utils_test procedural_view_test cellular_automata_test shared_memory_test transform_test for_each_test vector_test)
+set(TEST_SUITE_TARGETS
+	utils_test
+	procedural_view_test
+	cellular_automata_test
+	shared_memory_test
+	transform_test
+	for_each_test
+	vector_test
+	geometry_transformation_test)
+	
 #set(TEST_SUITE_TARGETS utils_test graph_cut_test procedural_view_test cellular_automata_test shared_memory_test transform_test for_each_test vector_test)
 foreach(TEST_TARGET ${TEST_SUITE_TARGETS})
 	message(STATUS "Adding test: ${TEST_TARGET}")
