@@ -11,20 +11,20 @@ TValue lerp(TValue value1, TValue value2, TWeight weight) {
 }
 
 namespace detail {
-/*
+
 template<int tDimension>
 struct LinearInterpolationImpl
 {
 	template<typename TView, typename TWeight, typename TIndex, typename TBorderHandling>
-	static typename TView::Element compute(const TView &view, TWeight weight, TIndex corner1, TIndex corner2) {
+	static typename TView::Element compute(TView view, TWeight weight, TIndex corner1, TIndex corner2) {
 		auto tmp_corner2 = corner2;
 		tmp_corner2[tDimension - 1] = corner1[tDimension - 1];
 
 		auto tmp_corner1 = corner1;
 		tmp_corner1[tDimension - 1] = corner2[tDimension - 1];
 		return lerp(
-			LinearInterpolationImpl<tDimension - 1>::Compute<TBorderHandling>(view, weight, corner1, tmp_corner2),
-			LinearInterpolationImpl<tDimension - 1>::Compute<TBorderHandling>(view, weight, tmp_corner1, corner2),
+			LinearInterpolationImpl<tDimension - 1>::compute<TBorderHandling>(view, weight, corner1, tmp_corner2),
+			LinearInterpolationImpl<tDimension - 1>::compute<TBorderHandling>(view, weight, tmp_corner1, corner2),
 			weight[tDimension - 1]);
 
 	}
@@ -33,16 +33,16 @@ struct LinearInterpolationImpl
 template<>
 struct LinearInterpolationImpl<1> {
 	template<typename TView, typename TWeight, typename TIndex, typename TBorderHandling>
-	static typename TView::Element compute(const TView &view, TWeight weight, TIndex corner1, TIndex corner2) {
-		return lerp(TBorderHandling::Access(view, corner1), TBorderHandling::Access(view, corner2), weight[0]);
+	static typename TView::value_type compute(TView view, TWeight weight, TIndex corner1, TIndex corner2) {
+		return lerp(TBorderHandling::access(view, corner1), TBorderHandling::access(view, corner2), weight[0]);
 	}
-};*/
+};
 
 /*
 template<>
 struct LinearInterpolationImpl<2> {
 	template<typename TView, typename TWeight, typename TIndex, typename TBorderHandling>
-	static typename TView::Element Compute(const TView &view, TWeight weight, TIndex corner1, TIndex corner2) {
+	static typename TView::Element compute(const TView &view, TWeight weight, TIndex corner1, TIndex corner2) {
 		auto tmp_corner2 = corner2;
 		tmp_corner2[1] = corner1[1];
 
@@ -60,7 +60,7 @@ template<>
 struct LinearInterpolationImpl<3> {
 
 	template<typename TView, typename TWeight, typename TIndex, typename TBorderHandling>
-	static typename TView::Element Compute(const TView &view, TWeight weight, TIndex corner1, TIndex corner2) {
+	static typename TView::Element compute(const TView &view, TWeight weight, TIndex corner1, TIndex corner2) {
 		auto tmp_corner2 = corner2;
 		tmp_corner2[2] = corner1[2];
 
@@ -108,7 +108,10 @@ struct LinearInterpolator {
 
 		}*/
 
-		return TBoundaryHandler::access(view, index, simple_vector<int, dimension<TView>::value>());
+		auto corner1 = TIndex(floor(index + offset));
+		auto corner2 = TIndex(ceil(index + offset));
+		auto weight = (index + offset) - corner1;
+		return detail::LinearInterpolationImpl<dimension<TView>::value>::compute<TBoundaryHandler>(view, weight, corner1, corner2);
 	}
 };
 
@@ -161,13 +164,20 @@ public:
 		: TView(aView)
 	{}
 
+	interpolated_view(TView aView, TInterpolator aInterpolator)
+		: TView(aView)
+		, mInterpolator(aInterpolator)
+	{}
+
 	value_type interpolated_value(float_coord_t coordinates) const {
-		auto rounded_coords = round(coordinates);
-		return interpolator_(*this, coordinates - rounded_coords, rounded_coords);
+		// TODO where is 0 vs 0.0f
+		//auto rounded_coords = round(coordinates);
+		auto rounded_coords = floor(coordinates);
+		return mInterpolator(*this, coordinates - rounded_coords, rounded_coords);
 	}
 
 protected:
-	TInterpolator interpolator_;
+	TInterpolator mInterpolator;
 };
 
 CUGIP_DECLARE_VIEW_TRAITS(
@@ -182,6 +192,13 @@ interpolated_view<TView>
 make_interpolated_view(TView aView)
 {
 	return interpolated_view<TView>(aView);
+}
+
+template<typename TView, typename TInterpolator>
+interpolated_view<TView, TInterpolator>
+make_interpolated_view(TView aView, TInterpolator aInterpolator)
+{
+	return interpolated_view<TView, TInterpolator>(aView, aInterpolator);
 }
 
 }  // namespace cugip

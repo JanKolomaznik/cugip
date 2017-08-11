@@ -15,6 +15,7 @@ coordinatesFromIndex(TView aView, simple_vector<int, tDim> aIndex)
 template<typename TInputView, typename TOutputView, typename TInverseTransformation>
 struct TransformationFunctor
 {
+	CUGIP_HD_WARNING_DISABLE
 	template<typename TValue, typename TIndex>
 	CUGIP_DECL_HYBRID
 	void operator()(TValue &aValue, TIndex aIndex) const

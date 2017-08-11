@@ -715,6 +715,36 @@ round(const simple_vector<TType, tDimension> &aVector)
 }
 
 template<typename TType, int tDimension>
+inline CUGIP_DECL_HYBRID simple_vector<int, tDimension>
+floor(const simple_vector<TType, tDimension> &aVector)
+{
+	simple_vector<int, tDimension> result;
+	for (int i = 0; i < tDimension; ++i) {
+#ifdef __CUDA_ARCH__
+		result[i] = floorf(aVector[i]);
+#else
+		result[i] = std::floor(aVector[i]);
+#endif
+	}
+	return result;
+}
+
+template<typename TType, int tDimension>
+inline CUGIP_DECL_HYBRID simple_vector<int, tDimension>
+ceil(const simple_vector<TType, tDimension> &aVector)
+{
+	simple_vector<int, tDimension> result;
+	for (int i = 0; i < tDimension; ++i) {
+#ifdef __CUDA_ARCH__
+		result[i] = ceilf(aVector[i]);
+#else
+		result[i] = std::ceil(aVector[i]);
+#endif
+	}
+	return result;
+}
+
+template<typename TType, int tDimension>
 inline CUGIP_DECL_HYBRID simple_vector<TType, tDimension>
 div(const simple_vector<TType, tDimension> &aVector1, const simple_vector<TType, tDimension> &aVector2)
 {
