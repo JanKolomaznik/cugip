@@ -7,6 +7,9 @@
 #include <boost/format.hpp>
 #include <boost/fusion/adapted/std_tuple.hpp>
 
+#include <cugip/math.hpp>
+#include <cugip/host_image_view.hpp>
+
 namespace cmd {
 struct Range {
 	float from;
@@ -42,3 +45,40 @@ void validate(boost::any& v, const std::vector<std::string>& values, Range* targ
 }
 
 } // namespace cmd
+
+template<typename TInElement, typename TOutElement, int tDimension, typename TProcessingAlgorithm>
+void processImage(boost::filesystem::path aInput, boost::filesystem::path aOutput, TProcessingAlgorithm aAlgorithm)
+{
+	using namespace cugip;
+	typedef itk::Image<TInElement, tDimension> InputImageType;
+	typedef itk::Image<TOutElement, tDimension> OutputImageType;
+
+	typedef itk::ImageFileReader<InputImageType>  ReaderType;
+	typedef itk::ImageFileWriter<OutputImageType> WriterType;
+
+	typename ReaderType::Pointer reader = ReaderType::New();
+	reader->SetFileName(aInput.string());
+	reader->Update();
+
+	typename InputImageType::Pointer image = reader->GetOutput();
+
+	typename OutputImageType::Pointer output_image = OutputImageType::New();
+	output_image->SetRegions(image->GetLargestPossibleRegion());
+	output_image->Allocate();
+	output_image->SetSpacing(image->GetSpacing());
+
+	simple_vector<int, tDimension> size;
+	for (int i = 0; i < tDimension; ++i) {
+		size[i] = image->GetLargestPossibleRegion().GetSize()[i];
+	}
+
+	auto inView = makeConstHostImageView(image->GetPixelContainer()->GetBufferPointer(), size);
+	auto outView = makeHostImageView(output_image->GetPixelContainer()->GetBufferPointer(), size);
+
+	aAlgorithm(inView, outView);
+
+	typename WriterType::Pointer writer = WriterType::New();
+	writer->SetFileName(aOutput.string());
+	writer->SetInput(output_image);
+	writer->Update();
+}

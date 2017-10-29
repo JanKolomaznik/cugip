@@ -11,30 +11,55 @@ TValue lerp(TValue value1, TValue value2, TWeight weight) {
 }
 
 namespace detail {
+template<typename TBoundaryHandler, typename TView>
+struct Accessor {
+	using value_type = typename TView::value_type;
+
+	template<typename TIndex>
+	value_type operator[](TIndex aIndex) {
+		return TBoundaryHandler::access(view, aIndex, TIndex());
+	}
+	TView view;
+};
+
+template<typename TBoundaryHandler, typename TView>
+Accessor<TBoundaryHandler, TView>
+make_accessor(TView view) {
+	return Accessor<TBoundaryHandler, TView>{ view };
+}
+
 
 template<int tDimension>
 struct LinearInterpolationImpl
 {
-	template<typename TView, typename TWeight, typename TIndex, typename TBorderHandling>
-	static typename TView::Element compute(TView view, TWeight weight, TIndex corner1, TIndex corner2) {
+	template<typename TAccessor, typename TWeight, typename TIndex>
+	static typename TAccessor::value_type compute(TAccessor accessor, TWeight weight, TIndex corner1, TIndex corner2) {
 		auto tmp_corner2 = corner2;
 		tmp_corner2[tDimension - 1] = corner1[tDimension - 1];
 
 		auto tmp_corner1 = corner1;
 		tmp_corner1[tDimension - 1] = corner2[tDimension - 1];
 		return lerp(
-			LinearInterpolationImpl<tDimension - 1>::compute<TBorderHandling>(view, weight, corner1, tmp_corner2),
-			LinearInterpolationImpl<tDimension - 1>::compute<TBorderHandling>(view, weight, tmp_corner1, corner2),
+			LinearInterpolationImpl<tDimension - 1>::compute(accessor, weight, corner1, tmp_corner2),
+			LinearInterpolationImpl<tDimension - 1>::compute(accessor, weight, tmp_corner1, corner2),
 			weight[tDimension - 1]);
-
 	}
 };
 
+/*template<typename TBorderHandling>
+struct LinearInterpolationImpl<1, TBorderHandling> {
+	template<typename TView, typename TWeight, typename TIndex>
+	static typename TView::value_type compute(TView view, TWeight weight, TIndex corner1, TIndex corner2) {
+		return lerp(TBorderHandling::access(view, corner1, TIndex()), TBorderHandling::access(view, corner2, TIndex()), weight[0]);
+	}
+};*/
+
 template<>
 struct LinearInterpolationImpl<1> {
-	template<typename TView, typename TWeight, typename TIndex, typename TBorderHandling>
-	static typename TView::value_type compute(TView view, TWeight weight, TIndex corner1, TIndex corner2) {
-		return lerp(TBorderHandling::access(view, corner1), TBorderHandling::access(view, corner2), weight[0]);
+	template<typename TAccessor, typename TWeight, typename TIndex>
+	static typename TAccessor::value_type compute(TAccessor accessor, TWeight weight, TIndex corner1, TIndex corner2) {
+		std::cout << corner1 << "-" << corner2 << ";";
+		return lerp(accessor[corner1], accessor[corner2], weight[0]);
 	}
 };
 
@@ -93,6 +118,7 @@ struct NearestNeighborInterpolator {
 
 template<typename TBoundaryHandler>
 struct LinearInterpolator {
+	CUGIP_HD_WARNING_DISABLE
 	template<typename TView, typename TOffset, typename TIndex>
 	CUGIP_DECL_HYBRID
 	typename TView::value_type operator()(
@@ -111,7 +137,13 @@ struct LinearInterpolator {
 		auto corner1 = TIndex(floor(index + offset));
 		auto corner2 = TIndex(ceil(index + offset));
 		auto weight = (index + offset) - corner1;
-		return detail::LinearInterpolationImpl<dimension<TView>::value>::compute<TBoundaryHandler>(view, weight, corner1, corner2);
+		//auto a = detail::LinearInterpolationImpl<dimension<TView>::value, TBoundaryHandler>();
+		//return detail::LinearInterpolationImpl<dimension<TView>::value, TBoundaryHandler>::compute(view, weight, corner1, corner2);
+		std::cout << weight << ": ";
+		auto value = detail::LinearInterpolationImpl<dimension<TView>::value>::compute(detail::make_accessor<TBoundaryHandler>(view), weight, corner1, corner2);
+		std::cout << "\n";
+		return value;
+		//return 0.0;
 	}
 };
 
@@ -160,24 +192,39 @@ public:
 	typedef interpolated_view<TView, TInterpolator> this_t;
 	typedef typename dim_traits<cDimension>::float_coord_t float_coord_t;
 
+	CUGIP_DECL_HYBRID
 	interpolated_view(TView aView)
 		: TView(aView)
+		, mOffset(0.5f, FillFlag())
 	{}
 
+	CUGIP_DECL_HYBRID
 	interpolated_view(TView aView, TInterpolator aInterpolator)
 		: TView(aView)
 		, mInterpolator(aInterpolator)
+		, mOffset(0.5f, FillFlag())
 	{}
 
+	CUGIP_DECL_HYBRID
 	value_type interpolated_value(float_coord_t coordinates) const {
 		// TODO where is 0 vs 0.0f
 		//auto rounded_coords = round(coordinates);
-		auto rounded_coords = floor(coordinates);
-		return mInterpolator(*this, coordinates - rounded_coords, rounded_coords);
+
+		auto coordinatesIndex = coordinates - mOffset;
+		auto rounded_coords = floor(coordinatesIndex);
+		auto offset = coordinatesIndex - rounded_coords;
+		//std::cout << "A " << coordinates << "; " << coordinatesIndex << "; " << rounded_coords << "; " << offset << "\n";
+		return mInterpolator(*this, offset, rounded_coords);
 	}
 
+	CUGIP_DECL_HYBRID float_coord_t
+	coordinates_from_index(coord_t aIndex) const
+	{
+		return aIndex + mOffset;
+	}
 protected:
 	TInterpolator mInterpolator;
+	float_coord_t mOffset;
 };
 
 CUGIP_DECLARE_VIEW_TRAITS(
@@ -186,6 +233,9 @@ CUGIP_DECLARE_VIEW_TRAITS(
 	is_device_view<TView>::value,
 	is_host_view<TView>::value,
 	typename TView, typename TInterpolator);
+
+template<typename TView, typename TInterpolator>
+struct is_interpolated_view<interpolated_view<TView, TInterpolator>>: public std::true_type {};
 
 template<typename TView>
 interpolated_view<TView>

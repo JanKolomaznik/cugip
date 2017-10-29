@@ -4,11 +4,18 @@
 
 namespace cugip {
 
+template<typename TView, int tDim, typename std::enable_if<is_interpolated_view<TView>::value, int>::type = 0>
+CUGIP_DECL_HYBRID simple_vector<float, tDim>
+coordinatesFromIndex(TView aView, simple_vector<int, tDim> aIndex)
+{
+	return aView.coordinates_from_index(aIndex);
+}
+
 template<typename TView, int tDim>
 CUGIP_DECL_HYBRID simple_vector<float, tDim>
 coordinatesFromIndex(TView aView, simple_vector<int, tDim> aIndex)
 {
-	return simple_vector<float, tDim>(aIndex) + simple_vector<float, tDim>(0.5f, FillFlag{});
+	return aIndex + simple_vector<float, tDim>(0.5f, FillFlag());
 }
 
 
@@ -20,6 +27,7 @@ struct TransformationFunctor
 	CUGIP_DECL_HYBRID
 	void operator()(TValue &aValue, TIndex aIndex) const
 	{
+		//std::cout << "From " << aIndex << "to " << transformation(coordinatesFromIndex(output, aIndex)) << "\n";
 		aValue = input.interpolated_value(transformation(coordinatesFromIndex(output, aIndex)));
 	}
 

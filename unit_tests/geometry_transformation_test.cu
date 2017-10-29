@@ -22,7 +22,7 @@ using namespace cugip;
 static const float cEpsilon = 0.00001;
 
 
-BOOST_AUTO_TEST_CASE(RotationTest)
+/*BOOST_AUTO_TEST_CASE(RotationTest)
 {
 	host_image<float, 2> output(20, 20);
 
@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(ScaleTest)
 
 	auto difference = sum_differences(view(output), testView, 0.0f);
 	BOOST_CHECK_CLOSE(difference, 0.0f, cEpsilon);
-}
+}*/
 
 BOOST_AUTO_TEST_CASE(LinearInterpolationScaleTest)
 {
@@ -52,7 +52,7 @@ BOOST_AUTO_TEST_CASE(LinearInterpolationScaleTest)
 
 	auto inputView = cugip::checkerBoard<float, 2>(0.0f, 1.0f, Int2(10, 10), Int2(20, 20));
 	auto testView = cugip::checkerBoard<float, 2>(0.0f, 1.0f, Int2(20, 20), Int2(40, 40));
-	scale(make_interpolated_view(inputView, LinearInterpolator<BorderHandlingTraits<border_handling_enum::REPEAT>>()), view(output), vect2f_t(0.0f, 0.0f), vect2f_t(2.0f, 2.0f));
+	scale(make_interpolated_view(inputView, LinearInterpolator<BorderHandlingTraits<border_handling_enum::ZERO>>()), view(output), vect2f_t(0.0f, 0.0f), vect2f_t(2.0f, 2.0f));
 
 	dump_view_to_file(inputView, "scale_input_20x20.raw");
 	dump_view_to_file(view(output), "scale_test_40x40.raw");

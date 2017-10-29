@@ -13,13 +13,21 @@ namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 
 
+struct ObjectnessMeasureFunctor {
+	template<typename TInView, typename TOutView>
+	void operator()(TInView aInview, TOutView aOutView) {
+
+	}
+};
+
+
 int main( int argc, char* argv[] )
 {
 	fs::path inputFile;
 	fs::path outputFile;
 
 	cmd::Range scaleRange;
-	int levelCount
+	int levelCount = 1;
 	po::options_description desc("Allowed options");
 	desc.add_options()
 		("help", "produce help message")
@@ -51,7 +59,7 @@ int main( int argc, char* argv[] )
 	typedef itk::ImageIOBase::IOComponentType ScalarPixelType;
 
 	try {
-		/*itk::ImageIOBase::Pointer imageIO = itk::ImageIOFactory::CreateImageIO(inputFile.c_str(), itk::ImageIOFactory::ReadMode);
+		itk::ImageIOBase::Pointer imageIO = itk::ImageIOFactory::CreateImageIO(inputFile.c_str(), itk::ImageIOFactory::ReadMode);
 		imageIO->SetFileName(inputFile.string());
 		imageIO->ReadImageInformation();
 		const ScalarPixelType pixelType = imageIO->GetComponentType();
@@ -67,15 +75,15 @@ int main( int argc, char* argv[] )
 
 		switch (numDimensions) {
 		case 2:
-			processImage<2, int64_t>(inputFile, outputFile, options);
+			processImage<float, float, 2>(inputFile, outputFile, ObjectnessMeasureFunctor());
 			break;
 		case 3:
-			processImage<3, int64_t>(inputFile, outputFile, options);
+			processImage<float, float, 3>(inputFile, outputFile, ObjectnessMeasureFunctor());
 			break;
 		default:
 			std::cerr << "Error: Unsupported image dimension.\n";
 			return EXIT_FAILURE;
-		}*/
+		}
 
 	} catch( itk::ExceptionObject & error ) {
 		std::cerr << "Error: " << error << std::endl;
