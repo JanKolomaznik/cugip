@@ -4,26 +4,23 @@
 #include <cugip/detail/include.hpp>
 #include <cugip/exception.hpp>
 #include <cugip/image_locator.hpp>
-#include <cugip/math.hpp>
+#include <cugip/cuda_utils.hpp>
 
 namespace cugip {
 
 namespace detail {
 
 template <typename TInView, typename TOutView, typename TFunctor>
-CUGIP_GLOBAL void 
+CUGIP_GLOBAL void
 kernel_filter(TInView aInView, TOutView aOutView, TFunctor aOperator )
 {
 	typename TOutView::coord_t coord(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y);
 	typename TOutView::extents_t extents = aOutView.dimensions();
 
-
-	if (cugip::less(coord, extents)) {
-		aOutView[coord] = aOperator(aInView.template locator<cugip::border_handling_repeat_t>(coord));//TODO - add different border policies
-	} 
+	if (coord < extents) {
+		aOutView[coord] = aOperator(aInView.template locator<cugip::BorderHandlingTraits<border_handling_enum::REPEAT>>(coord));
+	}
 }
-
-
 
 }//namespace detail
 
@@ -33,7 +30,7 @@ kernel_filter(TInView aInView, TOutView aOutView, TFunctor aOperator )
  **/
 
 template <typename TInView, typename TOutView, typename TFunctor>
-void 
+void
 filter(TInView aInView, TOutView aOutView, TFunctor aOperator)
 {
 	dim3 blockSize(256, 1, 1);
@@ -49,11 +46,10 @@ filter(TInView aInView, TOutView aOutView, TFunctor aOperator)
 	CUGIP_CHECK_ERROR_STATE("kernel_for_each");
 }
 
-/** 
+/**
  * @}
  **/
 
 //*************************************************************************************************************
 
 }//namespace cugip
-

@@ -51,10 +51,15 @@ public:
 	CUGIP_DECL_HYBRID const_value_type &
 	operator[](size_t aIdx)
 	{
-		CUGIP_ASSERT(aIdx < TNeighborhood::size);
+		//CUGIP_ASSERT(aIdx < TNeighborhood::size);
 		return mLocator[this->neighbor_offset(aIdx)];
 	}
-	
+
+	CUGIP_DECL_HYBRID
+	TImageLocator locator() const {
+		return mLocator;
+	}
+
 protected:
 	TImageLocator mLocator;
 };
@@ -63,10 +68,100 @@ protected:
 template<typename TImageView, typename TNeigborhoodTag>
 struct get_neighborhood_accessor
 {
-	typedef image_locator<TImageView, border_handling_repeat_t> locator_t;
+	typedef image_locator<TImageView, BorderHandlingTraits<border_handling_enum::REPEAT>> locator_t;
 	typedef neighborhood_accessor<locator_t, typename TNeigborhoodTag::type> type;
 
 };
 
-}//namespace cugip
+CUGIP_HD_WARNING_DISABLE
+template<typename TCallable>
+CUGIP_DECL_HYBRID
+void for_each_neighbor(simple_vector<int, 2> aRadius, TCallable aCallable)
+{
+	simple_vector<int, 2> index;
+	for(index[1] = -aRadius[1]; index[1] <= aRadius[1]; ++index[1]) {
+		for(index[0] = -aRadius[0]; index[0] <= aRadius[0]; ++index[0]) {
+			aCallable(index);
+		}
+	}
+}
 
+CUGIP_HD_WARNING_DISABLE
+template<typename TCallable>
+CUGIP_DECL_HYBRID
+void for_each_neighbor(simple_vector<int, 3> aRadius, TCallable aCallable)
+{
+	simple_vector<int, 3> index;
+	for(index[2] = -aRadius[2]; index[2] <= aRadius[2]; ++index[2]) {
+		for(index[1] = -aRadius[1]; index[1] <= aRadius[1]; ++index[1]) {
+			for(index[0] = -aRadius[0]; index[0] <= aRadius[0]; ++index[0]) {
+				aCallable(index);
+			}
+		}
+	}
+}
+
+CUGIP_HD_WARNING_DISABLE
+template<typename TCallable>
+CUGIP_DECL_HYBRID
+void for_each_neighbor(simple_vector<int, 2> aFrom, simple_vector<int, 2> aTo, TCallable aCallable)
+{
+	simple_vector<int, 2> index;
+	for(index[1] = aFrom[1]; index[1] < aTo[1]; ++index[1]) {
+		for(index[0] = aFrom[0]; index[0] < aTo[0]; ++index[0]) {
+			aCallable(index);
+		}
+	}
+}
+
+CUGIP_HD_WARNING_DISABLE
+template<typename TCallable>
+CUGIP_DECL_HYBRID
+void for_each_neighbor(simple_vector<int, 3> aFrom, simple_vector<int, 3> aTo, TCallable aCallable)
+{
+	simple_vector<int, 3> index;
+	for(index[2] = aFrom[2]; index[2] < aTo[2]; ++index[2]) {
+		for(index[1] = aFrom[1]; index[1] < aTo[1]; ++index[1]) {
+			for(index[0] = aFrom[0]; index[0] < aTo[0]; ++index[0]) {
+				aCallable(index);
+			}
+		}
+	}
+}
+
+//TODO - cleanuup the unroll
+CUGIP_HD_WARNING_DISABLE
+template<int tRadius, typename TCallable>
+CUGIP_DECL_DEVICE
+void for_each_in_radius(TCallable aCallable)
+{
+	simple_vector<int, 3> index;
+	for(index[2] = -tRadius; index[2] <= tRadius; ++index[2]) {
+			#pragma unroll
+		for(index[1] = -tRadius; index[1] <= tRadius; ++index[1]) {
+			#pragma unroll
+			for(index[0] = -tRadius; index[0] <= tRadius; ++index[0]) {
+				aCallable(index);
+			}
+		}
+	}
+}
+
+CUGIP_HD_WARNING_DISABLE
+template<int tRadius, typename TCallable>
+CUGIP_DECL_DEVICE
+void for_each_in_radius2(TCallable aCallable)
+{
+	int yOffset = (threadIdx.y + 1) % 2;
+	simple_vector<int, 3> index;
+	for(index[2] = -tRadius; index[2] <= tRadius; ++index[2]) {
+		//for(index[1] = -tRadius; index[1] <= tRadius; ++index[1]) {
+		for(int tmp = -tRadius + yOffset; tmp <= tRadius + yOffset; ++tmp) {
+			index[1] = (tmp + tRadius) % (2*tRadius + 1) - tRadius;
+			for(index[0] = -tRadius; index[0] <= tRadius; ++index[0]) {
+				aCallable(index);
+			}
+		}
+	}
+}
+}//namespace cugip

@@ -2,134 +2,477 @@
 
 #include <cugip/detail/include.hpp>
 #include <cugip/utils.hpp>
+#include <cugip/access_utils.hpp>
+#include <cugip/math.hpp>
+#include <cugip/memory_view.hpp>
+#include <cugip/meta_algorithm.hpp>
+
+#if defined(__CUDACC__)
+#include <cugip/cuda_utils.hpp>
+#include <cugip/unified_image_view.hpp>
+#endif //defined(__CUDACC__)
 
 namespace cugip {
 
 namespace detail {
 
-	template<bool tFromDevice, bool tToDevice>
-	struct copy_methods_impl;
+/*template<typename TType>
+void
+copy_wrapper(
+	const TType *aFromPointer,
+	int aFromPitch,
+	TType *aToPointer,
+	int aToPitch,
+	size2_t aSize,
+	cudaMemcpyKind aMemcpyKind)
+{
+	CUGIP_CHECK_RESULT(cudaMemcpy2D(
+			aToPointer,
+			aToPitch,
+			aFromPointer,
+			aFromPitch,
+			aSize[0]*sizeof(TType),
+			aSize[1],
+			aMemcpyKind));
+}
 
-	//device to device
-	template<>
-	struct copy_methods_impl<true, true>
+template<typename TType>
+void
+copy_wrapper(
+	const TType *aFromPointer,
+	int aFromPitch,
+	TType *aToPointer,
+	int aToPitch,
+	size3_t aSize,
+	cudaMemcpyKind aMemcpyKind)
+{
+	CUGIP_CHECK_RESULT(cudaMemcpy2D(
+			aToPointer,
+			aToPitch,
+			aFromPointer,
+			aFromPitch,
+			aSize[0]*sizeof(TType),
+			aSize[1] * aSize[2],
+			aMemcpyKind));
+}*/
+/*
+template<bool tFromDevice, bool tToDevice>
+struct copy_methods_impl;
+
+//device to device
+template<>
+struct copy_methods_impl<true, true>
+{
+	template<typename TFrom, typename TTo>
+	static void
+	copy(TFrom &aFrom, TTo &aTo)
 	{
-		template<typename TFrom, typename TTo>
-		static void
-		copy(TFrom &aFrom, TTo &aTo)
-		{
-			D_PRINT("COPY: device to device");
+		D_PRINT("COPY: device to device");
 
-			CUGIP_ASSERT(aTo.dimensions() == aFrom.dimensions());
+		CUGIP_ASSERT(aTo.dimensions() == aFrom.dimensions());
 
-			unsigned char *dst = reinterpret_cast<unsigned char*>(&(aTo.pixels()(0,0)));
-			int diff = reinterpret_cast<unsigned char*>(&(aTo.pixels()(0,1))) - dst;
-			CUGIP_ASSERT(diff >= 0);
+		unsigned char *dst = reinterpret_cast<unsigned char*>(&(aTo.pixels()(0,0)));
+		int diff = reinterpret_cast<unsigned char*>(&(aTo.pixels()(0,1))) - dst;
+		CUGIP_ASSERT(diff >= 0);
 
-			D_PRINT(boost::str(boost::format("COPY: device to device, %1$#x => %2$#x")
-				% ((size_t)aFrom.data().mData.p)
-				% ((size_t)aTo.data().mData.p)
-				));
-			CUGIP_CHECK_RESULT(cudaMemcpy2D(aTo.data().mData.p, 
-				      aTo.data().mPitch,
-				      aFrom.data().mData.p, 
-				      aFrom.data().mPitch,
-				      get<0>(aTo.dimensions())*sizeof(typename TTo::value_type), 
-				      get<1>(aTo.dimensions()), 
-				      cudaMemcpyDeviceToDevice));
-		}
-	};
+		D_PRINT(boost::str(boost::format("COPY: device to device, %1$#x => %2$#x")
+			% ((int)aFrom.data().mData.p)
+			% ((int)aTo.data().mData.p)
+			));
+		//copy_wrapper(aFrom.data().mData.p,
+		//	      aFrom.data().mPitch,
+		//		aTo.data().mData.p,
+		//	      aTo.data().mPitch,
+		//		aTo.dimensions(),
+		//		cudaMemcpyDeviceToDevice);
+		CUGIP_CHECK_RESULT(cudaMemcpy2D(aTo.data().mData.p,
+			      aTo.data().mPitch,
+			      aFrom.data().mData.p,
+			      aFrom.data().mPitch,
+			      get<0>(aTo.dimensions())*sizeof(typename TTo::value_type),
+			      get<1>(aTo.dimensions()),
+			      cudaMemcpyDeviceToDevice));
+	}
+};
 
-	//host to device
-	template<>
-	struct copy_methods_impl<false, true>
+//host to device
+template<>
+struct copy_methods_impl<false, true>
+{
+	template<typename TFrom, typename TTo>
+	static void
+	copy(TFrom &aFrom, TTo &aTo)
 	{
-		template<typename TFrom, typename TTo>
-		static void
-		copy(TFrom &aFrom, TTo &aTo)
-		{
+		D_PRINT("COPY: host to device");
 
-			CUGIP_ASSERT(aFrom.width() == aTo.dimensions().template get<0>());
-			CUGIP_ASSERT(aFrom.height() == aTo.dimensions().template get<1>());
+		CUGIP_ASSERT(aFrom.width() == aTo.dimensions().template get<0>());
+		CUGIP_ASSERT(aFrom.height() == aTo.dimensions().template get<1>());
 
 
-			const unsigned char *src = reinterpret_cast<const unsigned char*>(&(aFrom.pixels()(0,0)));
-			int diff = reinterpret_cast<const unsigned char*>(&(aFrom.pixels()(0,1))) - src;
-			CUGIP_ASSERT(diff >= 0);
+		const unsigned char *src = reinterpret_cast<const unsigned char*>(&(aFrom.pixels()(0,0)));
+		int diff = reinterpret_cast<const unsigned char*>(&(aFrom.pixels()(0,1))) - src;
+		CUGIP_ASSERT(diff >= 0);
 
-			D_PRINT(boost::str(boost::format("COPY: host to device, %1$#x => %2$#x")
-				% ((size_t) src)
-				% ((size_t)aTo.data().mData.p)		
-				));
-					
-			CUGIP_CHECK_RESULT(cudaMemcpy2D(aTo.data().mData.p, 
-				      aTo.data().mPitch, 
-				      src, 
-				      diff, 
-				      aFrom.width()*sizeof(typename TFrom::value_type), 
-				      aFrom.height(), 
-				      cudaMemcpyHostToDevice));
-			cudaThreadSynchronize();
-		}
-	};
+		D_PRINT(boost::str(boost::format("COPY: host to device, %1$#x => %2$#x")
+			% ((int) src)
+			% ((int)aTo.data().mData.p)
+			));
 
-	//host to host
-	template<>
-	struct copy_methods_impl<false, false>
+		CUGIP_CHECK_RESULT(cudaMemcpy2D(aTo.data().mData.p,
+			      aTo.data().mPitch,
+			      src,
+			      diff,
+			      aFrom.width()*sizeof(typename TFrom::value_type),
+			      aFrom.height(),
+			      cudaMemcpyHostToDevice));
+		cudaThreadSynchronize();
+	}
+};
+
+//host to host
+template<>
+struct copy_methods_impl<false, false>
+{
+	template<typename TFrom, typename TTo>
+	static void
+	copy(TFrom &aFrom, TTo &aTo)
 	{
-		template<typename TFrom, typename TTo>
-		static void
-		copy(TFrom &aFrom, TTo &aTo)
-		{
-			D_PRINT("COPY: host to host");
+		D_PRINT("COPY: host to host");
 
-			CUGIP_ASSERT(false && "Not implemented");
-		}
-	};
+		CUGIP_ASSERT(false && "Not implemented");
+	}
+};
 
-	//device to host
-	template<>
-	struct copy_methods_impl<true, false>
+//device to host
+template<>
+struct copy_methods_impl<true, false>
+{
+	template<typename TFrom, typename TTo>
+	static void
+	copy(TFrom &aFrom, TTo &aTo)
 	{
-		template<typename TFrom, typename TTo>
-		static void
-		copy(TFrom &aFrom, TTo &aTo)
-		{
-			CUGIP_ASSERT(aTo.width() == aFrom.dimensions().template get<0>());
-			CUGIP_ASSERT(aTo.height() == aFrom.dimensions().template get<1>());
+		CUGIP_ASSERT(aTo.width() == aFrom.dimensions().template get<0>());
+		CUGIP_ASSERT(aTo.height() == aFrom.dimensions().template get<1>());
 
-			unsigned char *dst = reinterpret_cast<unsigned char*>(&(aTo.pixels()(0,0)));
-			int diff = reinterpret_cast<unsigned char*>(&(aTo.pixels()(0,1))) - dst;
-			CUGIP_ASSERT(diff >= 0);
+		unsigned char *dst = reinterpret_cast<unsigned char*>(&(aTo.pixels()(0,0)));
+		int diff = reinterpret_cast<unsigned char*>(&(aTo.pixels()(0,1))) - dst;
+		CUGIP_ASSERT(diff >= 0);
 
-			D_PRINT(boost::str(boost::format("COPY: device to host, %1$#x => %2$#x")
-				% ((size_t)aFrom.data().mData.p)
-				% ((size_t) dst)
-				));
-			CUGIP_CHECK_RESULT(cudaMemcpy2D(dst, 
-				      diff,
-				      aFrom.data().mData.p, 
-				      aFrom.data().mPitch,
-				      aTo.width()*sizeof(typename TTo::value_type), 
-				      aTo.height(), 
-				      cudaMemcpyDeviceToHost));
-		}
-	};
-
+		D_PRINT(boost::str(boost::format("COPY: device to host, %1$#x => %2$#x")
+			% ((int)aFrom.data().mData.p)
+			% ((int) dst)
+			));
+		CUGIP_CHECK_RESULT(cudaMemcpy2D(dst,
+			      diff,
+			      aFrom.data().mData.p,
+			      aFrom.data().mPitch,
+			      aTo.width()*sizeof(typename TTo::value_type),
+			      aTo.height(),
+			      cudaMemcpyDeviceToHost));
+	}
+};
+*/
 }//namespace detail
 
-
+/*
 template<typename TFrom, typename TTo>
 void
 copy(TFrom aFrom, TTo aTo)
 {
 	cugip::detail::copy_methods_impl<
-			cugip::is_device_view<TFrom>::value, 
-			cugip::is_device_view<TTo>::value
+			cugip::is_device_view<TFrom>::value,
+			cugip::is_device_view<TTo>::value,
 		>::copy(aFrom, aTo);
+}
+
+template<typename TFrom, typename TTo>
+void
+copy_to(TFrom aFrom, TTo aTo)
+{
+	detail::copy_wrapper(
+		aFrom.data().mData,
+		aFrom.data().mPitch,
+		aTo.data().mData.p,
+		aTo.data().mPitch,
+		aFrom.dimensions(),
+		cudaMemcpyHostToDevice);
+}
+
+template<typename TFrom, typename TTo>
+void
+copy_from(TFrom aFrom, TTo aTo)
+{
+	detail::copy_wrapper(
+		aFrom.data().mData.p,
+		aFrom.data().mPitch,
+		aTo.data().mData,
+		aTo.data().mPitch,
+		aFrom.dimensions(),
+		cudaMemcpyDeviceToHost);
+}
+*/
+template<bool tFromDevice, bool tToDevice>
+struct CopyDirectionTag {};
+
+typedef CopyDirectionTag<true, true> DeviceToDeviceTag;
+typedef CopyDirectionTag<true, false> DeviceToHostTag;
+typedef CopyDirectionTag<false, false> HostToHostTag;
+typedef CopyDirectionTag<false, true> HostToDeviceTag;
+
+/// Asynchronous copy between compatible image views.
+/// Device/host direction is defined by the type of these views.
+/// Copying views between host <-> device must be done through memory based views.
+/// \param from_view Source
+/// \param to_view Target
+/// \param cuda_stream Selected CUDA stream.
+template <typename TFromView, typename TToView>
+void copy_async(
+	TFromView from_view,
+	TToView to_view,
+	cudaStream_t cuda_stream = 0);
+
+
+/// Synchronous copy between compatible image views.
+/// \sa CopyAsync()
+template <typename TFromView, typename TToView>
+void copy(
+	TFromView from_view,
+	TToView to_view);
+
+// IMPLEMENTATION - TODO(reorganize)
+
+#if defined(__CUDACC__)
+
+template <typename TFromView, typename TToView>
+CUGIP_GLOBAL void copyKernel(
+	TFromView from_view,
+	TToView to_view)
+{
+	/*int element_count = elementCount(from_view);
+	int tid = threadIdx.x;
+	int index = blockIdx.x * blockDim.x + tid;
+	int grid_size = blockDim.x * gridDim.x;
+
+	while (index < element_count) {
+		linear_access(to_view, index) = linear_access(from_view, index);
+		index += grid_size;
+	}
+	__syncthreads();*/
+	auto coord = mapBlockIdxAndThreadIdxToViewCoordinates<dimension<TFromView>::value>();
+	auto extents = from_view.dimensions();
+
+	if (coord < extents) {
+		to_view[coord] = from_view[coord];
+	}
+}
+
+
+template <typename TFromView, typename TToView>
+void copyDeviceToDeviceAsync(
+	TFromView from_view,
+	TToView to_view,
+	cudaStream_t cuda_stream)
+{
+	// TODO(johny) - use memcpy for memory based views
+	/*constexpr int cBucketSize = 4;  // Bundle more computation in one block
+
+	dim3 block(512, 1, 1);
+	dim3 grid(1 + (elementCount(from_view) - 1) / (block.x * cBucketSize), 1, 1);
+
+	*/
+
+	dim3 blockSize = detail::defaultBlockDimForDimension<dimension<TFromView>::value>();
+	dim3 gridSize = detail::defaultGridSizeForBlockDim(from_view.dimensions(), blockSize);
+
+	copyKernel<TFromView, TToView><<<gridSize, blockSize, 0, cuda_stream>>>(from_view, to_view);
+
+	CUGIP_CHECK_ERROR_STATE("After CopyKernel");
+}
+#endif //defined(__CUDACC__)
+
+template <typename TFromView, typename TToView>
+void copyHostToHost(
+	TFromView from_view,
+	TToView to_view)
+{
+	// TODO(johny) - use memcpy for memory based views
+
+	for (int i = 0; i < elementCount(from_view); ++i) {
+		linear_access(to_view, i) = linear_access(from_view, i);
+	}
+}
+
+#if defined(__CUDACC__)
+template <typename TFromView, typename TToView>
+void copyDeviceToHostAsync(
+	TFromView from_view,
+	TToView to_view,
+	cudaStream_t cuda_stream)
+{
+	typedef typename std::remove_cv<typename TFromView::value_type>::type FromElement;
+	typedef typename std::remove_cv<typename TToView::value_type>::type ToElement;
+	static_assert(std::is_same<FromElement, ToElement>::value, "From/To views have incompatible element types.");
+	static_assert(is_memory_based<TFromView>::value, "Source view must be memory based");
+	static_assert(is_memory_based<TToView>::value, "Target view must be memory based");
+	// Copy without padding
+	cudaMemcpy3DParms parameters = { 0 };
+
+	parameters.srcPtr = stridesToPitchedPtr(from_view.pointer(), from_view.dimensions(), from_view.strides());
+	parameters.dstPtr = stridesToPitchedPtr(to_view.pointer(), to_view.dimensions(), to_view.strides());
+	parameters.extent = makeCudaExtent(sizeof(typename TFromView::value_type), from_view.dimensions());
+	parameters.kind = cudaMemcpyDeviceToHost;
+	CUGIP_DFORMAT("Copy pitched data: \n  src: %1%\n  dst: %2%\n  extent: %3%", parameters.srcPtr, parameters.dstPtr, parameters.extent);
+	CUGIP_CHECK_RESULT(cudaMemcpy3DAsync(&parameters, cuda_stream));
+}
+
+
+template <typename TFromView, typename TToView>
+void copyHostToDeviceAsync(
+	TFromView from_view,
+	TToView to_view,
+	cudaStream_t cuda_stream)
+{
+	typedef typename std::remove_cv<typename TFromView::value_type>::type FromElement;
+	typedef typename std::remove_cv<typename TToView::value_type>::type ToElement;
+	static_assert(std::is_same<FromElement, ToElement>::value, "From/To views have incompatible element types.");
+	static_assert(is_memory_based<TFromView>::value, "Source view must be memory based");
+	static_assert(is_memory_based<TToView>::value, "Target view must be memory based");
+	cudaMemcpy3DParms parameters = { 0 };
+
+	parameters.srcPtr = stridesToPitchedPtr(from_view.pointer(), from_view.dimensions(), from_view.strides());
+	parameters.dstPtr = stridesToPitchedPtr(to_view.pointer(), to_view.dimensions(), to_view.strides());
+	parameters.extent = makeCudaExtent(sizeof(typename TFromView::value_type), from_view.dimensions());
+	parameters.kind = cudaMemcpyHostToDevice;
+
+	CUGIP_DFORMAT("Copy pitched data: \n  src: %1%\n  dst: %2%\n  extent: %3%", parameters.srcPtr, parameters.dstPtr, parameters.extent);
+	CUGIP_CHECK_RESULT(cudaMemcpy3DAsync(&parameters, cuda_stream));
+}
+
+
+template <typename TFromView, typename TToView>
+void asyncCopyHelper(
+	TFromView from_view,
+	TToView to_view,
+	DeviceToDeviceTag /*tag*/,
+	cudaStream_t cuda_stream)
+{
+	copyDeviceToDeviceAsync(from_view, to_view, cuda_stream);
+}
+
+
+template <typename TFromView, typename TToView>
+void asyncCopyHelper(
+	TFromView from_view,
+	TToView to_view,
+	DeviceToHostTag /*tag*/,
+	cudaStream_t cuda_stream)
+{
+	copyDeviceToHostAsync(from_view, to_view, cuda_stream);
+}
+
+
+template <typename TFromView, typename TToView>
+void asyncCopyHelper(
+	TFromView from_view,
+	TToView to_view,
+	HostToDeviceTag /*tag*/,
+	cudaStream_t cuda_stream)
+{
+	copyHostToDeviceAsync(from_view, to_view, cuda_stream);
+}
+#endif //defined(__CUDACC__)
+
+template <typename TFromView, typename TToView>
+void asyncCopyHelper(
+	TFromView from_view,
+	TToView to_view,
+	HostToHostTag /*tag*/,
+	cudaStream_t cuda_stream)
+{
+	copyHostToHost(from_view, to_view); //TODO - async version
+}
+
+
+// TODO(johny) implement special cases, unified memory, etc.
+
+template <bool tFromIsDevice, bool tFromIsHost, bool tToIsDevice, bool tToIsHost>
+struct GetCopyDirection;
+
+template <bool tFromIsHost, bool tToIsHost>
+struct GetCopyDirection<true, tFromIsHost, true, tToIsHost>
+{
+	typedef DeviceToDeviceTag Direction;
+};
+
+template <>
+struct GetCopyDirection<false, true, true, false>
+{
+	typedef HostToDeviceTag Direction;
+};
+
+template <>
+struct GetCopyDirection<false, true, true, true>
+{
+	typedef HostToDeviceTag Direction;
+};
+
+
+template <bool tFromIsDevice>
+struct GetCopyDirection<tFromIsDevice, true, false, true>
+{
+	typedef HostToHostTag Direction;
+};
+
+template <>
+struct GetCopyDirection<true, false, false, true>
+{
+	typedef DeviceToHostTag Direction;
+};
+
+template <typename TFromView, typename TToView>
+void copy_async(
+	TFromView from_view,
+	TToView to_view,
+	cudaStream_t cuda_stream)
+{
+	//static_assert(is_device_view<TToView>::value != is_host_view<TToView>::value, "Target view is usable on device and host. Ambiguous copy direction.");
+	CUGIP_DFORMAT("Copy sizes: \n  src: %1%\n  dst: %2%", from_view.dimensions(), to_view.dimensions());
+	if (from_view.dimensions() != to_view.dimensions()) {
+		CUGIP_THROW(IncompatibleViewSizes() /*<< GetViewPairSizesErrorInfo(from_view.dimensions(), to_view.dimensions()))*/);
+	}
+
+	//static_assert(is_device_view<TFromView>::value || is_device_view<TToView>::value, "Host to host copy not yet implemented - decide sycnhronous/asynchronous behavior");
+	//asyncCopyHelper(from_view, to_view, CopyDirectionTag<is_device_view<TFromView>::value, is_device_view<TToView>::value>(), cuda_stream);
+	auto direction = typename GetCopyDirection<
+			is_device_view<TFromView>::value,
+			is_host_view<TFromView>::value,
+			is_device_view<TToView>::value,
+			is_host_view<TToView>::value>::Direction();
+	asyncCopyHelper(from_view, to_view, direction, cuda_stream);
+}
+
+//TODO remove
+template <typename TFromView, typename TToView>
+void copyAsync(
+	TFromView from_view,
+	TToView to_view,
+	cudaStream_t cuda_stream)
+{
+	copy_async(from_view, to_view, cuda_stream);
+}
+
+
+template <typename TFromView, typename TToView>
+void copy(
+	TFromView from_view,
+	TToView to_view)
+{
+	copy_async(from_view, to_view);
+
+#if defined(__CUDACC__)
+	CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+#endif //defined(__CUDACC__)
 }
 
 
 }//namespace cugip
-
-

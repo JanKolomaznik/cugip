@@ -3,9 +3,11 @@
 #include <cugip/traits.hpp>
 #include <cugip/transform.hpp>
 #include <cugip/filter.hpp>
-#include <cugip/image_view.hpp>
+#include <cugip/device_flag.hpp>
 #include <cugip/access_utils.hpp>
-#include <cugip/neighborhood_accessor.hpp>
+
+#include <cugip/neighborhood.hpp>
+
 
 namespace cugip {
 
@@ -13,15 +15,15 @@ namespace detail {
 
 //-----------------------------------------------------------------------------
 template <typename TImageView, typename TLUTBufferView>
-CUGIP_GLOBAL void 
-init_lut_kernel(TImageView aImageView, TLUTBufferView aLut)
-{ 
+CUGIP_GLOBAL void
+init_lut_kernel(TImageView aImageView, TLUTBufferView aLUT)
+{
 	int blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
 	int idx = blockId * blockDim.x + threadIdx.x;
 
 	if (idx < multiply(aImageView.dimensions())) {
 		//TODO - check 0
-		aLut[idx+1] = linear_access(aImageView, idx);// = outBuffer.mData[idx] != 0 ? idx+1 : 0;
+		aLUT.set(idx + 1, linear_access(aImageView, idx));// = outBuffer.mData[idx] != 0 ? idx+1 : 0;
 	}
 }
 
@@ -31,54 +33,81 @@ init_lut(TImageView aImageView, TLUTBufferView aLut)
 {
 	dim3 blockSize1D( 512 );
 	dim3 gridSize1D( (multiply(aImageView.dimensions()) + 64*blockSize1D.x - 1) / (64*blockSize1D.x) , 64 );
-	
-	init_lut_kernel<<< gridSize1D, blockSize1D >>>(aImageView, aLut);
+
+	init_lut_kernel<<< gridSize1D, blockSize1D >>>(aImageView, aLUT);
 }
 
-//-----------------------------------------------------------------------------
-template <typename TLUTBufferView>
-CUGIP_GLOBAL void
-update_lut_kernel(TLUTBufferView aLUT)
+template<typename TInputType, typename TLUT>
+struct scan_neighborhood_for_connections_ftor
 {
-	uint blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
-	int idx = blockId * blockDim.x + threadIdx.x;
+	scan_neighborhood_for_connections_ftor(TLUT aLUT, device_flag_view aLutUpdatedFlag)
+		: mLUT(aLUT), mLutUpdatedFlag(aLutUpdatedFlag)
+	{}
 
-	if (idx < aLUT.dimensions()) {
-		typename TLUTBufferView::value_type ref = aLUT[idx];
-		typename TLUTBufferView::value_type newref = ref;
+	template<typename TLocator>
+	CUGIP_DECL_HYBRID TInputType
+	minValidLabel(TLocator aLocator, TInputType aCurrent, const dimension_2d_tag &)
+	{
+		typedef full_neighborhood<dimension<TLocator>::value> neighborhood;
+		TInputType minimum = aCurrent;
 
-		if (ref) {
-			do {
-				ref = newref;
-				newref = aLUT[ref];
-			} while (ref != newref);
-			atomicExch(&aLUT[idx], newref);
+		for (int i = 0; i < neighborhood::count; ++i) {
+			TInputType value = aLocator[neighborhood::get(i)/*typename TLocator::diff_t(i, j)*/];
+			minimum = (value < minimum && value > 0) ? value : minimum;
+		}
+
+		/*for (int j = -1; j <= 1; ++j) {
+			for (int i = -1; i <= 1; ++i) {
+				TInputType value = aLocator[typename TLocator::diff_t(i, j)];
+				minimum = (value < minimum && value > 0) ? value : minimum;
+			}
+		}*/
+		return minimum;
+	}
+
+	template<typename TLocator>
+	CUGIP_DECL_DEVICE void // TODO hybrid
+	operator()(TLocator aLocator)
+	{
+		TInputType current = aLocator.get();
+		if (0 < current) {
+			TInputType minLabel = minValidLabel(aLocator, current, typename dimension<TLocator>::type());;
+			if (minLabel < mLUT.get(current)) {
+				//printf("%d - %d - %d; ", current, mLUT[current-1], minLabel);
+				mLUT.set(current, minLabel);
+				mLutUpdatedFlag.set_device();
+			}
 		}
 	}
 }
 
 template <typename TLUTBufferView>
 void
-update_lut(TLUTBufferView aLUT)
+scan_image_for_connections(TImageView aImageView, TLUTBufferView aLUT, device_flag_view aLutUpdatedFlag)
 {
-	dim3 blockSize1D( 512 );
-	dim3 gridSize1D((aLUT.dimensions() + 64*blockSize1D.x - 1) / (64*blockSize1D.x) , 64 );
-	
-	update_lut_kernel<<< gridSize1D, blockSize1D >>>(aLUT);
+	for_each_locator(aImageView, scan_neighborhood_for_connections_ftor<typename TImageView::value_type, TLUTBufferView>(aLUT, aLutUpdatedFlag));
 }
 
 //-----------------------------------------------------------------------------
 template <typename TImageView, typename TLUTBufferView>
 CUGIP_GLOBAL void
-update_labels_kernel(TImageView aImageView, TLUTBufferView aLUT)
+update_lut_kernel(TImageView aImageView, TLUTBufferView aLUT)
 {
 	int blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
 	int idx = blockId * blockDim.x + threadIdx.x;
 
 	if (idx < multiply(aImageView.dimensions())) {
-		uint64_t label = linear_access(aImageView, idx);
-		if ( label > 0 ) {
-			linear_access(aImageView, idx) = aLUT[label];
+		int label = linear_access(aImageView, idx);
+
+		if (label == idx+1) {
+			aLUT.compress(label);
+			/*int ref = label-1;
+			label = aLUT[idx];
+			while (ref != label-1) {
+				ref = label-1;
+				label = aLUT[ref];
+			}
+			aLUT[idx] = label;*/
 		}
 	}
 }
@@ -89,20 +118,22 @@ update_labels(TImageView aImageView, TLUTBufferView aLUT)
 {
 	dim3 blockSize1D( 512 );
 	dim3 gridSize1D( (multiply(aImageView.dimensions()) + 64*blockSize1D.x - 1) / (64*blockSize1D.x) , 64 );
-	
-	update_labels_kernel<<< gridSize1D, blockSize1D >>>(aImageView, aLUT);
+
+	update_lut_kernel<<< gridSize1D, blockSize1D >>>(aImageView, aLUT);
 }
 //-----------------------------------------------------------------------------
 template <typename TImageView, typename TLabelView>
-CUGIP_GLOBAL void 
+CUGIP_GLOBAL void
 init_labels_kernel(TImageView aImageView, TLabelView aLabelView)
-{ 
+{
 	int blockId = __mul24(blockIdx.y, gridDim.x) + blockIdx.x;
 	int idx = blockId * blockDim.x + threadIdx.x;
 
 	if (idx < multiply(aImageView.dimensions())) {
-		//TODO - check 0
-		linear_access(aLabelView, idx) = (linear_access(aImageView, idx) != 0) ? idx+1 : 0;
+		uint64_t label = linear_access(aImageView, idx);
+		if ( label > 0 ) {
+			linear_access(aImageView, idx) = aLUT.get(label);
+		}
 	}
 }
 
@@ -112,8 +143,8 @@ init_labels(TImageView aImageView, TLabelView aLabelView)
 {
 	dim3 blockSize1D( 512 );
 	dim3 gridSize1D( (multiply(aImageView.dimensions()) + 64*blockSize1D.x - 1) / (64*blockSize1D.x) , 64 );
-	
-	init_labels_kernel<<< gridSize1D, blockSize1D >>>(aImageView, aLabelView);
+
+	update_labels_kernel<<< gridSize1D, blockSize1D >>>(aImageView, aLUT);
 }
 
 
@@ -175,8 +206,8 @@ block_ccl(TImageView aImageView)
 {
 	dim3 blockSize(16, 16, 1);
 	dim3 gridSize(
-			(aImageView.dimensions().template get<0>() / blockSize.x + 1), 
-			(aImageView.dimensions().template get<1>() / blockSize.y + 1), 
+			(aImageView.dimensions().template get<0>() / blockSize.x + 1),
+			(aImageView.dimensions().template get<1>() / blockSize.y + 1),
 			1);
 
 	//TODO Fix shared memory buffer size template parameter settings
@@ -237,8 +268,8 @@ merge_ccl_blocks(TImageView aImageView, TLUT aLut)
 {
 	dim3 blockSize(16, 16, 1);
 	dim3 processingGridSize(
-			(aImageView.dimensions().template get<0>() / blockSize.x + 1) - 1, 
-			(aImageView.dimensions().template get<1>() / blockSize.y + 1) - 1, 
+			(aImageView.dimensions().template get<0>() / blockSize.x + 1) - 1,
+			(aImageView.dimensions().template get<1>() / blockSize.y + 1) - 1,
 			1);
 	dim3 processingBlockSize(32, 1, 1);
 
@@ -250,23 +281,60 @@ merge_ccl_blocks(TImageView aImageView, TLUT aLut)
 }//namespace detail
 
 
-template <typename TImageView, typename TLabelView, typename TLUT>
-void 
-connected_component_labeling(TImageView aImageView, TLabelView aLabelView, TLUT aLut)
+template <typename TImageView, typename TLUTBufferView>
+void
+connected_component_labeling(TImageView aImageView, TLUTBufferView aLUT)
 {
-	detail::init_labels(aImageView, aLabelView);
+	device_flag lutUpdatedFlag;
+	lutUpdatedFlag.reset_host();
 
-	detail::block_ccl(aLabelView);
+	D_PRINT("CCL initialization ...");
+	detail::init_lut(aImageView, aLUT);
+	detail::scan_image_for_connections(aImageView, aLUT, lutUpdatedFlag.view());
+/*detail::update_lut(aImageView, aLUT);
+		detail::update_labels(aImageView, aLUT);*/
 
-	//TODO better init
-	cudaMemset(&aLut[0], 0, aLut.dimensions() * sizeof(typename TLUT::value_type));
-	detail::init_lut(aLabelView, aLut);
+	int i = 0;
+	while (lutUpdatedFlag.check_host()) {
+	//for (int i = 0; i < 1000; ++i) {
+		D_PRINT("    Running CCL iteration ..." << ++i);
+		lutUpdatedFlag.reset_host();
 
-	detail::merge_ccl_blocks(aLabelView, aLut);
+		detail::update_lut(aImageView, aLUT);
+		detail::update_labels(aImageView, aLUT);
+		detail::scan_image_for_connections(aImageView, aLUT, lutUpdatedFlag.view());
+	}
+	D_PRINT("CCL done!");
+}
 
-	detail::update_lut(aLut);
+template<typename TOutputValue, int TDimension>
+struct assign_masked_id_functor
+{
+	assign_masked_id_functor(typename dim_traits<TDimension>::extents_t aExtents)
+		: extents(aExtents)
+	{}
 
-	detail::update_labels(aLabelView, aLut);
+	template<typename TInputValue>
+	CUGIP_DECL_HYBRID TOutputValue
+	operator()(const TInputValue &aArg, typename dim_traits<TDimension>::coord_t aCoordinates)const
+	{
+		if (aArg == 0) {
+			return 0;
+		}
+		return 1 + get_linear_access_index(extents, aCoordinates);
+	}
+	typename dim_traits<TDimension>::extents_t extents;
+};
+
+
+template <typename TInImageView, typename TOutImageView>
+void
+assign_masked_ids(TInImageView aInput, TOutImageView aOutput)
+{
+	cugip::transform_position(
+			aInput,
+			aOutput,
+			cugip::assign_masked_id_functor<typename TOutImageView::value_type, dimension<TOutImageView>::value>(aInput.dimensions()));
 }
 
 

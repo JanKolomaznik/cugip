@@ -1,34 +1,14 @@
 #pragma once
 
+#include <cugip/detail/defines.hpp>
 #include <cugip/detail/include.hpp>
 #include <cugip/exception.hpp>
-
-#if defined(__CUDACC__)
-	#define CUGIP_DECL_HOST __host__
-	#define CUGIP_DECL_DEVICE __device__
-	#define CUGIP_DECL_HYBRID CUGIP_DECL_HOST CUGIP_DECL_DEVICE
-	#define CUGIP_GLOBAL __global__
-	#define CUGIP_CONSTANT __constant__
-	#define CUGIP_SHARED __shared__
-#else
-	#define CUGIP_DECL_HOST
-	#define CUGIP_DECL_DEVICE 
-	#define CUGIP_DECL_HYBRID
-	#define CUGIP_GLOBAL
-	#define CUGIP_CONSTANT
-	#define CUGIP_SHARED
-#endif
-
-#define CUGIP_ASSERT(EXPR) //assert(EXPR)
-
-#define CUGIP_ASSERT_RESULT(EXPR) CUGIP_ASSERT(cudaSuccess == EXPR)
-
-#define CUGIP_FORCE_INLINE inline
-
 
 
 namespace cugip {
 
+//TODO - better organisation
+#ifdef __CUDACC__
 
 inline std::string
 cudaMemoryInfoText()
@@ -37,97 +17,62 @@ cudaMemoryInfoText()
 	size_t total;
 	CUGIP_CHECK_RESULT(cudaMemGetInfo( &free, &total));
 
-	return boost::str( boost::format("Free GPU memory: %1% MB; Total GPU memory %2% MB; Occupied %3%%%") 
-		% (float(free) / (1024*1024)) 
+	return boost::str( boost::format("Free GPU memory: %1% MB; Total GPU memory %2% MB; Occupied %3%%%")
+		% (float(free) / (1024*1024))
 		% (float(total) / (1024*1024))
 		% (100.0f * float(total - free)/total)
 		);
 }
 
-
-
-template<typename TType, int tChannelCount>
-struct element
+inline std::string
+cudaDeviceInfoText()
 {
-	typedef TType channel_t;
-	static const size_t dimension;
+	std::string result;
+	int count = 0;
+	CUGIP_CHECK_RESULT(cudaGetDeviceCount(&count));
 
-	TType data[tChannelCount];
+	result = boost::str(boost::format("Number of detected CUDA devices: %1%\n\n") % count);
 
-	CUGIP_DECL_HYBRID element &
-	operator=(const element &aArg)
-	{ 
-		for (size_t i = 0; i < tChannelCount; ++i) {
-			data[i] = aArg.data[i];
-		}
-		return *this;
+	for (int i = 0; i < count; ++i) {
+		cudaDeviceProp properties;
+		CUGIP_CHECK_RESULT(cudaGetDeviceProperties(&properties, i));
+
+		result += boost::str(boost::format("Name: %1%\nCompute capability: %2%.%3%\n\n")
+				% properties.name
+				% properties.major
+				% properties.minor);
 	}
 
-	CUGIP_DECL_HYBRID element &
-	operator=(const TType &aArg)
-	{ 
-		for (size_t i = 0; i < tChannelCount; ++i) {
-			data[i] = aArg;
-		}
-		return *this;
-	}
-};
+	return result;
+}
 
-template<size_t tIdx, typename TType>
+#endif //__CUDACC__
+
+//TODO - move generic type traits to special header
+template<int tIdx, typename TType>
 struct get_policy;
 
-
-/*template<size_t tIdx, typename TType, size_t tChannelCount>
-struct get_policy<tIdx, const element<TType, tChannelCount> >
-{
-	typedef const TType & return_type;
-	typedef const element<TType, tChannelCount> & value_t;
-
-	static CUGIP_DECL_HYBRID return_type
-	get(value_t aArg)
-	{
-		return aArg.data[tIdx];
-	}
-};
-
-template<size_t tIdx, typename TType, size_t tChannelCount>
-struct get_policy<tIdx, element<TType, tChannelCount> >
-{
-	typedef TType & return_type;
-	typedef element<TType, tChannelCount> & value_t;
-
-	static CUGIP_DECL_HYBRID return_type
-	get(value_t aArg)
-	{
-		return aArg.data[tIdx];
-	}
-
-};*/
-
-template<size_t tIdx, typename TType>
-CUGIP_DECL_HYBRID typename get_policy<tIdx, typename boost::remove_reference<TType>::type >::return_type
+template<int tIdx, typename TType>
+CUGIP_DECL_HYBRID typename get_policy<tIdx, typename std::remove_reference<TType>::type >::return_type
 get(TType &aArg)
 {
-	return get_policy<tIdx, 
-	                  typename boost::remove_reference<TType>::type
-	                  >::get(aArg);
+	return get_policy<tIdx,
+			  typename std::remove_reference<TType>::type
+			  >::get(aArg);
 }
 
-template<size_t tIdx, typename TType, int tChannelCount>
-CUGIP_DECL_HYBRID TType &
-get(element<TType, tChannelCount> &aArg)
-{
-	return aArg.data[tIdx];
-}
+template<int tIdx1, int tIdx2, typename TType>
+struct get_policy2;
 
-template<size_t tIdx, typename TType, int tChannelCount>
-CUGIP_DECL_HYBRID const TType &
-get(const element<TType, tChannelCount> &aArg)
+
+template<int tIdx1, int tIdx2, typename TType>
+CUGIP_DECL_HYBRID float
+get(TType &aArg)
 {
-	//std::cout << typeid(aArg).name() << std::endl;
-	return aArg.data[tIdx]; //get_policy<tIdx, 
-	                  //const element<TType, tChannelCount>
-	                  //>::get(aArg);
+	return get_policy2<tIdx1,
+			  tIdx2,
+			  typename std::remove_reference<TType>::type
+			  >::get(aArg);
 }
 
 template<size_t tIdx>
@@ -135,46 +80,54 @@ CUGIP_DECL_HYBRID unsigned int &
 get(dim3 &aArg)
 {
 	switch (tIdx) {
-	case 0: 
+	case 0:
 		return aArg.x;
-	case 1: 
+	case 1:
 		return aArg.y;
-	case 2: 
+	case 2:
 		return aArg.z;
 	}
 	CUGIP_ASSERT(false);
 	return aArg.x;
 }
 
-typedef element<unsigned char, 3> element_rgb8_t;
-//typedef element<unsigned char, 1> element_gray8_t;
-typedef unsigned char element_gray8_t;
-typedef char element_gray8s_t;
-typedef uint32_t element_gray32_t;
-typedef int32_t element_gray32s_t;
-typedef element<signed char, 2> element_channel2_8s_t;
-
-
 //*****************************************************************
 //Extensions for built-in types
-CUGIP_DECL_HOST inline std::ostream &
-operator<<( std::ostream &stream, const dim3 &v )
-{
-	return stream << "[ " << v.x << ", " << v.y << ", " << v.z << " ]";
-}
-
-template<typename TType>
+/*template<typename TType>
 CUGIP_DECL_HOST void
 swap(TType &aArg1, TType &aArg2)
 {
 	TType tmp = aArg1;
 	aArg1 = aArg2;
-	aArg2 = tmp;	
+	aArg2 = tmp;
+}*/
+
+/** \addtogroup auxiliary_function
+ *  Auxiliary functions
+ **/
+
+#ifdef __CUDACC__
+
+CUGIP_DECL_DEVICE inline float
+atomicFloatCAS(float *address, float old, float val)
+{
+	int i_val = __float_as_int(val);
+	int tmp0 = __float_as_int(old);
+
+	return __int_as_float(atomicCAS((int *)address, tmp0, i_val));
 }
 
-/** \defgroup auxiliary_function
- * 
- **/
+#endif //__CUDACC__
+
+template<template<class> class TBoolTrait, typename THead, typename ...TTail>
+struct fold_and {
+	static constexpr bool value = TBoolTrait<THead>::value && fold_and<TBoolTrait, TTail...>::value;
+};
+
+template<template<class> class TBoolTrait, typename THead>
+struct fold_and<TBoolTrait, THead> {
+	static constexpr bool value = TBoolTrait<THead>::value;
+};
 
 
 }//namespace cugip
