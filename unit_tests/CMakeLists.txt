@@ -1,5 +1,7 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
-PROJECT( test_suite )
+PROJECT( cugip_test_suite )
+
+enable_testing()
 
 #find_path(CUB_INCLUDE_DIRECTORY "cub/cub.cuh" "../../cub")
 
@@ -11,8 +13,9 @@ set(Boost_USE_MULTITHREADED ON)
 #add_definitions(-DBOOST_ALL_DYN_LINK)
 find_package(Boost REQUIRED COMPONENTS program_options filesystem system timer chrono)
 #add_definitions(-DBOOST_TEST_DYN_LINK)
-MESSAGE(  ${Boost_LIBRARIES} )
-include_directories( ${Boost_INCLUDE_DIRS} ${CUB_INCLUDE_DIRECTORY} "../include")
+
+find_path(CUB_INCLUDE_DIRECTORY "cub/cub.cuh" "../../cub" "../../../cub" "../../../../cub")
+include_directories( ${Boost_INCLUDE_DIRS} ${CUB_INCLUDE_DIRECTORY} "../include" ${CUB_INCLUDE_DIRECTORY})
 
 SET(CUDA_PROPAGATE_HOST_FLAGS OFF )
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC  -DVCL_CAN_STATIC_CONST_INIT_FLOAT=0")
@@ -29,15 +32,18 @@ SET(CUDA_NVCC_FLAGS "-std=c++11 -gencode arch=compute_61,code=sm_61 --use_fast_m
 find_package(CUDA)
 
 set(TEST_SUITE_TARGETS
-	utils_test
-	procedural_view_test
 	cellular_automata_test
+	eigen_test
+	for_each_test
+	geometry_transformation_test
+	graph_cut_test
+	procedural_view_test
 	shared_memory_test
 	transform_test
-	for_each_test
+	utils_test
 	vector_test
-	geometry_transformation_test)
-	
+	)
+
 #set(TEST_SUITE_TARGETS utils_test graph_cut_test procedural_view_test cellular_automata_test shared_memory_test transform_test for_each_test vector_test)
 foreach(TEST_TARGET ${TEST_SUITE_TARGETS})
 	message(STATUS "Adding test: ${TEST_TARGET}")
@@ -46,4 +52,5 @@ foreach(TEST_TARGET ${TEST_SUITE_TARGETS})
 		${TEST_TARGET}.cu
 		)
 		TARGET_LINK_LIBRARIES(${TEST_TARGET} ${Boost_LIBRARIES} ${Boost_LIBRARIES})
+	add_test(NAME "cugip_${TEST_TARGET}" COMMAND ${TEST_TARGET})
 endforeach(TEST_TARGET ${TEST_SUITE_TARGETS})

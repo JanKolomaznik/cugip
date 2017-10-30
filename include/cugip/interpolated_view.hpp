@@ -58,7 +58,7 @@ template<>
 struct LinearInterpolationImpl<1> {
 	template<typename TAccessor, typename TWeight, typename TIndex>
 	static typename TAccessor::value_type compute(TAccessor accessor, TWeight weight, TIndex corner1, TIndex corner2) {
-		std::cout << corner1 << "-" << corner2 << ";";
+		//std::cout << corner1 << "-" << corner2 << ";";
 		return lerp(accessor[corner1], accessor[corner2], weight[0]);
 	}
 };
@@ -139,9 +139,9 @@ struct LinearInterpolator {
 		auto weight = (index + offset) - corner1;
 		//auto a = detail::LinearInterpolationImpl<dimension<TView>::value, TBoundaryHandler>();
 		//return detail::LinearInterpolationImpl<dimension<TView>::value, TBoundaryHandler>::compute(view, weight, corner1, corner2);
-		std::cout << weight << ": ";
+		//std::cout << weight << ": ";
 		auto value = detail::LinearInterpolationImpl<dimension<TView>::value>::compute(detail::make_accessor<TBoundaryHandler>(view), weight, corner1, corner2);
-		std::cout << "\n";
+		//std::cout << "\n";
 		return value;
 		//return 0.0;
 	}

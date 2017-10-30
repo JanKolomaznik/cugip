@@ -75,6 +75,8 @@ get(TType &aArg)
 			  >::get(aArg);
 }
 
+#ifdef __CUDACC__
+
 template<size_t tIdx>
 CUGIP_DECL_HYBRID unsigned int &
 get(dim3 &aArg)
@@ -106,7 +108,6 @@ swap(TType &aArg1, TType &aArg2)
  *  Auxiliary functions
  **/
 
-#ifdef __CUDACC__
 
 CUGIP_DECL_DEVICE inline float
 atomicFloatCAS(float *address, float old, float val)

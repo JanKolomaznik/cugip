@@ -371,19 +371,6 @@ struct const_device_memory_1d
 	extents_t mExtents;
 };
 
-template<typename TType>
-CUGIP_DECL_HYBRID device_memory_1d<TType>
-view(const device_memory_1d_owner<TType> &aData)
-{
-	return static_cast<const device_memory_1d<TType> &>(aData);
-}
-
-template<typename TType>
-CUGIP_DECL_HYBRID const_device_memory_1d<TType>
-const_view(const device_memory_1d_owner<TType> &aData)
-{
-	return static_cast<const device_memory_1d<TType> &>(aData);
-}
 
 //****************************************************
 template<typename TType>
@@ -668,6 +655,19 @@ struct device_memory_1d_owner: public device_memory_1d<TType>
 #endif //defined(__CUDACC__)
 };
 
+template<typename TType>
+CUGIP_DECL_HYBRID device_memory_1d<TType>
+view(const device_memory_1d_owner<TType> &aData)
+{
+	return static_cast<const device_memory_1d<TType> &>(aData);
+}
+
+template<typename TType>
+CUGIP_DECL_HYBRID const_device_memory_1d<TType>
+const_view(const device_memory_1d_owner<TType> &aData)
+{
+	return static_cast<const device_memory_1d<TType> &>(aData);
+}
 
 template<typename TType>
 struct device_memory_2d_owner: public device_memory_2d<TType>
@@ -1132,12 +1132,6 @@ struct memory_management<TElement, 3>
 	typedef const_host_memory_3d<TElement> const_host_memory;
 };
 
-template <typename TType>
-device_memory_1d<TType>
-view(const device_memory_1d_owner<TType> &aBuffer)
-{
-	return static_cast<const device_memory_1d<TType> &>(aBuffer);
-}
 
 
 }//namespace cugip

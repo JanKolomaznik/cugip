@@ -5,6 +5,7 @@ if(UNIX)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC")
 endif(UNIX)
 
+
 SET(${PROJECT_NAME}_HEADERS
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/cugip/parallel_queue.hpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/cugip/device_flag.hpp"
@@ -90,3 +91,14 @@ SET(${PROJECT_NAME}_HEADERS
 
 
 SET(${PROJECT_NAME}_FILES ${${PROJECT_NAME}_HEADERS} PARENT_SCOPE)
+
+option(CUGIP_ENABLE_TESTS "Enable building of the unit tests" ON)
+option(CUGIP_ENABLE_CLI_TOOLS "Enable building of the cli utils" ON)
+
+if(CUGIP_ENABLE_TESTS)
+	add_subdirectory(unit_tests)
+endif(CUGIP_ENABLE_TESTS)
+
+if(CUGIP_ENABLE_CLI_TOOLS)
+	add_subdirectory(cli-tools)
+endif(CUGIP_ENABLE_CLI_TOOLS)

@@ -120,8 +120,8 @@ BOOST_AUTO_TEST_CASE(ForEachLambda)
 	device_image<int, 3> deviceImage(view1.dimensions());
 	copy(view1, view(deviceImage));
 
-	for_each(view(deviceImage), []__device__(int arg) { return arg + 1; });
-
+	for_each(view(deviceImage), []__device__(int &arg) { arg += 1; });
+	
 	auto result = sum(subtract(view(deviceImage), constantImage(4, view1.dimensions())));
 
 	BOOST_CHECK_EQUAL(result, 0);

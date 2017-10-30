@@ -5,8 +5,9 @@ PROJECT( cli-tools )
 set(Boost_USE_STATIC_LIBS   ON)
 set(Boost_USE_MULTITHREADED ON)
 FIND_PACKAGE(Boost REQUIRED COMPONENTS program_options filesystem system timer chrono)
-MESSAGE(  ${Boost_LIBRARIES} )
-INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIRS} "../include")
+
+find_path(CUB_INCLUDE_DIRECTORY "cub/cub.cuh" "../../cub" "../../../cub" "../../../../cub")
+INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIRS} "../include" ${CUB_INCLUDE_DIRECTORY})
 
 SET(CUDA_PROPAGATE_HOST_FLAGS OFF )
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -fPIC  -DVCL_CAN_STATIC_CONST_INIT_FLOAT=0")
@@ -22,6 +23,8 @@ FIND_PACKAGE(CUDA)
 
 find_package(ITK REQUIRED)
 include(${ITK_USE_FILE})
+
+
 CUDA_ADD_EXECUTABLE(denoising denoising.cpp denoising.cu )
 TARGET_LINK_LIBRARIES(denoising ${Boost_LIBRARIES} ${ITK_LIBRARIES})
 

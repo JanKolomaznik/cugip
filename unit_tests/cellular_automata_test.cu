@@ -30,3 +30,47 @@ BOOST_AUTO_TEST_CASE(Conway)
 	//CellularAutomaton<MooreNeighborhood<2>, ConwayRule> automaton;
 	//automaton.iterate(1);
 }
+
+BOOST_AUTO_TEST_CASE(VonNeumannNeighborhood2D)
+{
+	using namespace cugip;
+	VonNeumannNeighborhood<2> neighborhood;
+	for (int i = 0; i < 5; ++i) {
+		BOOST_CHECK_EQUAL(neighborhood.offset(i), neighborhood.offset2(i));
+	}
+}
+
+BOOST_AUTO_TEST_CASE(VonNeumannNeighborhood3D)
+{
+	using namespace cugip;
+	VonNeumannNeighborhood<3> neighborhood;
+	for (int i = 0; i < 7; ++i) {
+		BOOST_CHECK_EQUAL(neighborhood.offset(i), neighborhood.offset2(i));
+	}
+}
+
+BOOST_AUTO_TEST_CASE(MooreNeighborhood3D)
+{
+	using namespace cugip;
+	MooreNeighborhood<3> neighborhood;
+	for (int i = 0; i < 27; ++i) {
+		BOOST_CHECK_EQUAL(neighborhood.offset(i), neighborhood.offset2(i));
+		//std::cout << neighborhood.offset(i) << neighborhood.offset2(i) << std::endl;
+	}
+}
+
+BOOST_AUTO_TEST_CASE(BlockedOrderAccessIndex)
+{
+	using namespace cugip;
+	BOOST_CHECK_EQUAL(0, get_blocked_order_access_index<2>(Int3(5,5,5), Int3(0, 0, 0)));
+	BOOST_CHECK_EQUAL(7, get_blocked_order_access_index<2>(Int3(5,5,5), Int3(1, 1, 1)));
+	BOOST_CHECK_EQUAL(57, get_blocked_order_access_index<2>(Int3(5,5,5), Int3(1, 1, 3)));
+	BOOST_CHECK_EQUAL(8, get_blocked_order_access_index<2>(Int3(5,5,5), Int3(2, 0, 0)));
+	BOOST_CHECK_EQUAL(28, get_blocked_order_access_index<2>(Int3(5,5,5), Int3(2, 2, 0)));
+	BOOST_CHECK_EQUAL(78, get_blocked_order_access_index<2>(Int3(5,5,5), Int3(2, 2, 2)));
+	BOOST_CHECK_EQUAL(124, get_blocked_order_access_index<2>(Int3(5,5,5), Int3(4, 4, 4)));
+
+	BOOST_CHECK_EQUAL(0, get_blocked_order_access_index<3>(Int3(5,5,5), Int3(0, 0, 0)));
+	BOOST_CHECK_EQUAL(26, get_blocked_order_access_index<3>(Int3(5,5,5), Int3(2, 2, 2)));
+	BOOST_CHECK_EQUAL(124, get_blocked_order_access_index<3>(Int3(5,5,5), Int3(4, 4, 4)));
+}

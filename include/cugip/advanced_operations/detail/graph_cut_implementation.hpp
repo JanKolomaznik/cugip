@@ -1,10 +1,12 @@
 #pragma once
 
+//#include <boost/timer/timer.hpp>
 #include <cugip/math.hpp>
 #include <cugip/traits.hpp>
 #include <cugip/utils.hpp>
 #include <cugip/device_flag.hpp>
 #include <limits>
+
 
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
@@ -127,8 +129,8 @@ struct MinCut
 		TPolicy &aPolicy,
 		TTraceObject &aTraceObject)
 	{
-		boost::timer::cpu_timer timer;
-		timer.start();
+		//boost::timer::cpu_timer timer;
+		//timer.start();
 		//CUGIP_DPRINT("MAX FLOW");
 		//init_residuals(aGraph);
 		aTraceObject.computationStarted(aGraph);
@@ -138,7 +140,7 @@ struct MinCut
 
 		//debug_print();
 		CUGIP_CHECK_ERROR_STATE("After max_flow init");
-		timer.stop();
+		//timer.stop();
 		//std::cout << timer.format(9, "%w") << "\n";
 		bool done = false;
 		int iteration = 0;
@@ -150,7 +152,7 @@ struct MinCut
 		Relabel<TGraphData, typename TPolicy::RelabelPolicy> relabel;
 		Push<TGraphData, typename TPolicy::PushPolicy> push;
 		while(!done) {
-			timer.start();
+			//timer.start();
 			//CUGIP_DPRINT("Relabel");
 			aTraceObject.beginIteration(iteration);
 

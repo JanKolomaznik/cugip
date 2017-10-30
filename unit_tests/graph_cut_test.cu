@@ -99,7 +99,7 @@ fillTwoLayerGraph(cugip::Graph<float> &aGraph, int aVertexCount, int aLayerSize,
 			tweights.data());
 }
 
-BOOST_AUTO_TEST_CASE(bfsPropagation)
+/*BOOST_AUTO_TEST_CASE(bfsPropagation)
 {
 	using namespace cugip;
 	typedef GraphCutPolicy::RelabelPolicy<16, 8> Policy;
@@ -156,17 +156,17 @@ BOOST_AUTO_TEST_CASE(bfsPropagation)
 	for (int i = 0; i < residuals.size(); ++i) {
 		std::cout << i << ") " << residuals[i].residuals[0] << " = " << residuals[i].residuals[1] << std::endl;
 	}
-	/*thrust::host_vector<int> tmp = queue.mBuffer;
-	for (int i = cLayerSize; i < queue.size(); ++i) {
-		std::cout << tmp[i] << "; ";
-	}*/
+	//thrust::host_vector<int> tmp = queue.mBuffer;
+	//for (int i = cLayerSize; i < queue.size(); ++i) {
+	//	std::cout << tmp[i] << "; ";
+	//}
 	std::cout << "\n";
 	} catch (...) {
 		CUGIP_DPRINT("QQQQQQQQQQQQQ");
 	}
 
 	//CUGIP_DPRINT("queue size " << queue.size());
-}
+}*/
 
 /*
 BOOST_AUTO_TEST_CASE(MinCutLayeredGraph)
