@@ -70,26 +70,27 @@ void processImage(fs::path aInput, fs::path aOutput, const WatershedOptions &aOp
 	writer->Update();
 }
 
+static const std::map<std::string, WatershedVariant> cMethodMapping = []() {
+	std::map<std::string, WatershedVariant> map;
+	map["distance"] = WatershedVariant::DistanceBased;
+	map["distance_async"] = WatershedVariant::DistanceBasedAsync;
+	map["distance_async_lim"] = WatershedVariant::DistanceBasedAsyncLimited;
+	map["descent_pointer"] = WatershedVariant::SteepestDescentPointer;
+	map["descent_pointer_2"] = WatershedVariant::SteepestDescentPointerTwoPhase;
+	map["descent_simple"] = WatershedVariant::SteepestDescentSimple;
+	map["descent_simple_async"] = WatershedVariant::SteepestDescentSimpleAsync;
+	map["descent_gs"] = WatershedVariant::SteepestDescentGlobalState;
+
+	return map;
+}();
+
 WatershedVariant getWatershedVariantFromString(const std::string &token)
 {
-	if (token == "distance") {
-		return WatershedVariant::DistanceBased;
-	} else if (token == "distance_async") {
-		return WatershedVariant::DistanceBasedAsync;
-	} else if (token == "distance_async_lim") {
-		return WatershedVariant::DistanceBasedAsyncLimited;
-	} else if (token == "descent_pointer") {
-		return WatershedVariant::SteepestDescentPointer;
-	} else if (token == "descent_simple") {
-		return WatershedVariant::SteepestDescentSimple;
-	} else if (token == "descent_simple_async") {
-		return WatershedVariant::SteepestDescentSimpleAsync;
-	} else if (token == "descent_gs") {
-		return WatershedVariant::SteepestDescentGlobalState;
-	} else {
+	auto it = cMethodMapping.find(token);
+	if (it == cMethodMapping.end()) {
 		throw po::validation_error(po::validation_error::invalid_option_value);
 	}
-	return WatershedVariant::DistanceBased;
+	return it->second;
 }
 
 int main( int argc, char* argv[] )
@@ -105,7 +106,13 @@ int main( int argc, char* argv[] )
 		("input,i", po::value<fs::path>(&inputFile), "input file")
 		("output,o", po::value<fs::path>(&outputFile), "output file")
 		("watershed,w", po::value<std::string>(&watershedName)->default_value("distance"),
-			"distance, distance_async, distance_async_lim, descent_simple, descent_gs, descent_simple_async, descent_pointer")
+			[](){
+				std::string res;
+				for (auto name : cMethodMapping) {
+					res += name.first + ", ";
+				}
+				return res;
+			}().data())
 		//("normalize,n", po::value<bool>(&normalize)->default_value(false), "normalize")
 		;
 

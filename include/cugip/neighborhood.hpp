@@ -6,6 +6,22 @@
 namespace cugip {
 
 template<int tDimension>
+struct NoNeighborhood
+{
+	CUGIP_DECL_HYBRID constexpr int
+	size() const
+	{
+		return 1;
+	}
+
+	CUGIP_DECL_HYBRID constexpr simple_vector<int, tDimension>
+	offset(int aIndex) const
+	{
+		return simple_vector<int, tDimension>();
+	}
+};
+
+template<int tDimension>
 struct VonNeumannNeighborhood;
 
 template<>

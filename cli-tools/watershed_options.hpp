@@ -8,6 +8,7 @@ enum class WatershedVariant {
 	SteepestDescentSimpleAsync,
 	SteepestDescentGlobalState,
 	SteepestDescentPointer,
+	SteepestDescentPointerTwoPhase,
 };
 
 struct WatershedOptions

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <utility>
+
 #include <cugip/image.hpp>
 #include <cugip/for_each.hpp>
 #include <cugip/transform.hpp>
@@ -236,12 +238,19 @@ public:
 	typedef typename State::const_view_t InputView;
 	typedef typename State::view_t OutputView;
 
-	template<typename TInputView>
 	void
-	initialize(Rule aRule, TInputView aView)
+	initialize(State &&aInputBuffer)
 	{
-		mRule = aRule;
-		initialize(aView);
+		CUGIP_DFORMAT("Cellular automaton initialization. Assign buffer. Space: %1%", aInputBuffer.dimensions());
+		mIteration = 0;
+		mImages[0] = std::move(aInputBuffer);
+
+		for (int i = 0; i < mImages.size(); ++i) {
+			mImages[i].resize(mImages[0].dimensions());
+		}
+		static_cast<TDerived *>(this)->postInitialization();
+		//mGlobalState.initialize();
+		CUGIP_CHECK_ERROR_STATE("Cellular automaton initialization:");
 	}
 
 	template<typename TInputView>
@@ -260,6 +269,15 @@ public:
 		CUGIP_CHECK_ERROR_STATE("Cellular automaton initialization:");
 	}
 
+	template<typename TInputView>
+	void
+	initialize(Rule aRule, TInputView &&aView)
+	{
+		mRule = aRule;
+		initialize(std::forward(aView));
+	}
+
+
 	void
 	iterate(int aIterationCount)
 	{
@@ -267,8 +285,6 @@ public:
 		for (int i = 0; i < aIterationCount; ++i) {
 			CUGIP_DFORMAT("Cellular automaton iteration [%1%]", mIteration+1);
 			static_cast<TDerived *>(this)->computeNextIteration();
-			/*transform_locator(const_view(mImages[mIteration % 2]), view(mImages[(mIteration + 1) % 2]), CellOperation<TNeighborhood, TRule, TGlobalState>(mIteration, mRule, mGlobalState));
-			mGlobalState.postprocess(view(mImages[(mIteration + 1) % 2]));*/
 			++mIteration;
 			CUGIP_DFORMAT("Cellular automaton iteration [%1%] finished.", mIteration);
 		}
@@ -279,21 +295,40 @@ public:
 	getCurrentState() const
 	{
 		CUGIP_DFORMAT("Cellular automaton getCurrentState. After iteration [%1%]", mIteration);
-		return const_view(mImages[mIteration % tBufferCount]);
+		return const_view(mImages[currentInputIndex()]);
+	}
+
+	State &&
+	moveCurrentState()
+	{
+		return std::move(mImages[currentInputIndex()]);
 	}
 
 	int
 	run_until_equilibrium();
 
 protected:
+	int
+	currentInputIndex() const
+	{
+		return mIteration % tBufferCount;
+	}
+
+	int
+	currentOutputIndex() const
+	{
+		return (mIteration + 1) % tBufferCount;
+	}
+
+
 	InputView currentInputView()
 	{
-		return const_view(mImages[mIteration % tBufferCount]);
+		return const_view(mImages[currentInputIndex()]);
 	}
 
 	OutputView currentOutputView()
 	{
-		return view(mImages[(mIteration + 1) % tBufferCount]);
+		return view(mImages[currentOutputIndex()]);
 	}
 
 	int mIteration;
@@ -351,12 +386,26 @@ public:
 
 	using Predecessor::initialize;
 
+	void
+	initialize(TRule aRule, State &&aState, TGlobalState aGlobalState)
+	{
+		mGlobalState = aGlobalState;
+		initialize(aRule, std::move(aState));
+	}
+
 	template<typename TInputView>
 	void
 	initialize(TRule aRule, TInputView aView, TGlobalState aGlobalState)
 	{
 		mGlobalState = aGlobalState;
 		initialize(aRule, aView);
+	}
+
+	void
+	initialize(State &&aState, TGlobalState aGlobalState)
+	{
+		mGlobalState = aGlobalState;
+		initialize(std::move(aState));
 	}
 
 	template<typename TInputView>
