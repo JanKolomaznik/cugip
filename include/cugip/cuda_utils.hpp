@@ -174,7 +174,19 @@ currentThreadIndexDim()
 	return dim3_to_vector<tDimension>(threadIdx);
 }
 
+CUGIP_DECL_DEVICE
+inline vect3i_t currentBlockIndex()
+{
+	return vect3i_t(blockIdx.x, blockIdx.y, blockIdx.z);
+}
 
+template<int tDimension>
+CUGIP_DECL_DEVICE
+simple_vector<int, tDimension>
+currentBlockIndexDim()
+{
+	return dim3_to_vector<tDimension>(blockIdx);
+}
 
 CUGIP_DECL_DEVICE
 inline bool is_in_block(int aX, int aY, int aZ)

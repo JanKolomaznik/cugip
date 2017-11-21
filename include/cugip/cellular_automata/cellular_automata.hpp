@@ -245,7 +245,7 @@ public:
 		mIteration = 0;
 		mImages[0] = std::move(aInputBuffer);
 
-		for (int i = 0; i < mImages.size(); ++i) {
+		for (int i = 1; i < mImages.size(); ++i) {
 			mImages[i].resize(mImages[0].dimensions());
 		}
 		static_cast<TDerived *>(this)->postInitialization();

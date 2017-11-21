@@ -629,6 +629,7 @@ class AccessDimensionImageView
 		AccessDimensionImageView<TView, tIndex>>
 {
 public:
+	static_assert(is_image_view<TView>::value, "Works only on image views");
 	typedef typename TView::extents_t extents_t;
 	typedef typename TView::coord_t coord_t;
 	typedef typename TView::diff_t diff_t;
@@ -665,10 +666,17 @@ CUGIP_DECLARE_VIEW_TRAITS(
 
 
 /// Creates view which returns squared values from the original view
-template<typename TView, typename TDimension>
-AccessDimensionImageView<TView, TDimension::value>
-getDimension(TView view, TDimension /*aIndex*/) {
-	return AccessDimensionImageView<TView, TDimension::value>(view);
+template<typename TView, int tDimension>
+AccessDimensionImageView<TView, tDimension>
+getDimension(TView view) {
+	static_assert(is_image_view<TView>::value, "Works only on image views");
+	return AccessDimensionImageView<TView, tDimension>(view);
 }
 
+template<typename TView, typename TDimension>
+AccessDimensionImageView<TView, TDimension::value>
+getDimension(TView view, TDimension aIndex) {
+	static_assert(is_image_view<TView>::value, "Works only on image views");
+	return AccessDimensionImageView<TView, TDimension::value>(view);
+}
 } // namespace cugip

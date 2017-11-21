@@ -4,6 +4,9 @@
 #endif //BOOST_NOINLINE
 #endif //__CUDACC__
 
+#include <chrono>
+#include <thread>
+
 #include <cugip/image.hpp>
 //#include <cugip/memory_view.hpp>
 //#include <cugip/memory.hpp>
@@ -14,6 +17,7 @@
 #include <cugip/cellular_automata/async_cellular_automata.hpp>
 #include <cugip/procedural_views.hpp>
 #include <cugip/view_arithmetics.hpp>
+#include <cugip/image_dumping.hpp>
 
 #include <thrust/device_vector.h>
 
@@ -112,6 +116,10 @@ struct BlockConvergenceFlag: public BlockConvergenceFlagView
 
 struct WatershedByPointer : WatershedSteepestDescentRuleBase
 {
+	enum Indices {
+		cValue = 0,
+		cLabel,
+	};
 	template<typename T>
 	using remove_reference = typename std::remove_reference<T>::type;
 
@@ -119,6 +127,17 @@ struct WatershedByPointer : WatershedSteepestDescentRuleBase
 		CUGIP_DECL_DEVICE
 		void signal(){}
 	};
+
+	CUGIP_DECL_HYBRID
+	static bool IsHelperState(const HelperState &) {
+		return true;
+	}
+
+	template<typename TConvergenceFlag>
+	CUGIP_DECL_HYBRID
+	static bool IsHelperState(const TConvergenceFlag &) {
+		return false;
+	}
 
 	template<typename TNeighborhood>
 	CUGIP_DECL_DEVICE
@@ -134,23 +153,23 @@ struct WatershedByPointer : WatershedSteepestDescentRuleBase
 		//input, label
 		auto gridView = aNeighborhood.locator().view();
 		auto value = aNeighborhood[0];
-		if (get<1>(value) < 0) {
-			auto position = index_from_linear_access_index(gridView, (-1 * get<1>(value)) - 1);
+		if (get<cLabel>(value) < 0) {
+			auto position = index_from_linear_access_index(gridView, (-1 * get<cLabel>(value)) - 1);
 			auto newValue = gridView[position];
 			/*int currentLabel = -1 * (1 + get_linear_access_index(gridView.dimensions(), aNeighborhood.locator().coords()));
 			if (aIteration > 30) {
 				printf("AAAAAAAAAAA %d %d, %d\n", get<1>(value), get<1>(newValue), currentLabel);
 			}*/
-			if (get<1>(value) != get<1>(newValue)) {
-				get<1>(value) = get<1>(newValue);
+			if (get<cLabel>(value) != get<cLabel>(newValue)) {
+				get<cLabel>(value) = get<cLabel>(newValue);
 				aConvergenceState.signal();
 			}
 		} else {
-			if (get<1>(value) == 0) {
+			if (get<cLabel>(value) == 0) {
 				int index = -1;
-				auto minValue = get<0>(value);
+				auto minValue = get<cValue>(value);
 				for (int i = 1; i < aNeighborhood.size(); ++i) {
-					auto current = get<0>(aNeighborhood[i]);
+					auto current = get<cValue>(aNeighborhood[i]);
 					//printf("%d %d - %d val = %d -> %d\n", threadIdx.x, threadIdx.y, i, get<1>(aNeighborhood[0]), get<1>(aNeighborhood[i]));
 					if (current <= minValue && aNeighborhood.is_inside_valid_region(i)) {
 						index = i;
@@ -158,9 +177,24 @@ struct WatershedByPointer : WatershedSteepestDescentRuleBase
 					}
 				}
 				if (index != -1) {
-					get<1>(value) = -1 * (1 + get_linear_access_index(gridView.dimensions(), aNeighborhood.view_index(index)));
+					//auto tmpIndex = aNeighborhood.view_index(index);
+					Int3 tmpIndex = currentThreadIndex();//aNeighborhood.mLocator.coords();
+					Int3 tmpIndex2 = currentBlockIndex();//aNeighborhood.offset(index);
+					int neighborIndex = get_linear_access_index(gridView.dimensions(), aNeighborhood.view_index(index));
+					get<cLabel>(value) = -1 * (1 + neighborIndex);
+					//if (!IsHelperState(aConvergenceState))
+					/*if (tmpIndex2 == Int3(0, 1, 0) && tmpIndex == Int3(0, 1, 2))
+						//printf("%d %d - %d val = %d -> {%d, %d}; %d - [%d, %d, %d], [%d, %d, %d]\n",
+						printf("%d ; %d - [%d, %d, %d], [%d, %d, %d] %f, %f\n",
+							index,
+							neighborIndex,
+							tmpIndex[0], tmpIndex[1], tmpIndex[2],
+							tmpIndex2[0], tmpIndex2[1], tmpIndex2[2],
+							get<cValue>(value),
+							get<cValue>(aNeighborhood[index])
+						);*/
+					aConvergenceState.signal();
 				}
-				aConvergenceState.signal();
 			}
 		}
 		return value;
@@ -415,13 +449,17 @@ void steepestDescentWShedPointerTwoPhase(
 		automaton.initialize(wshed);
 		automaton.iterate(1);
 
+		//dump_view(getDimension(automaton.getCurrentState(), IntValue<1>()), "./current_state1_");
 		intermediateResult = automaton.moveCurrentState();
 	}
-
+	/*dump_view(getDimension(view(intermediateResult), IntValue<1>()), "./intermediate_result_");
+	using namespace std::chrono_literals;
+std::this_thread::sleep_for(2s);*/
 	{
 		typedef CellularAutomatonWithGlobalState<
 				Grid<Value, tDimension>,
 				NoNeighborhood<tDimension>,
+				//MooreNeighborhood<tDimension>,
 				WatershedByPointer,
 				ConvergenceFlag> WatershedAutomatonSecondPhase;
 
@@ -431,6 +469,7 @@ void steepestDescentWShedPointerTwoPhase(
 		WatershedAutomatonSecondPhase automaton;
 		automaton.initialize(std::move(intermediateResult), convergenceGlobalState);
 
+		//dump_view(getDimension(automaton.getCurrentState(), IntValue<1>()), "./current_state2_");
 		int iteration = 0;
 		do {
 			auto interval = timer.start(1, iteration++);
