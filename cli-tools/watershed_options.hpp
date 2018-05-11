@@ -14,4 +14,5 @@ enum class WatershedVariant {
 struct WatershedOptions
 {
 	WatershedVariant wshedVariant = WatershedVariant::SteepestDescentSimple;
+	bool useUnifiedMemory = true;
 };

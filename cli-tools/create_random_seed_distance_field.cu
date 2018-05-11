@@ -26,5 +26,8 @@ struct DistanceRule
 
 void computeDistanceField(cugip::host_image_view<float, 3> field)
 {
+	try {
+		CUGIP_CHECK_ERROR_STATE("Error before runSimpleCellularAutomaton execution.");
+	} catch(...){}
 	runSimpleCellularAutomaton(field, field, DistanceRule());
 }

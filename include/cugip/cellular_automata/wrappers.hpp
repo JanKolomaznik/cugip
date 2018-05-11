@@ -25,6 +25,8 @@ void runSimpleCellularAutomaton(
 			TRule,
 			ConvergenceFlag> Automaton;
 
+	CUGIP_CHECK_ERROR_STATE("Error before simple cellular automaton execution.");
+
 	device_flag convergenceFlag;
 	ConvergenceFlag convergenceGlobalState;
 	convergenceGlobalState.mDeviceFlag = convergenceFlag.view();
@@ -34,6 +36,7 @@ void runSimpleCellularAutomaton(
 
 	int iteration = 0;
 	do {
+		CUGIP_DFORMAT("CA iteration %1%", iteration);
 		automaton.iterate(1);
 	} while (!convergenceGlobalState.is_finished());
 

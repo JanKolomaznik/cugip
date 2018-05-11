@@ -81,6 +81,7 @@ void generateData(
 
 	cugip::fill(outView, std::numeric_limits<float>::max());
 	generateRandomSeeds(outView, seedCount);
+	std::cout << "Seeds generated\n";
 	computeDistanceField(outView);
 
 	typedef itk::ImageFileWriter<TImageType> WriterType;

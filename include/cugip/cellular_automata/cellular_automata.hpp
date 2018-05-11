@@ -288,7 +288,7 @@ public:
 			++mIteration;
 			CUGIP_DFORMAT("Cellular automaton iteration [%1%] finished.", mIteration);
 		}
-		CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+		CUGIP_CHECK_RESULT(cudaThreadSynchronize()); //TODO - is it needed?
 	}
 
 	typename State::const_view_t
@@ -304,8 +304,16 @@ public:
 		return std::move(mImages[currentInputIndex()]);
 	}
 
+	template<typename TCriterion>
 	int
-	run_until_equilibrium();
+	run_until_convergence(TCriterion aConvergenceCriterion)
+	{
+		int iterationCount = mIteration;
+		do {
+			iterate(1);
+		} while (!aConvergenceCriterion());
+		return mIteration - iterationCount;
+	}
 
 protected:
 	int
