@@ -79,10 +79,10 @@ region<dimension<TView>::value> valid_region(const TView &view) {
 
 CUGIP_HD_WARNING_DISABLE
 template<typename TView>
-CUGIP_DECL_HYBRID int
+CUGIP_DECL_HYBRID int64_t
 elementCount(const TView &aView)
 {
-	return product(aView.dimensions());
+	return product(coord_cast<int64_t>(aView.dimensions()));
 }
 
 CUGIP_HD_WARNING_DISABLE
@@ -90,7 +90,7 @@ template<typename TView>
 CUGIP_DECL_HYBRID bool
 isEmpty(const TView &aView)
 {
-	return 0 == product(aView.dimensions());
+	return 0 == product(coord_cast<int64_t>(aView.dimensions()));
 }
 
 template<int tDimension>

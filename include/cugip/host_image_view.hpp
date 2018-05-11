@@ -36,7 +36,7 @@ public:
 	accessed_type
 	operator[](coord_t aCoords) const
 	{
-		return *reinterpret_cast<value_type *>(reinterpret_cast<char *>(mHostPtr) + dot(mStrides, aCoords));
+		return *reinterpret_cast<value_type *>(reinterpret_cast<char *>(mHostPtr) + offset_in_strided_memory(mStrides, aCoords));
 		//return mHostPtr[dot(mStrides, aCoords)];
 	}
 
@@ -92,7 +92,7 @@ public:
 	accessed_type
 	operator[](coord_t aCoords) const
 	{
-		return *reinterpret_cast<const_value_type *>(reinterpret_cast<const char *>(mHostPtr) + dot(mStrides, aCoords));
+		return *reinterpret_cast<const_value_type *>(reinterpret_cast<const char *>(mHostPtr) + offset_in_strided_memory(mStrides, aCoords));
 		//return mHostPtr[dot(mStrides, aCoords)];
 	}
 

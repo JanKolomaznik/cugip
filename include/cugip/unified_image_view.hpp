@@ -53,7 +53,7 @@ public:
 	CUGIP_DECL_HYBRID accessed_type
 	operator[](coord_t aCoords) const
 	{
-		return *reinterpret_cast<const_value_type *>(reinterpret_cast<const char *>(mUnifiedPtr) + dot(mStrides, aCoords));
+		return *reinterpret_cast<const_value_type *>(reinterpret_cast<const char *>(mUnifiedPtr) + offset_in_strided_memory(mStrides, aCoords));
 		//return mData[aCoords];
 	}
 
@@ -87,7 +87,7 @@ public:
 		CUGIP_ASSERT(corner >= extents_t());
 		CUGIP_ASSERT(corner < this->dimensions());
 		CUGIP_ASSERT((corner + size) <= this->dimensions());
-		auto ptr = reinterpret_cast<value_type *>(reinterpret_cast<char *>(mUnifiedPtr) + dot(mStrides, corner));
+		auto ptr = reinterpret_cast<value_type *>(reinterpret_cast<char *>(mUnifiedPtr) + offset_in_strided_memory(mStrides, corner));
 		//return unified_image_view<TElement, tDimension>(this->mDevicePtr + linear_index_from_strides(this->mStrides, corner), size, this->strides_);
 		return const_unified_image_view<TElement, tDim>(ptr, size, this->mStrides);
 	}
@@ -153,7 +153,7 @@ public:
 	CUGIP_DECL_HYBRID accessed_type
 	operator[](coord_t aCoords) const
 	{
-		return *reinterpret_cast<value_type *>(reinterpret_cast<char *>(mUnifiedPtr) + dot(mStrides, aCoords));
+		return *reinterpret_cast<value_type *>(reinterpret_cast<char *>(mUnifiedPtr) + offset_in_strided_memory(mStrides, aCoords));
 		//return mData[aCoords];
 	}
 
@@ -187,7 +187,7 @@ public:
 		CUGIP_ASSERT(corner >= extents_t());
 		CUGIP_ASSERT(corner < this->dimensions());
 		CUGIP_ASSERT((corner + size) <= this->dimensions());
-		auto ptr = reinterpret_cast<value_type *>(reinterpret_cast<char *>(mUnifiedPtr) + dot(mStrides, corner));
+		auto ptr = reinterpret_cast<value_type *>(reinterpret_cast<char *>(mUnifiedPtr) + offset_in_strided_memory(mStrides, corner));
 		//return unified_image_view<TElement, tDimension>(this->mDevicePtr + linear_index_from_strides(this->mStrides, corner), size, this->strides_);
 		return unified_image_view<TElement, tDim>(ptr, size, this->mStrides);
 	}

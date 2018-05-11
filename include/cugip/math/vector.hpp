@@ -44,7 +44,7 @@ public:
 	typedef simple_vector<TCoordinateType, tDim> this_t;
 	static constexpr int dim = tDim;
 
-	CUGIP_DECL_HYBRID //constexpr
+	CUGIP_DECL_HYBRID constexpr
 	simple_vector()
 		//: mValues{ zero<TCoordinateType>() }
 	{
@@ -53,7 +53,7 @@ public:
 		}
 	}
 
-	CUGIP_DECL_HYBRID //constexpr
+	CUGIP_DECL_HYBRID constexpr
 	simple_vector(TCoordinateType aValue, FillFlag)
 		//: mValues{ aValue }
 	{
@@ -99,7 +99,7 @@ public:
 	}
 
 	template<typename TOtherCoordType>
-	CUGIP_DECL_HYBRID /*constexpr*/
+	CUGIP_DECL_HYBRID constexpr
 	simple_vector(const simple_vector<TOtherCoordType, tDim> &aArg)
 	{
 		for (int i = 0; i < tDim; ++i) {
@@ -108,7 +108,7 @@ public:
 	}
 
 	template<typename TOtherCoordType>
-	CUGIP_DECL_HYBRID /*constexpr*/ explicit
+	CUGIP_DECL_HYBRID constexpr explicit
 	simple_vector(const TOtherCoordType * aArg)
 	{
 		for (int i = 0; i < tDim; ++i) {
@@ -116,7 +116,7 @@ public:
 		}
 	}
 
-	CUGIP_DECL_HYBRID /*constexpr*/
+	CUGIP_DECL_HYBRID constexpr
 	simple_vector(std::initializer_list<TCoordinateType> aList)
 	{
 		CUGIP_ASSERT(aList.size() == tDim);
@@ -219,6 +219,16 @@ public:
 
 	TCoordinateType mValues[tDim];
 };
+
+
+
+template<typename TOtherCoordType, typename TCoordType, int tDimension>
+inline CUGIP_DECL_HYBRID simple_vector<TOtherCoordType, tDimension>
+coord_cast(const  simple_vector<TCoordType, tDimension> &v)
+{
+	return simple_vector<TOtherCoordType, tDimension>(v);
+}
+
 
 
 template<typename TVector>

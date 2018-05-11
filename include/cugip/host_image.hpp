@@ -99,7 +99,7 @@ public:
 protected:
         void reallocate(const extents_t &aSize)
         {
-                mHostPtr.reset(new value_type[product(aSize)]);
+                mHostPtr.reset(new value_type[product(coord_cast<int64_t>(aSize))]);
 		mSize = aSize;
 		mStrides = sizeof(value_type) * stridesFromSize(mSize);
         }

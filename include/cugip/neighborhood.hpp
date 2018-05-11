@@ -48,7 +48,7 @@ struct VonNeumannNeighborhood<2>
 			);
 	}
 
-	CUGIP_DECL_HYBRID Int2
+	CUGIP_DECL_HYBRID constexpr Int2
 	offset2(int aIndex) const
 	{
 		switch (aIndex) {
@@ -118,7 +118,7 @@ struct MooreNeighborhood<2>
 		return 9;
 	}
 
-	CUGIP_DECL_HYBRID Int2
+	CUGIP_DECL_HYBRID constexpr Int2
 	offset(int aIndex) const
 	{
 
@@ -220,7 +220,7 @@ struct MooreNeighborhood<3>
 		return aIndex < 14 ? hemisphereOffset<1>(aIndex) : hemisphereOffset<-1>(27 - aIndex);
 	}
 
-	CUGIP_DECL_HYBRID Int3
+	CUGIP_DECL_HYBRID constexpr Int3
 	offset(int aIndex) const
 	{
 		switch (aIndex) {
@@ -292,8 +292,8 @@ struct NeighborhoodAccessor
 		, mNeighborhood(aNeighborhood)
 	{}
 
-	CUGIP_DECL_HYBRID int
-	constexpr size() const
+	CUGIP_DECL_HYBRID constexpr int
+	size() const
 	{
 		return mNeighborhood.size();
 	}
@@ -320,7 +320,7 @@ struct NeighborhoodAccessor
 		return mLocator;
 	}
 
-	CUGIP_DECL_HYBRID
+	CUGIP_DECL_HYBRID constexpr 
 	auto offset(int aIndex) const -> decltype(this->mNeighborhood.offset(aIndex))
 	{
 		return mNeighborhood.offset(aIndex);

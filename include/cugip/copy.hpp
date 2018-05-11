@@ -297,7 +297,7 @@ void copyHostToHost(
 {
 	// TODO(johny) - use memcpy for memory based views
 
-	for (int i = 0; i < elementCount(from_view); ++i) {
+	for (int64_t i = 0; i < elementCount(from_view); ++i) {
 		linear_access(to_view, i) = linear_access(from_view, i);
 	}
 }

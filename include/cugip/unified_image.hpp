@@ -99,7 +99,7 @@ protected:
         {
 		mUnifiedPtr.reset();
 		value_type *ptr = nullptr;
-		CUGIP_CHECK_RESULT(cudaMallocManaged(&ptr, sizeof(value_type) * product(aSize)));
+		CUGIP_CHECK_RESULT(cudaMallocManaged(&ptr, sizeof(value_type) * product(coord_cast<int64_t>(aSize))));
                 mUnifiedPtr = deleted_unique_ptr(ptr, [](value_type *buffer) { cudaFree(buffer); });
 		mSize = aSize;
 		mStrides = sizeof(value_type) * stridesFromSize(mSize);

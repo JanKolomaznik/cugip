@@ -26,22 +26,28 @@ inline Int3 stridesFromSize(Int3 size) {
 
 /// \return Strides for memory without padding.
 CUGIP_DECL_HYBRID
-inline int stridesFromSize(int size) {
+inline int stridesFromSize(int64_t size) {
 	return 1;
 }
 
 CUGIP_HD_WARNING_DISABLE
 template<int tDimension>
 CUGIP_DECL_HYBRID simple_vector<int, tDimension>
-index_from_linear_access_index(const simple_vector<int, tDimension> &aExtents, int aIdx)
+index_from_linear_access_index(const simple_vector<int, tDimension> &aExtents, int64_t aIdx)
 {
-	CUGIP_ASSERT(multiply(aExtents) > aIdx);
+	CUGIP_ASSERT(product(coord_cast<int64_t>(aExtents)) > aIdx);
 	CUGIP_ASSERT(aIdx >= 0);
 	simple_vector<int, tDimension> coords;
 	for(int i = 0; i < tDimension; ++i) {
 		coords[i] = aIdx % aExtents[i];
 		aIdx /= aExtents[i];
 	}
+	#ifndef __CUDA_ARCH__
+	if (aIdx >= 536870912) {
+		std::cout << coords <<"\n";
+		assert(false);
+	}
+	#endif
 	return coords;
 }
 
@@ -49,7 +55,7 @@ index_from_linear_access_index(const simple_vector<int, tDimension> &aExtents, i
 CUGIP_HD_WARNING_DISABLE
 template<typename TImageView>
 CUGIP_DECL_HYBRID auto
-index_from_linear_access_index(const TImageView &aView, int aIdx) -> typename TImageView::coord_t
+index_from_linear_access_index(const TImageView &aView, int64_t aIdx) -> typename TImageView::coord_t
 {
 	return index_from_linear_access_index(aView.dimensions(), aIdx);
 }
@@ -57,7 +63,7 @@ index_from_linear_access_index(const TImageView &aView, int aIdx) -> typename TI
 CUGIP_HD_WARNING_DISABLE
 template<typename TImageView>
 CUGIP_DECL_HYBRID auto
-linear_access(const TImageView &aView, int aIdx) -> typename TImageView::accessed_type
+linear_access(const TImageView &aView, int64_t aIdx) -> typename TImageView::accessed_type
 {
 	return aView[index_from_linear_access_index(aView, aIdx)];
 }
@@ -97,7 +103,7 @@ template<typename TImageView>
 struct device_linear_access_view
 {
 	CUGIP_DECL_HYBRID
-	int
+	int64_t
 	size() const
 	{
 		return product(mImageView.dimensions());
@@ -105,7 +111,7 @@ struct device_linear_access_view
 
 	CUGIP_DECL_DEVICE
 	typename TImageView::accessed_type
-	operator[](int aIndex)
+	operator[](int64_t aIndex)
 	{
 		//TODO prevent repeated computation of size
 		return linear_access(mImageView, aIndex);
@@ -117,14 +123,14 @@ template<typename TImageView>
 struct host_linear_access_view
 {
 	//TODO iterator access
-	int
+	int64_t
 	size() const
 	{
 		return product(mImageView.dimensions());
 	}
 
 	typename TImageView::accessed_type
-	operator[](int aIndex)
+	operator[](int64_t aIndex)
 	{
 		//TODO prevent repeated computation of size
 		return linear_access(mImageView, aIndex);
@@ -140,6 +146,16 @@ linear_access_view(TImageView aView)
 	return { aView };
 }
 
+template<typename TStrides, typename TCoords>
+CUGIP_DECL_HYBRID int64_t
+offset_in_strided_memory(TStrides aStrides, TCoords aCoords)
+{
+	int64_t ret = 0;
+	for (int i = 0; i < static_vector_traits<TStrides>::dimension; ++i) {
+		ret += int64_t(aStrides[i]) * aCoords[i];
+	}
+	return ret;
+}
 
 // method to seperate bits from a given integer 3 positions apart
 inline uint64_t splitBy3(unsigned int a){
@@ -153,7 +169,7 @@ inline uint64_t splitBy3(unsigned int a){
 }
 
 template<typename TExtents, typename TCoordinates>
-CUGIP_DECL_HYBRID int
+CUGIP_DECL_HYBRID int64_t
 get_zorder_access_index(
 		TExtents aExtents,
 		TCoordinates aCoordinates)
@@ -192,7 +208,7 @@ get_blocked_order_access_index(
 
 
 template<int tBlockSize, typename TExtents, typename TCoordinates>
-CUGIP_DECL_HYBRID int
+CUGIP_DECL_HYBRID int64_t
 get_blocked_order_access_index(
 		TExtents aExtents,
 		TCoordinates aCoordinates)
