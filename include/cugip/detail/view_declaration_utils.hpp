@@ -5,6 +5,8 @@
 #include <cugip/image_locator.hpp>
 #include <cugip/region.hpp>
 
+#include <fstream>
+
 
 #define REMOVE_PARENTHESES(...) __VA_ARGS__
 

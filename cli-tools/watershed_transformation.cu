@@ -197,7 +197,7 @@ struct WatershedByPointer : WatershedSteepestDescentRuleBase
 					//auto tmpIndex = aNeighborhood.view_index(index);
 					Int3 tmpIndex = currentThreadIndex();//aNeighborhood.mLocator.coords();
 					Int3 tmpIndex2 = currentBlockIndex();//aNeighborhood.offset(index);
-					int neighborIndex = get_linear_access_index(gridView.dimensions(), aNeighborhood.view_index(index));
+					auto neighborIndex = get_linear_access_index(gridView.dimensions(), aNeighborhood.view_index(index));
 					get<cLabel>(value) = -1 * (1 + neighborIndex);
 					//if (!IsHelperState(aConvergenceState))
 					/*if (tmpIndex2 == Int3(0, 1, 0) && tmpIndex == Int3(0, 1, 2))
@@ -418,10 +418,12 @@ void steepestDescentWShedPointer(
 	AggregatingTimerSet<2, int> timer;
 	device_flag convergenceFlag;
 
+	std::cout << "Initialize labels (CCL), lower completion...";
 	lowerCompletion<tDimension, tUseUnifiedMemory>(view(deviceGradient));
 	initLocalMinimaLabels<tDimension>(const_view(deviceGradient), view(labels), timer, convergenceFlag);
 	auto wshed = zipViews(const_view(deviceGradient), const_view(labels));
 
+	std::cout << "Initialize labels (CCL), lower completion...Done";
 	ConvergenceFlag convergenceGlobalState;
 	convergenceGlobalState.mDeviceFlag = convergenceFlag.view();
 

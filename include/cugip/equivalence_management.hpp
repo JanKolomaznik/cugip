@@ -97,17 +97,17 @@ public:
 		CUGIP_ASSERT(mSize > 0);
 		CUGIP_ASSERT(aFirst < mSize);
 		CUGIP_ASSERT(aSecond < mSize);
-		TClassId minId = min(aFirst, aSecond);
-		TClassId maxId = max(aFirst, aSecond);
-		//TClassId minRoot = mBuffer[minId];
-		TClassId maxRoot = mBuffer[maxId];
-		if (maxRoot > minId) {
-		//if (maxRoot > minRoot) {
-			//mBuffer[maxId] = minRoot;
-			mBuffer[maxId] = minId;
+		TClassId root1 = mBuffer[aFirst];
+		TClassId root2 = mBuffer[aSecond];
+
+		if (root1 < root2) {
+			mBuffer[aSecond] = root1;
+			return root1;
 		}
-		//return minRoot;
-		return minId;
+		if (root1 > root2) {
+			mBuffer[aFirst] = root2;
+		}
+		return root2;
 	}
 
 	CUGIP_DECL_HOST
@@ -116,12 +116,12 @@ public:
 		CUGIP_ASSERT(mBuffer != nullptr);
 		CUGIP_ASSERT(mSize > 0);
 		dim3 blockSize(256, 1, 1);
-		dim3 gridSize(1, 1, 1);
-		//dim3 gridSize((mSize + 255) / 256, 1, 1);
-		CUGIP_CHECK_ERROR_STATE("before compaction kernel");
+		//dim3 gridSize(1, 1, 1); //TODO
+		dim3 gridSize((mSize + 255) / 256, 1, 1);
+		//CUGIP_CHECK_ERROR_STATE("before compaction kernel");
 		//auto t = thrust::reduce(thrust::device, mBuffer, mBuffer + mSize);
 
-		kernelTest<TClassId><<<1, 32>>>(mBuffer, mSize);
+		//kernelTest<TClassId><<<1, 32>>>(mBuffer, mSize);
 		CUGIP_CHECK_RESULT(cudaThreadSynchronize());
 
 		CUGIP_DFORMAT("Before compaction EquivalenceManager buffer ptr: %p size: %d", uintptr_t(mBuffer), mSize);

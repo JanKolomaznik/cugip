@@ -99,21 +99,22 @@ struct LocalMinimaEquivalenceGlobalState
 	{
 		template<typename TValue>
 		CUGIP_DECL_DEVICE
-		TValue operator()(TValue aLabel) const
+		void operator()(TValue &aLabel) const
 		{
 			/*if (aLabel >= manager.mSize) {
 				printf("AAAAAAAAAAAAAAAA\n");
 				return 0;
 			}*/
+			/*if (coords == Int3(76, 13, 0)) {
+				printf("XXXXX %d -> %d\n", get<1>(aLabel), manager.get(get<1>(aLabel)));
+			}*/
 			get<1>(aLabel) =  manager.get(get<1>(aLabel));
-			return aLabel;
 		}
 
 		CUGIP_DECL_DEVICE
-		TId operator()(TId aLabel) const
+		void operator()(TId &aLabel) const
 		{
 			aLabel =  manager.get(aLabel);
-			return aLabel;
 		}
 
 		EquivalenceManager<TId> manager;
@@ -378,10 +379,18 @@ struct WatershedSteepestDescentGlobalStateRule : WatershedSteepestDescentRuleBas
 		auto value = aNeighborhood[0];
 		int index = findNeighborForMerge(aNeighborhood);
 		if (index != -1 && get<1>(value) != get<1>(aNeighborhood[index])) {
-			aGlobalState.manager.merge(get<1>(value), get<1>(aNeighborhood[index]));
+			auto newLabel = aGlobalState.manager.merge(get<1>(value), get<1>(aNeighborhood[index]));
 			aGlobalState.signal();
-			if (get<1>(value) > get<1>(aNeighborhood[index])) {
-				get<1>(value) = get<1>(aNeighborhood[index]);
+			/*if (aIteration > 30 && get<1>(value) < 12000) {
+				printf("label %d - %d, %d - %d, [%d, %d, %d], [%d, %d, %d]\n",
+					get<1>(value), get<1>(aNeighborhood[index]),
+					aGlobalState.manager.get(get<1>(value)), aGlobalState.manager.get(get<1>(aNeighborhood[index])),
+					aNeighborhood.coords()[0], aNeighborhood.coords()[1], aNeighborhood.coords()[2],
+					aNeighborhood.view_index(index)[0], aNeighborhood.view_index(index)[1], aNeighborhood.view_index(index)[2]
+				);
+			}*/
+			if (get<1>(value) > newLabel) {
+				get<1>(value) = newLabel;
 			}
 		}
 		return value;
