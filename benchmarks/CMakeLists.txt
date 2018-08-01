@@ -10,10 +10,11 @@ FIND_PACKAGE(Boost REQUIRED COMPONENTS program_options filesystem timer chrono s
 MESSAGE(  ${Boost_LIBRARIES} )
 INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIRS} ${CUB_INCLUDE_DIRECTORY} "../include")
 
-SET(CUDA_HOST_COMPILER "/usr/bin/gcc-4.8")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
+SET(CUDA_HOST_COMPILER "/usr/bin/gcc-6")
 #SET(CUDA_NVCC_FLAGS "--std=c++11 -gencode arch=compute_20,code=sm_20 --use_fast_math --generate-line-info")
 #SET(CUDA_NVCC_FLAGS "-G --std=c++11 -gencode arch=compute_30,code=sm_30 --use_fast_math -lineinfo")
-SET(CUDA_NVCC_FLAGS "--std=c++11 -gencode arch=compute_30,code=sm_30 --use_fast_math")
+SET(CUDA_NVCC_FLAGS "--std=c++14 -gencode arch=compute_61,code=sm_61 --use_fast_math")
 #SET(CUDA_NVCC_FLAGS "-gencode arch=compute_20,code=sm_20 -gencode arch=compute_30,code=sm_30 --use_fast_math")
 #SET(CUDA_NVCC_FLAGS "-gencode arch=compute_20,code=sm_20 -gencode arch=compute_30,code=sm_30 -gencode arch=compute_35,code=sm_35 -gencode arch=compute_37,code=sm_37 -gencode arch=compute_50,code=sm_50 -gencode arch=compute_50,code=compute_50 --use_fast_math")
 

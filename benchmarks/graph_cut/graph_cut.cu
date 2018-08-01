@@ -4,7 +4,7 @@
 #include <cugip/host_image_view.hpp>
 #include <cugip/neighborhood.hpp>
 #include <cugip/region.hpp>
-#include <cugip/detail/for_each_host.hpp>
+#include <cugip/for_each.hpp>
 #include <cugip/access_utils.hpp>
 
 #include <boost/log/trivial.hpp>
