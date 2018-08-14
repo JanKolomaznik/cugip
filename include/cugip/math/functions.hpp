@@ -32,6 +32,11 @@ min(TType aValue1, TType aValue2) {
 	return aValue1 < aValue2 ? aValue1 : aValue2;
 }
 
-
+template<typename TType>
+inline CUGIP_DECL_HYBRID int
+signum(TType aValue) {
+    	int t = aValue < 0 ? -1 : 0;
+    	return aValue > 0 ? 1 : t;
+}
 
 }//namespace cugip

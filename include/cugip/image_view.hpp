@@ -90,19 +90,22 @@ public:
 	/// Creates view for cut through the image
 	/// \tparam tSliceDimension Dimension axis perpendicular to the cut
 	/// \param slice Coordinate of the slice - index in tSliceDimension
-	/*template<int tSliceDimension>
-	device_image_view<TElement, tDimension - 1> slice(int slice) const {
+	template<int tSliceDimension>
+	device_image_view<TElement, cDimension - 1> slice(int slice) const {
 		// D_FORMAT("Slice:\n\tdimension: %1%\n\tslice: %2%", tSliceDimension, slice);
-		static_assert(tSliceDimension < tDimension, "Wrong slicing dimension");
+		static_assert(tSliceDimension < cDimension, "Wrong slicing dimension");
 		static_assert(tSliceDimension >= 0, "Wrong slicing dimension");
 		CUGIP_ASSERT(slice >= 0);
 		CUGIP_ASSERT(slice < this->dimensions()[tSliceDimension]);
-		TElement *slice_corner = this->mDevicePtr + int64_t(this->mStrides[tSliceDimension]) * slice;
-		return device_image_view<TElement, tDimension - 1>(
+		//TElement *slice_corner = this->mDevicePtr + int64_t(this->mStrides[tSliceDimension]) * slice;
+		auto corner = coord_t();
+		corner[tSliceDimension] = slice;
+		value_type *slice_corner = reinterpret_cast<value_type *>(reinterpret_cast<char *>(mDevicePtr) + offset_in_strided_memory(mStrides, corner));
+		return device_image_view<TElement, cDimension - 1>(
 				slice_corner,
-				RemoveDimension(this->size_, tSliceDimension),
-				RemoveDimension(this->mStrides, tSliceDimension));
-	}*/
+				remove_dimension(this->mSize, tSliceDimension),
+				remove_dimension(this->mStrides, tSliceDimension));
+	}
 
 protected:
 	//memory_t mData;
@@ -193,10 +196,32 @@ public:
 		CUGIP_ASSERT(corner >= extents_t());
 		CUGIP_ASSERT(corner < this->dimensions());
 		CUGIP_ASSERT((corner + size) <= this->dimensions());
-		auto ptr = reinterpret_cast<value_type *>(reinterpret_cast<char *>(mDevicePtr) + offset_in_strided_memory(mStrides, corner));
+		auto ptr = reinterpret_cast<const value_type *>(reinterpret_cast<const char *>(mDevicePtr) + offset_in_strided_memory(mStrides, corner));
 		//return device_image_view<TElement, tDimension>(this->mDevicePtr + linear_index_from_strides(this->mStrides, corner), size, this->strides_);
-		return const_device_image_view<TElement, tDim>(ptr, size, this->strides_);
+		return const_device_image_view<TElement, tDim>(ptr, size, this->mStrides);
 	}
+
+	/// Creates view for cut through the image
+	/// \tparam tSliceDimension Dimension axis perpendicular to the cut
+	/// \param slice Coordinate of the slice - index in tSliceDimension
+	template<int tSliceDimension>
+	const_device_image_view<TElement, cDimension - 1> slice(int slice) const {
+		// D_FORMAT("Slice:\n\tdimension: %1%\n\tslice: %2%", tSliceDimension, slice);
+		static_assert(tSliceDimension < cDimension, "Wrong slicing dimension");
+		static_assert(tSliceDimension >= 0, "Wrong slicing dimension");
+		CUGIP_ASSERT(slice >= 0);
+		CUGIP_ASSERT(slice < this->dimensions()[tSliceDimension]);
+		//TElement *slice_corner = this->mDevicePtr + int64_t(this->mStrides[tSliceDimension]) * slice;
+		auto corner = coord_t();
+		corner[tSliceDimension] = slice;
+		const_value_type *slice_corner = reinterpret_cast<const_value_type *>(reinterpret_cast<const char *>(mDevicePtr) + offset_in_strided_memory(mStrides, corner));
+		return const_device_image_view<TElement, cDimension - 1>(
+				slice_corner,
+				remove_dimension(this->mSize, tSliceDimension),
+				remove_dimension(this->mStrides, tSliceDimension));
+	}
+
+
 protected:
 	//memory_t mData;
 

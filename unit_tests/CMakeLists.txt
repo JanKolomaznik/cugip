@@ -35,9 +35,12 @@ set(TEST_SUITE_TARGETS
 	cellular_automata_test
 	eigen_test
 	for_each_test
+	scan_test
+	reduce_test
 	geometry_transformation_test
 	graph_cut_test
 	procedural_view_test
+	subview_test
 	shared_memory_test
 	transform_test
 	utils_test

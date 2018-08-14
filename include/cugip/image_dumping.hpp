@@ -3,8 +3,10 @@
 #include <fstream>
 #include <boost/filesystem.hpp>
 #include <cugip/access_utils.hpp>
+#include <cugip/for_each.hpp>
 
 namespace cugip {
+
 
 template<typename TView>
 void dump_view_to_file(TView aView, boost::filesystem::path aFile)
@@ -15,7 +17,7 @@ void dump_view_to_file(TView aView, boost::filesystem::path aFile)
 	out.exceptions(std::ofstream::failbit | std::ofstream::badbit);
 	out.open(aFile.string(), std::ofstream::out | std::ofstream::binary);
 
-	for (int i = 0; i < elementCount(aView); ++i) {
+	for (int64_t i = 0; i < elementCount(aView); ++i) {
 		auto element = linear_access(aView, i);
 		out.write(reinterpret_cast<const char *>(&element), sizeof(element));
 	}
@@ -38,6 +40,13 @@ void dump_view(TView aView, boost::filesystem::path aPrefix)
 	boost::filesystem::path filename = aPrefix.string() + ("_" + dimensionsToString(aView.dimensions()) + ".raw");
 
 	dump_view_to_file(aView, filename);
+}
+
+template<typename TView>
+void print_view(TView aView)
+{
+	for_each(aView, [](const int &aValue) { std::cout << aValue << " "; });
+	std::cout << "\n";
 }
 
 

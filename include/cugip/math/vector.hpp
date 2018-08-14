@@ -636,6 +636,23 @@ insert_dimension(const simple_vector<TType, tDimension> &v, TType inserted_coord
 	return result;
 }
 
+template<typename TType, int tDimension>
+CUGIP_DECL_HYBRID
+simple_vector<TType, tDimension - 1>
+remove_dimension(const simple_vector<TType, tDimension> &v, int dimension) {
+	CUGIP_ASSERT(dimension >= 0);
+	CUGIP_ASSERT(dimension < tDimension);
+	simple_vector<TType, tDimension - 1> result;
+	for (int i = 0; i < dimension; ++i) {
+		result[i] = v[i];
+	}
+	for (int i = dimension; i < tDimension - 1; ++i) {
+		result[i] = v[i + 1];
+	}
+	return result;
+}
+
+
 
 template<typename TType, int tDimension>
 inline CUGIP_DECL_HYBRID simple_vector<TType, tDimension>

@@ -9,6 +9,12 @@
 
 namespace cugip {
 
+struct ReduceExecutionConfig {
+	cudaStream_t stream = 0;
+};
+
+
+
 /** \addtogroup meta_algorithm
  * @{
  **/

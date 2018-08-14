@@ -57,7 +57,7 @@ struct VonNeumannNeighborhood<2>
 		case 2: return Int2(0, -1);
 		case 3: return Int2(1, 0);
 		case 4: return Int2(0, 1);
-		default: CUGIP_ASSERT(false);
+		default: //CUGIP_ASSERT(false);
 			break;
 		}
 		return Int2();
@@ -99,7 +99,7 @@ struct VonNeumannNeighborhood<3>
 		case 4: return Int3(1, 0, 0);
 		case 5: return Int3(0, 1, 0);
 		case 6: return Int3(0, 0, 1);
-		default: CUGIP_ASSERT(false);
+		default: //CUGIP_ASSERT(false);
 			break;
 		}
 		return Int3();
@@ -133,7 +133,7 @@ struct MooreNeighborhood<2>
 		case 6: return Int2(-1, 1);
 		case 7: return Int2(0, 1);
 		case 8: return Int2(1, 1);
-		default: CUGIP_ASSERT(false);
+		default: //CUGIP_ASSERT(false);
 			break;
 		}
 		return Int2();
@@ -152,7 +152,7 @@ struct MooreNeighborhood<2>
 		case 6: return Int2(-1, 1);
 		case 7: return Int2(0, 1);
 		case 8: return Int2(1, 1);
-		default: CUGIP_ASSERT(false);
+		default: //CUGIP_ASSERT(false);
 			break;
 		}
 		return Int2();
@@ -254,7 +254,7 @@ struct MooreNeighborhood<3>
 		case 24: return Int3(-1, 1, 1);
 		case 25: return Int3(0, 1, 1);
 		case 26: return Int3(1, 1, 1);
-		default: CUGIP_ASSERT(false);
+		default: //CUGIP_ASSERT(false);
 			break;
 		}
 		return Int3();
@@ -320,7 +320,7 @@ struct NeighborhoodAccessor
 		return mLocator;
 	}
 
-	CUGIP_DECL_HYBRID constexpr 
+	CUGIP_DECL_HYBRID constexpr
 	auto offset(int aIndex) const -> decltype(this->mNeighborhood.offset(aIndex))
 	{
 		return mNeighborhood.offset(aIndex);
