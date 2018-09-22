@@ -63,7 +63,7 @@ BOOST_AUTO_TEST_CASE(PrefixSumConstantImage)
 
 BOOST_AUTO_TEST_CASE(PrefixSumConstantImageLarge)
 {
-	device_image<int, 2> deviceImage(2048, 1);
+	device_image<int, 2> deviceImage(2025, 256);
 	device_image<int, 2> tmpImage(deviceImage.dimensions());
 
 	auto input = constantImage(1, deviceImage.dimensions());
@@ -78,6 +78,7 @@ BOOST_AUTO_TEST_CASE(PrefixSumConstantImageLarge)
 	//using T = std::enable_if<is_image_view<decltype(const_view(deviceImage))>::value>::type;
 	auto difference = sum_differences(const_view(deviceImage), groundTruth, int{0});
 
+	//device_image<int, 2> deviceImage(2000, 1);
 	/*host_image<int, 2> hostImage(deviceImage.dimensions());
 	copy(view(deviceImage), view(hostImage));
 	print_view(view(hostImage));*/
