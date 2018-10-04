@@ -50,17 +50,17 @@ struct transform_update_add {
 	}
 };
 
-template<typename TView1, typename TView2>
+template<int tDimension>
 struct DefaultTransformPolicy {
 #if defined(__CUDACC__)
 	CUGIP_DECL_HYBRID dim3 blockSize() const
 	{
-		return detail::defaultBlockDimForDimension<dimension<TView1>::value>();
+		return detail::defaultBlockDimForDimension<tDimension>();
 	}
 
-	CUGIP_DECL_HYBRID dim3 gridSize(const TView1 &aView) const
+	CUGIP_DECL_HYBRID dim3 gridSize(const region<tDimension> aRegion) const
 	{
-		return detail::defaultGridSizeForBlockDim(aView.dimensions(), blockSize());
+		return detail::defaultGridSizeForBlockDim(aRegion.size, blockSize());
 	}
 #endif //defined(__CUDACC__)
 };
@@ -91,7 +91,7 @@ template <typename TInView, typename TOutView, typename TFunctor>
 void
 transform(TInView aInView, TOutView aOutView, TFunctor aOperator, cudaStream_t aCudaStream = 0)
 {
-	transform(aInView, aOutView, aOperator, DefaultTransformPolicy<TInView, TOutView>(), aCudaStream);
+	transform(aInView, aOutView, aOperator, DefaultTransformPolicy<dimension<TInView>::value>{}, aCudaStream);
 }
 
 template  <typename TInView1, typename TInView2, typename TOutView, typename TFunctor, typename TPolicy>
@@ -116,7 +116,7 @@ template  <typename TInView1, typename TInView2, typename TOutView, typename TFu
 void
 transform2(TInView1 aInView1, TInView2 aInView2, TOutView aOutView, TFunctor aOperator, cudaStream_t aCudaStream = 0)
 {
-	transform2(aInView1, aInView2, aOutView, aOperator, DefaultTransformPolicy<TInView1, TOutView>(), aCudaStream);
+	transform2(aInView1, aInView2, aOutView, aOperator, DefaultTransformPolicy<dimension<TInView1>::value>{}, aCudaStream);
 }
 
 template <typename TInView, typename TOutView, typename TFunctor, typename TPolicy>
@@ -139,36 +139,25 @@ template <typename TInView, typename TOutView, typename TFunctor>
 void
 transform_position(TInView aInView, TOutView aOutView, TFunctor aOperator, cudaStream_t aCudaStream = 0)
 {
-	transform_position(aInView, aOutView, aOperator, DefaultTransformPolicy<TInView, TOutView>(), aCudaStream);
+	transform_position(aInView, aOutView, aOperator, DefaultTransformPolicy<dimension<TInView>::value>{}, aCudaStream);
 }
 
 //TODO - assign versions of the transform alg.
 
 //*************************************************************************************************************
-template<typename TView1, typename TView2>
-struct DefaultTransformLocatorPolicy {
+
+template<int tDimension>
+struct DefaultTransformLocatorPolicy : DefaultTransformPolicy<tDimension> {
 	typedef BorderHandlingTraits<border_handling_enum::REPEAT>/*border_handling_repeat_t*/ BorderHandling;
 
 	static constexpr bool cPreload = false;
-
-#if defined(__CUDACC__)
-	CUGIP_DECL_HYBRID dim3 blockSize() const
-	{
-		return detail::defaultBlockDimForDimension<dimension<TView1>::value>();
-	}
-
-	CUGIP_DECL_HYBRID dim3 gridSize(const TView1 &aView) const
-	{
-		return detail::defaultGridSizeForBlockDim(aView.dimensions(), blockSize());
-	}
-#endif //defined(__CUDACC__)
 };
 
-template<typename TView, int tRadius>
-struct PreloadingTransformLocatorPolicy {
+template<int tDimension, int tRadius>
+struct PreloadingTransformLocatorPolicy : DefaultTransformPolicy<tDimension> {
 	typedef BorderHandlingTraits<border_handling_enum::REPEAT>/*border_handling_repeat_t*/ BorderHandling;
 	//typedef border_handling_repeat_t BorderHandling;
-	static constexpr int cDimension = dimension<TView>::value;
+	static constexpr int cDimension = tDimension;
 	//typedef detail::defaultBlockSize<cDimension>::type BlockSize;
 	//typedef detail::defaultBlockSize<cDimension>::type PreloadedBlockSize;
 
@@ -181,11 +170,11 @@ struct PreloadingTransformLocatorPolicy {
 	{
 		return region<cDimension>{
 			simple_vector<int, cDimension>(-tRadius, FillFlag()),
-			dim3_to_vector<cDimension>(blockSize()) + simple_vector<int, cDimension>(2*tRadius, FillFlag())
+			dim3_to_vector<cDimension>(this->blockSize()) + simple_vector<int, cDimension>(2*tRadius, FillFlag())
 			};
 	}
 
-	CUGIP_DECL_HYBRID dim3 blockSize() const
+	/*CUGIP_DECL_HYBRID dim3 blockSize() const
 	{
 		return detail::defaultBlockDimForDimension<dimension<TView>::value>();
 	}
@@ -193,7 +182,7 @@ struct PreloadingTransformLocatorPolicy {
 	CUGIP_DECL_HYBRID dim3 gridSize(const TView &aView) const
 	{
 		return detail::defaultGridSizeForBlockDim(aView.dimensions(), blockSize());
-	}
+	}*/
 #endif //defined(__CUDACC__)
 };
 
@@ -210,7 +199,7 @@ transform_locator(TInView aInView, TOutView aOutView, TOperator aOperator, cudaS
 	}
 
 	detail::TransformLocatorImplementation<
-		is_device_view<TInView>::value && is_device_view<TOutView>::value>::run(aInView, aOutView, aOperator, transform_update_assign(), DefaultTransformLocatorPolicy<TInView, TOutView>(), aCudaStream);
+		is_device_view<TInView>::value && is_device_view<TOutView>::value>::run(aInView, aOutView, aOperator, transform_update_assign(), DefaultTransformLocatorPolicy<dimension<TInView>::value>{}, aCudaStream);
 }
 
 
@@ -244,7 +233,7 @@ transform_locator_assign(TInView aInView, TOutView aOutView, TOperator aOperator
 	}
 
 	detail::TransformLocatorImplementation<
-		is_device_view<TInView>::value && is_device_view<TOutView>::value>::run(aInView, aOutView, aOperator, aAssignOperation, DefaultTransformLocatorPolicy<TInView, TOutView>(), aCudaStream);
+		is_device_view<TInView>::value && is_device_view<TOutView>::value>::run(aInView, aOutView, aOperator, aAssignOperation, DefaultTransformLocatorPolicy<dimension<TInView>::value>{}, aCudaStream);
 }
 
 

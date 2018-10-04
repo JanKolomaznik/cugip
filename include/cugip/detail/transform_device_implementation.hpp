@@ -32,7 +32,7 @@ struct TransformImplementation<true> {
 	template <typename TInView, typename TOutView, typename TFunctor, typename TAssignOperation, typename TPolicy>
 	static void run(TInView aInView, TOutView aOutView, TFunctor aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy, cudaStream_t aCudaStream) {
 		dim3 blockSize = aPolicy.blockSize();
-		dim3 gridSize = aPolicy.gridSize(aInView);
+		dim3 gridSize = aPolicy.gridSize(active_region(aInView));
 
 		detail::kernel_transform<TInView, TOutView, TFunctor, TAssignOperation, TPolicy>
 			<<<gridSize, blockSize, 0, aCudaStream>>>(aInView, aOutView, aOperator, aAssignOperation, aPolicy);
@@ -65,7 +65,7 @@ struct TransformPositionImplementation<true> {
 	template <typename TInView, typename TOutView, typename TFunctor, typename TAssignOperation, typename TPolicy>
 	static void run(TInView aInView, TOutView aOutView, TFunctor aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy, cudaStream_t aCudaStream) {
 		dim3 blockSize = aPolicy.blockSize();
-		dim3 gridSize = aPolicy.gridSize(aInView);
+		dim3 gridSize = aPolicy.gridSize(active_region(aInView));
 
 		detail::kernel_transform_position<TInView, TOutView, TFunctor, TAssignOperation, TPolicy>
 			<<<gridSize, blockSize, 0, aCudaStream>>>(aInView, aOutView, aOperator, aAssignOperation, aPolicy);
@@ -128,7 +128,7 @@ struct TransformLocatorImplementation<true> {
 	run(TInView aInView, TOutView aOutView, TOperator aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy, cudaStream_t aCudaStream) {
 		// TODO - do this only in code processed by nvcc
 		dim3 blockSize = aPolicy.blockSize();
-		dim3 gridSize = aPolicy.gridSize(aInView);
+		dim3 gridSize = aPolicy.gridSize(active_region(aInView));
 
 		detail::kernel_transform_locator<TInView, TOutView, TOperator, TAssignOperation, TPolicy>
 			<<<gridSize, blockSize, 0, aCudaStream>>>(aInView, aOutView, aOperator, aAssignOperation, aPolicy);
@@ -140,7 +140,7 @@ struct TransformLocatorImplementation<true> {
 	run(TInView aInView, TOutView aOutView, TOperator aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy, cudaStream_t aCudaStream) {
 		// TODO - do this only in code processed by nvcc
 		dim3 blockSize = aPolicy.blockSize();
-		dim3 gridSize = aPolicy.gridSize(aInView);
+		dim3 gridSize = aPolicy.gridSize(active_region(aInView));
 
 		detail::kernel_transform_locator_preload<TInView, TOutView, TOperator, TAssignOperation, TPolicy>
 			<<<gridSize, blockSize, 0, aCudaStream>>>(aInView, aOutView, aOperator, aAssignOperation, aPolicy);

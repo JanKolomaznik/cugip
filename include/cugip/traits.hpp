@@ -4,10 +4,16 @@
 
 namespace cugip {
 
+template<bool tFlag>
+struct BoolValue
+{
+	static constexpr bool value = tFlag;
+};
+
 template<int tValue>
 struct IntValue
 {
-	static const int value = tValue;
+	static constexpr int value = tValue;
 };
 
 struct dimension_1d_tag { };

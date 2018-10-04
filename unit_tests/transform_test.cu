@@ -57,7 +57,7 @@ BOOST_AUTO_TEST_CASE(BoundedTransformWithPreload)
 
 	transform_locator(input, view(deviceImage1), TestTransformFunctor());
 	CUGIP_CHECK_RESULT(cudaThreadSynchronize());
-	transform_locator(input, view(deviceImage2), TestTransformFunctor(), PreloadingTransformLocatorPolicy<decltype(input), 1>());
+	transform_locator(input, view(deviceImage2), TestTransformFunctor(), PreloadingTransformLocatorPolicy<3, 1>());
 	CUGIP_CHECK_RESULT(cudaThreadSynchronize());
 
 	auto difference = sum_differences(view(deviceImage1), view(deviceImage2), 0);

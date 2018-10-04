@@ -81,6 +81,16 @@ region<dimension<TView>::value> valid_region(const TView &view) {
 
 CUGIP_HD_WARNING_DISABLE
 template<typename TView>
+CUGIP_DECL_HYBRID
+region<dimension<TView>::value> active_region(const TView &view) {
+	return region<dimension<TView>::value>{
+		typename TView::coord_t(),
+		view.dimensions() };
+}
+
+
+CUGIP_HD_WARNING_DISABLE
+template<typename TView>
 CUGIP_DECL_HYBRID int64_t
 elementCount(const TView &aView)
 {

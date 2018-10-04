@@ -34,25 +34,29 @@ namespace cugip {
  * @{
  **/
 
-template <int tDimension, typename TFunctor>
-TFunctor
-for_each(region<tDimension> aRegion, TFunctor aOperator)
+template <int tDimension, typename TFunctor, bool tRunOnDevice>
+void
+for_each_in_region(region<tDimension> aRegion, TFunctor aOperator, BoolValue<tRunOnDevice>)
 {
-	return cugip::detail::for_each_implementation(aRegion, aOperator);
+	//return cugip::detail::for_each_implementation(aRegion, aOperator);
+
+	detail::ForEachPositionImplementation<
+		tRunOnDevice>::run(aRegion, aOperator/*, DefaultForEachPolicy<TView>(), aCudaStream*/);
+
 }
 
 
-template<typename TView>
+template<int tDimension>
 struct DefaultForEachPolicy {
 #if defined(__CUDACC__)
 	CUGIP_DECL_HYBRID dim3 blockSize() const
 	{
-		return detail::defaultBlockDimForDimension<dimension<TView>::value>();
+		return detail::defaultBlockDimForDimension<tDimension>();
 	}
 
-	CUGIP_DECL_HYBRID dim3 gridSize(const TView &aView) const
+	CUGIP_DECL_HYBRID dim3 gridSize(const region<tDimension> aRegion) const
 	{
-		return detail::defaultGridSizeForBlockDim(aView.dimensions(), blockSize());
+		return detail::defaultGridSizeForBlockDim(aRegion.size, blockSize());
 	}
 #endif //defined(__CUDACC__)
 };
@@ -67,7 +71,7 @@ for_each(TView aView, TFunctor aOperator, cudaStream_t aCudaStream = 0)
 	}
 
 	detail::ForEachImplementation<
-		is_device_view<TView>::value>::run(aView, aOperator, DefaultForEachPolicy<TView>(), aCudaStream);
+		is_device_view<TView>::value>::run(aView, aOperator, DefaultForEachPolicy<dimension<TView>::value>{}, aCudaStream);
 }
 
 template <typename TView, typename TFunctor, typename TPolicy>
@@ -93,7 +97,7 @@ for_each_position(TView aView, TFunctor aOperator, cudaStream_t aCudaStream = 0)
 	}
 
 	detail::ForEachPositionImplementation<
-		is_device_view<TView>::value>::run(aView, aOperator, DefaultForEachPolicy<TView>(), aCudaStream);
+		is_device_view<TView>::value>::run(aView, aOperator, DefaultForEachPolicy<dimension<TView>::value>{}, aCudaStream);
 }
 
 template <typename TView, typename TFunctor, typename TPolicy>

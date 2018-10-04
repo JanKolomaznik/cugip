@@ -44,6 +44,7 @@ index_from_linear_access_index(const simple_vector<int, tDimension> &aExtents, i
 	}
 	#ifndef __CUDA_ARCH__
 	if (aIdx >= 536870912) {
+		// TODO - remove
 		std::cout << coords <<"\n";
 		assert(false);
 	}

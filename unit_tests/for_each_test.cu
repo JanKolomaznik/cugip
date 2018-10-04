@@ -39,6 +39,17 @@ BOOST_AUTO_TEST_CASE(ForEachDevice)
 
 }
 
+BOOST_AUTO_TEST_CASE(ForEachInRegionDevice)
+{
+	device_image<int, 2> deviceImage(1000, 1000);
+	auto reg = region<2>{vect2i_t(0, 0), vect2i_t(1000, 1000)};
+
+	for_each_in_region(reg, [v=view(deviceImage)] CUGIP_DECL_DEVICE (vect2i_t pos) { v[pos] = 42; }, BoolValue<true>{});
+
+	auto difference = sum_differences(view(deviceImage), constantImage(42, deviceImage.dimensions()), 0);
+	BOOST_CHECK_EQUAL(difference, 0);
+}
+
 
 /*BOOST_AUTO_TEST_CASE(DeviceUtils)
 {
