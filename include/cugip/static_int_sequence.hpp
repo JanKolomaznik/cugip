@@ -162,6 +162,10 @@ struct StaticSize: IntSequence<tSize...>
 	}
 };
 
+template<int...tValue>
+using StaticIntVector = StaticSize<tValue...>;
+
+
 // TODO make constexpr
 template<int...tSize>
 CUGIP_DECL_HYBRID

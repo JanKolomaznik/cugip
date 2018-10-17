@@ -14,7 +14,7 @@
 #include <cugip/for_each.hpp>
 /*#include <cugip/subview.hpp>
 #include <cugip/view_arithmetics.hpp>*/
-#include <cugip/transform.hpp>
+//#include <cugip/transform.hpp>
 /*#include <thrust/device_vector.h>
 #include <thrust/reduce.h>*/
 

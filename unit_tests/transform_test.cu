@@ -47,6 +47,28 @@ BOOST_AUTO_TEST_CASE(TransformDevice)
 	BOOST_CHECK_EQUAL(difference, 0);
 }
 
+BOOST_AUTO_TEST_CASE(TransformDeviceWithSharedMemory)
+{
+	auto default_policy = DefaultTransformLocatorPolicy<3>{};
+	auto preloading_policy = PreloadingTransformLocatorPolicy<3, 1>{};
+
+	device_image<int, 3> deviceImage1(300, 300, 4);
+	device_image<int, 3> deviceImage2(300, 300, 4);
+
+	auto input = constantImage(25, deviceImage1.dimensions());
+
+	copy(input, view(deviceImage1));
+
+	auto ftor = []__device__(auto locator) { return locator[vect3i_t(1, 1, 1)] + locator[vect3i_t(-1, -1, -1)]; };
+	transform_locator(input, view(deviceImage1), ftor, default_policy);
+	transform_locator(input, view(deviceImage2), ftor, preloading_policy);
+
+	auto difference = sum_differences(const_view(deviceImage1), const_view(deviceImage2), 0);
+	BOOST_CHECK_EQUAL(difference, 0);
+}
+
+
+
 BOOST_AUTO_TEST_CASE(BoundedTransformWithPreload)
 {
 

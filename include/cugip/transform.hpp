@@ -162,27 +162,18 @@ struct PreloadingTransformLocatorPolicy : DefaultTransformPolicy<tDimension> {
 	//typedef detail::defaultBlockSize<cDimension>::type PreloadedBlockSize;
 
 	typedef StaticSize<32+2*tRadius, 4+2*tRadius, 4+2*tRadius> RegionSize;
+	//static constexpr vect3i_t cRegionSize(32+2*tRadius, 4+2*tRadius, 4+2*tRadius);
 
 	static constexpr bool cPreload = true;
 
 #if defined(__CUDACC__)
-	CUGIP_DECL_HYBRID region<cDimension> regionForBlock()
+	CUGIP_DECL_HYBRID region<cDimension> regionForBlock() const
 	{
 		return region<cDimension>{
 			simple_vector<int, cDimension>(-tRadius, FillFlag()),
 			dim3_to_vector<cDimension>(this->blockSize()) + simple_vector<int, cDimension>(2*tRadius, FillFlag())
 			};
 	}
-
-	/*CUGIP_DECL_HYBRID dim3 blockSize() const
-	{
-		return detail::defaultBlockDimForDimension<dimension<TView>::value>();
-	}
-
-	CUGIP_DECL_HYBRID dim3 gridSize(const TView &aView) const
-	{
-		return detail::defaultGridSizeForBlockDim(aView.dimensions(), blockSize());
-	}*/
 #endif //defined(__CUDACC__)
 };
 

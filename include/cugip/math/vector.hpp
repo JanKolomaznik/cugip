@@ -130,7 +130,7 @@ public:
 	}
 
 	template<typename TOtherCoordType>
-	inline CUGIP_DECL_HYBRID simple_vector &
+	inline CUGIP_DECL_HYBRID constexpr simple_vector &
 	operator=(const simple_vector<TOtherCoordType, tDim> &aArg)
 	{
 		for (int i = 0; i < tDim; ++i) {
@@ -140,7 +140,7 @@ public:
 	}
 
 	template<typename TOtherCoordType>
-	inline CUGIP_DECL_HYBRID simple_vector &
+	inline CUGIP_DECL_HYBRID constexpr simple_vector &
 	operator+=(const simple_vector<TOtherCoordType, tDim> &aArg)
 	{
 		for (int i = 0; i < tDim; ++i) {
@@ -150,7 +150,7 @@ public:
 	}
 
 	template<typename TOtherCoordType>
-	inline CUGIP_DECL_HYBRID simple_vector &
+	inline CUGIP_DECL_HYBRID constexpr simple_vector &
 	operator-=(const simple_vector<TOtherCoordType, tDim> &aArg)
 	{
 		for (int i = 0; i < tDim; ++i) {
@@ -159,7 +159,7 @@ public:
 		return *this;
 	}
 
-	inline CUGIP_DECL_HYBRID simple_vector
+	inline CUGIP_DECL_HYBRID constexpr simple_vector
 	operator-() const
 	{
 		auto result = *this;
@@ -171,7 +171,7 @@ public:
 
 
 	template <int tIdx>
-	inline CUGIP_DECL_HYBRID TCoordinateType const&
+	inline CUGIP_DECL_HYBRID constexpr TCoordinateType const&
 	get() const
 	{
 		//BOOST_STATIC_ASSERT(tIdx < DimensionCount);
@@ -179,20 +179,20 @@ public:
 	}
 
 	template <int tIdx>
-	inline CUGIP_DECL_HYBRID TCoordinateType &
+	inline CUGIP_DECL_HYBRID constexpr TCoordinateType &
 	get()
 	{
 		//BOOST_STATIC_ASSERT(tIdx < DimensionCount);
 		return mValues[tIdx];
 	}
 
-	inline CUGIP_DECL_HYBRID const TCoordinateType &
+	inline CUGIP_DECL_HYBRID constexpr const TCoordinateType &
 	operator[](int aIdx)const
 	{
 		return mValues[aIdx];
 	}
 
-	inline CUGIP_DECL_HYBRID TCoordinateType &
+	inline CUGIP_DECL_HYBRID constexpr TCoordinateType &
 	operator[](int aIdx)
 	{
 		return mValues[aIdx];
@@ -246,7 +246,7 @@ struct static_vector_traits<simple_vector<TValue, tDimension>>
 };
 
 template<typename TCoordType1, typename TCoordType2, int tDim>
-inline CUGIP_DECL_HYBRID simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim>
+inline CUGIP_DECL_HYBRID constexpr simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim>
 operator+(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TCoordType2, tDim> &aArg2)
 {
 	simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim> res(aArg1);
@@ -254,7 +254,7 @@ operator+(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TCo
 }
 
 template<typename TFactor, typename TVector>
-inline CUGIP_DECL_HYBRID typename std::enable_if<
+inline CUGIP_DECL_HYBRID constexpr typename std::enable_if<
 		static_vector_traits<TVector>::is_vector,
 		simple_vector<
 			decltype(std::declval<TFactor>() * std::declval<TVector>()[0]),
@@ -271,7 +271,7 @@ operator*(const TFactor &aFactor, const TVector &aArg)
 }
 
 template<typename TFactor, typename TVector>
-inline CUGIP_DECL_HYBRID typename std::enable_if<
+inline CUGIP_DECL_HYBRID constexpr typename std::enable_if<
 		static_vector_traits<TVector>::is_vector,
 		simple_vector<
 			decltype(std::declval<TFactor>() * std::declval<TVector>()[0]),
@@ -294,7 +294,7 @@ operator*(const TCoordType1 &aFactor, const simple_vector<TCoordType2, tDim> &aA
 }*/
 
 template<typename TCoordType1, typename TCoordType2, int tDim>
-inline CUGIP_DECL_HYBRID simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim>
+inline CUGIP_DECL_HYBRID constexpr simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim>
 operator-(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TCoordType2, tDim> &aArg2)
 {
 	simple_vector<typename std::common_type<TCoordType1, TCoordType2>::type, tDim> res(aArg1);
@@ -302,7 +302,7 @@ operator-(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TCo
 }
 
 template<typename TCoordType1, typename TCoordType2, int tDim>
-inline CUGIP_DECL_HYBRID bool
+inline CUGIP_DECL_HYBRID constexpr bool
 operator==(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TCoordType2, tDim> &aArg2)
 {
 	for (int i = 0; i < tDim; ++i) {
@@ -314,7 +314,7 @@ operator==(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TC
 }
 
 template<typename TCoordType1, typename TCoordType2, int tDim>
-inline CUGIP_DECL_HYBRID bool
+inline CUGIP_DECL_HYBRID constexpr bool
 operator!=(const simple_vector<TCoordType1, tDim> &aArg1, const simple_vector<TCoordType2, tDim> &aArg2)
 {
 	return !(aArg1 == aArg2);

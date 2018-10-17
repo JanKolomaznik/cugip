@@ -1,16 +1,27 @@
+#pragma once
 
 namespace cugip {
 namespace detail {
+
 
 template <typename TInView, typename TOutView, typename TFunctor, typename TAssignOperation, typename TPolicy>
 CUGIP_GLOBAL void
 kernel_transform(TInView aInView, TOutView aOutView, TFunctor aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy)
 {
-	auto coord = mapBlockIdxAndThreadIdxToViewCoordinates<dimension<TInView>::value>();
-	auto extents = aInView.dimensions();
+	const auto blockCount = gridSize();
+	const auto extents = aView.dimensions();
+	const auto requiredBlockCount = multiply(div_up(extents, blockDimensions<dimension<TView>::value>()));
+	auto blockIndex = blockOrderFromIndex();
 
-	if (coord < extents) {
-		aAssignOperation(aOutView[coord], aOperator(aInView[coord]));
+	auto threadIndex = currentThreadIndexDim<dimension<TView>::value>();
+	while (blockIndex < requiredBlockCount) {
+		auto corner = cornerFromBlockIndex(extents, blockIndex);
+		auto coord = corner + threadIndex;
+		if (coord < extents) {
+			aAssignOperation(aOutView[coord], aOperator(aInView[coord]));
+		}
+		blockIndex += blockCount;
+		__syncthreads();
 	}
 }
 
@@ -18,11 +29,20 @@ template <typename TInView1, typename TInView2, typename TOutView, typename TFun
 CUGIP_GLOBAL void
 kernel_transform2(TInView1 aInView1, TInView2 aInView2, TOutView aOutView, TFunctor aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy)
 {
-	auto coord = mapBlockIdxAndThreadIdxToViewCoordinates<dimension<TInView1>::value>();
-	auto extents = aInView1.dimensions();
+	const auto blockCount = gridSize();
+	const auto extents = aView.dimensions();
+	const auto requiredBlockCount = multiply(div_up(extents, blockDimensions<dimension<TView>::value>()));
+	auto blockIndex = blockOrderFromIndex();
 
-	if (coord < extents) {
-		aAssignOperation(aOutView[coord], aOperator(aInView1[coord], aInView2[coord]));
+	auto threadIndex = currentThreadIndexDim<dimension<TView>::value>();
+	while (blockIndex < requiredBlockCount) {
+		auto corner = cornerFromBlockIndex(extents, blockIndex);
+		auto coord = corner + threadIndex;
+		if (coord < extents) {
+			aAssignOperation(aOutView[coord], aOperator(aInView1[coord], aInView2[coord]));
+		}
+		blockIndex += blockCount;
+		__syncthreads();
 	}
 }
 
@@ -52,11 +72,20 @@ template <typename TInView, typename TOutView, typename TFunctor, typename TAssi
 CUGIP_GLOBAL void
 kernel_transform_position(TInView aInView, TOutView aOutView, TFunctor aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy)
 {
-	auto coord = mapBlockIdxAndThreadIdxToViewCoordinates<dimension<TInView>::value>();
-	auto extents = aInView.dimensions();
+	const auto blockCount = gridSize();
+	const auto extents = aView.dimensions();
+	const auto requiredBlockCount = multiply(div_up(extents, blockDimensions<dimension<TView>::value>()));
+	auto blockIndex = blockOrderFromIndex();
 
-	if (coord < extents) {
-		aAssignOperation(aOutView[coord], aOperator(aInView[coord], coord));
+	auto threadIndex = currentThreadIndexDim<dimension<TView>::value>();
+	while (blockIndex < requiredBlockCount) {
+		auto corner = cornerFromBlockIndex(extents, blockIndex);
+		auto coord = corner + threadIndex;
+		if (coord < extents) {
+			aAssignOperation(aOutView[coord], aOperator(aInView[coord], coord));
+		}
+		blockIndex += blockCount;
+		__syncthreads();
 	}
 }
 
@@ -88,6 +117,7 @@ template <typename TInView, typename TOutView, typename TOperator, typename TAss
 CUGIP_GLOBAL void
 kernel_transform_locator_preload(TInView aInView, TOutView aOutView, TOperator aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy)
 {
+
 	typename TInView::coord_t coord = mapBlockIdxAndThreadIdxToViewCoordinates<dimension<TInView>::value>();
 	typename TInView::extents_t extents = aInView.dimensions();
 	typedef typename TPolicy::RegionSize Size;
@@ -97,26 +127,13 @@ kernel_transform_locator_preload(TInView aInView, TOutView aOutView, TOperator a
 	auto corner = mapBlockIdxToViewCoordinates<dimension<TInView>::value>() + loadedRegion.corner;
 	auto preloadCoords = coord - corner;// current element coords in the preload buffer
 
-	auto dataView = makeDeviceImageView(&(buffer.get(Int3())), to_vector(Size()));
-	//auto dataView = buffer.view();
+	auto dataView = buffer.view();
 	typedef decltype(dataView) DataView;
 	buffer.load(aInView, corner);
 	__syncthreads();
-
-	/*if (is_in_block(0,1,0) && is_in_thread(0,0,0)) {
-		printf("%d, %d, %d\n", preloadCoords[0], preloadCoords[1], preloadCoords[2]);
-	}*/
 	typedef image_locator<DataView, BorderHandlingTraits<border_handling_enum::NONE>> Locator;
-	//Locator itemLocator(dataView, coord - loadedRegion.corner);
 	Locator itemLocator(dataView, preloadCoords);
 	if (coord < extents) {
-		//int val = aOperator(itemLocator);
-		//aOutView[coord] = itemLocator.get();
-		//aOutView[coord] = dataView[Int3()];
-		//aOutView[coord] = buffer.get(Int3());
-		//aOutView[coord] = aInView[coord];
-		//aAssignOperation(aOutView[coord], aOperator(itemLocator));
-		//aAssignOperation(aOutView[coord], itemLocator.get());
 		aAssignOperation(aOutView[coord], aOperator(itemLocator));
 	}
 }

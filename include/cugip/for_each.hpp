@@ -22,6 +22,7 @@ struct ForEachPositionImplementation;
 }//namespace detail
 }//namespace cugip
 
+#include <cugip/detail/meta_algorithm_utils.hpp>
 #include <cugip/detail/for_each_host_implementation.hpp>
 
 #if defined(__CUDACC__)
@@ -83,8 +84,9 @@ for_each(TView aView, TFunctor aOperator, TPolicy aPolicy, cudaStream_t aCudaStr
 		return;
 	}
 
-	detail::ForEachImplementation<
-		is_device_view<TView>::value>::run(aView, aOperator, aPolicy, aCudaStream);
+
+	detail::UniversalRegionCoverImplementation<is_device_view<TView>::value>
+		::run([aOperator]CUGIP_DECL_HYBRID(auto aCoords, auto aView) { aOperator(aView[aCoords]); }, aPolicy, aCudaStream, aView);
 }
 
 template <typename TView, typename TFunctor>

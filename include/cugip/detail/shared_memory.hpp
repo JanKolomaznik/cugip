@@ -82,6 +82,12 @@ public:
 		return makeDeviceImageView(reinterpret_cast<TElement *>(data), to_vector(TStaticSize()));
 	}
 
+	CUGIP_DECL_DEVICE
+	const_device_image_view<TElement, cDimension>
+	const_view() const
+	{
+		return makeConstDeviceImageView(reinterpret_cast<const TElement *>(data), to_vector(TStaticSize()));
+	}
 
 	CUGIP_DECL_DEVICE
 	void shift_up(int aShift)

@@ -224,3 +224,14 @@ BOOST_AUTO_TEST_CASE(BlockedOrderAccessIndex)
 	BOOST_CHECK_EQUAL(26, get_blocked_order_access_index<3>(Int3(5,5,5), Int3(2, 2, 2)));
 	BOOST_CHECK_EQUAL(124, get_blocked_order_access_index<3>(Int3(5,5,5), Int3(4, 4, 4)));
 }
+
+BOOST_AUTO_TEST_CASE(CompileTimeComputations)
+{
+	static constexpr auto v1 = vect3i_t(1, 2, 3);
+	static constexpr auto v2 = vect3i_t(10, 20, 30);
+
+	static_assert((v1 + v2)[0] == 11, "Incorect value for compile time vector addition");
+	static_assert((v1 - v2)[0] == -9, "Incorect value for compile time vector subtractition");
+
+
+}
