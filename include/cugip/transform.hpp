@@ -25,6 +25,7 @@ struct TransformLocatorImplementation;
 } // namespace detail
 } // namespace cugip
 
+#include <cugip/detail/meta_algorithm_utils.hpp>
 #include <cugip/detail/transform_host_implementation.hpp>
 
 #if defined(__CUDACC__)
@@ -52,6 +53,7 @@ struct transform_update_add {
 
 template<int tDimension>
 struct DefaultTransformPolicy {
+	static constexpr bool cPreload = false;
 #if defined(__CUDACC__)
 	CUGIP_DECL_HYBRID dim3 blockSize() const
 	{
@@ -66,6 +68,49 @@ struct DefaultTransformPolicy {
 };
 
 
+template<typename TOperator, typename TAssignOperator>
+struct TransformFunctor {
+	template<typename TCoords, typename TOutView, typename... TInViews>
+	CUGIP_DECL_HYBRID
+	void operator()(TCoords aToCoords, TOutView aOutView, TInViews... aInViews) {
+		mAssignOperator(aOutView[aToCoords], mOperator(aInViews[aToCoords]...));
+	}
+
+	TOperator mOperator;
+	TAssignOperator mAssignOperator;
+};
+
+template<typename TOperator, typename TAssignOperator>
+struct TransformPositionFunctor {
+	template<typename TCoords, typename TOutView, typename... TInViews>
+	CUGIP_DECL_HYBRID
+	void operator()(TCoords aToCoords, TOutView aOutView, TInViews... aInViews) {
+		mAssignOperator(aOutView[aToCoords], mOperator(aInViews[aToCoords]..., aToCoords));
+	}
+
+	TOperator mOperator;
+	TAssignOperator mAssignOperator;
+};
+
+template<typename TOperator, typename TAssignOperator, typename TBorderHandling>
+struct TransformLocatorFunctor {
+	template<typename TCoords, typename TOutView, typename... TInViews>
+	CUGIP_DECL_HYBRID
+	void operator()(TCoords aToCoords, TOutView aOutView, TInViews... aInViews) {
+		//TODO - check the locator - for shared memory we should use the basic one
+		mAssignOperator(aOutView[aToCoords], mOperator(create_locator<TInViews, TBorderHandling>(aInViews, aToCoords)...));
+	}
+
+	template<typename TCoords, typename TPreloadedView, typename TOutView, typename... TInViews>
+	CUGIP_DECL_HYBRID
+	void operator()(TCoords aPreloadedCoords, TPreloadedView aPreloadedView, TCoords aGlobalCoords, TOutView aOutView, TInViews... aInViews) {
+		//TODO - check the locator - for shared memory we should use the basic one
+		mAssignOperator(aOutView[aGlobalCoords], mOperator(create_locator<TPreloadedView, TBorderHandling>(aPreloadedView, aPreloadedCoords)));
+	}
+
+	TOperator mOperator;
+	TAssignOperator mAssignOperator;
+};
 
 /** \addtogroup meta_algorithm
  * @{
@@ -83,8 +128,9 @@ transform(TInView aInView, TOutView aOutView, TFunctor aOperator, TPolicy aPolic
 		return;
 	}
 
-	detail::TransformImplementation<
-		is_device_view<TInView>::value && is_device_view<TOutView>::value>::run(aInView, aOutView, aOperator, transform_update_assign(), aPolicy, aCudaStream);
+	detail::UniversalRegionCoverImplementation<is_device_view<TInView>::value && is_device_view<TOutView>::value>
+		::run(TransformFunctor<TFunctor, transform_update_assign>{aOperator, transform_update_assign{}}, aPolicy, aCudaStream, aOutView, aInView);
+
 }
 
 template <typename TInView, typename TOutView, typename TFunctor>
@@ -108,8 +154,8 @@ transform2(TInView1 aInView1, TInView2 aInView2, TOutView aOutView, TFunctor aOp
 		return;
 	}
 
-	detail::TransformImplementation<
-		is_device_view<TInView1>::value && is_device_view<TInView2>::value && is_device_view<TOutView>::value>::run(aInView1, aInView2, aOutView, aOperator, transform_update_assign(), aPolicy, aCudaStream);
+	detail::UniversalRegionCoverImplementation<is_device_view<TInView1>::value && is_device_view<TInView2>::value && is_device_view<TOutView>::value>
+		::run(TransformFunctor<TFunctor, transform_update_assign>{aOperator, transform_update_assign{}}, aPolicy, aCudaStream, aOutView, aInView1, aInView2);
 }
 
 template  <typename TInView1, typename TInView2, typename TOutView, typename TFunctor>
@@ -131,8 +177,8 @@ transform_position(TInView aInView, TOutView aOutView, TFunctor aOperator, TPoli
 		return;
 	}
 
-	detail::TransformPositionImplementation<
-		is_device_view<TInView>::value && is_device_view<TOutView>::value>::run(aInView, aOutView, aOperator, transform_update_assign(), aPolicy, aCudaStream);
+	detail::UniversalRegionCoverImplementation<is_device_view<TInView>::value && is_device_view<TOutView>::value>
+		::run(TransformPositionFunctor<TFunctor, transform_update_assign>{aOperator, transform_update_assign{}}, aPolicy, aCudaStream, aOutView, aInView);
 }
 
 template <typename TInView, typename TOutView, typename TFunctor>
@@ -175,24 +221,12 @@ struct PreloadingTransformLocatorPolicy : DefaultTransformPolicy<tDimension> {
 			};
 	}
 #endif //defined(__CUDACC__)
-};
 
-template <typename TInView, typename TOutView, typename TOperator>
-void
-transform_locator(TInView aInView, TOutView aOutView, TOperator aOperator, cudaStream_t aCudaStream = 0)
-{
-	static_assert(is_image_view<TInView>::value, "Input view must be image view");
-	static_assert(is_image_view<TOutView>::value, "Output view must be image view");
-	CUGIP_ASSERT(aInView.dimensions() == aOutView.dimensions());
-
-	if(isEmpty(aInView)) {
-		return;
+	template<typename TOutView, typename TFirstView, typename... TViews>
+	CUGIP_DECL_HYBRID TFirstView GetViewForLoading(TOutView aOutView, TFirstView aFirstView, TViews... aViews) {
+		return aFirstView;
 	}
-
-	detail::TransformLocatorImplementation<
-		is_device_view<TInView>::value && is_device_view<TOutView>::value>::run(aInView, aOutView, aOperator, transform_update_assign(), DefaultTransformLocatorPolicy<dimension<TInView>::value>{}, aCudaStream);
-}
-
+};
 
 template <typename TInView, typename TOutView, typename TOperator, typename TPolicy>
 void
@@ -206,43 +240,44 @@ transform_locator(TInView aInView, TOutView aOutView, TOperator aOperator, TPoli
 		return;
 	}
 
-	detail::TransformLocatorImplementation<
-		is_device_view<TInView>::value && is_device_view<TOutView>::value>::run(aInView, aOutView, aOperator, transform_update_assign(), aPolicy, aCudaStream);
+	detail::UniversalRegionCoverImplementation<is_device_view<TInView>::value && is_device_view<TOutView>::value>
+		::run(TransformLocatorFunctor<TOperator, transform_update_assign, typename TPolicy::BorderHandling>{aOperator, transform_update_assign{}}, aPolicy, aCudaStream, aOutView, aInView);
 
+}
+
+
+template <typename TInView, typename TOutView, typename TOperator>
+void
+transform_locator(TInView aInView, TOutView aOutView, TOperator aOperator, cudaStream_t aCudaStream = 0)
+{
+	transform_locator(aInView, aOutView, aOperator, DefaultTransformLocatorPolicy<dimension<TInView>::value>{}, aCudaStream);
+}
+
+template <typename TInView, typename TOutView, typename TOperator, typename TAssignOperation, typename TPolicy>
+void
+transform_locator_assign(TInView aInView, TOutView aOutView, TOperator aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy, cudaStream_t aCudaStream = 0)
+{
+
+	static_assert(is_image_view<TInView>::value, "Input view must be image view");
+	static_assert(is_image_view<TOutView>::value, "Output view must be image view");
+	CUGIP_ASSERT(aInView.dimensions() == aOutView.dimensions());
+
+	if(isEmpty(aInView)) {
+		return;
+	}
+
+	detail::UniversalRegionCoverImplementation<is_device_view<TInView>::value && is_device_view<TOutView>::value>
+		::run(TransformLocatorFunctor<TOperator, transform_update_assign, typename TPolicy::BorderHandling>{aOperator, aAssignOperation}, aPolicy, aCudaStream, aOutView, aInView);
 }
 
 template <typename TInView, typename TOutView, typename TOperator, typename TAssignOperation>
 void
 transform_locator_assign(TInView aInView, TOutView aOutView, TOperator aOperator, TAssignOperation aAssignOperation, cudaStream_t aCudaStream = 0)
 {
-	static_assert(is_image_view<TInView>::value, "Input view must be image view");
-	static_assert(is_image_view<TOutView>::value, "Output view must be image view");
-	CUGIP_ASSERT(aInView.dimensions() == aOutView.dimensions());
-
-	if(isEmpty(aInView)) {
-		return;
-	}
-
-	detail::TransformLocatorImplementation<
-		is_device_view<TInView>::value && is_device_view<TOutView>::value>::run(aInView, aOutView, aOperator, aAssignOperation, DefaultTransformLocatorPolicy<dimension<TInView>::value>{}, aCudaStream);
+	transform_locator_assign(aInView, aOutView, aOperator, aAssignOperation, DefaultTransformLocatorPolicy<dimension<TInView>::value>{}, aCudaStream);
 }
 
 
-template <typename TInView, typename TOutView, typename TOperator, typename TAssignOperation, typename TPolicy>
-void
-transform_locator_assign(TInView aInView, TOutView aOutView, TOperator aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy, cudaStream_t aCudaStream = 0)
-{
-	static_assert(is_image_view<TInView>::value, "Input view must be image view");
-	static_assert(is_image_view<TOutView>::value, "Output view must be image view");
-	CUGIP_ASSERT(aInView.dimensions() == aOutView.dimensions());
-
-	if(isEmpty(aInView)) {
-		return;
-	}
-
-	detail::TransformLocatorImplementation<
-		is_device_view<TInView>::value && is_device_view<TOutView>::value>::run(aInView, aOutView, aOperator, aAssignOperation, aPolicy, aCudaStream);
-}
 /**
  * @}
  **/

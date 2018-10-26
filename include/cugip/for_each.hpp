@@ -49,6 +49,7 @@ for_each_in_region(region<tDimension> aRegion, TFunctor aOperator, BoolValue<tRu
 
 template<int tDimension>
 struct DefaultForEachPolicy {
+	static constexpr bool cPreload = false;
 #if defined(__CUDACC__)
 	CUGIP_DECL_HYBRID dim3 blockSize() const
 	{
@@ -62,18 +63,28 @@ struct DefaultForEachPolicy {
 #endif //defined(__CUDACC__)
 };
 
-template <typename TView, typename TFunctor>
-void
-for_each(TView aView, TFunctor aOperator, cudaStream_t aCudaStream = 0)
-{
-	static_assert(is_image_view<TView>::value, "Input view must be an image view");
-	if(isEmpty(aView)) {
-		return;
+
+template<typename TOperator>
+struct ForEachFunctor {
+	template<typename TCoords, typename TView>
+	CUGIP_DECL_HYBRID
+	void operator()(TCoords aToCoords, TView aView) {
+		mOperator(aView[aToCoords]);
 	}
 
-	detail::ForEachImplementation<
-		is_device_view<TView>::value>::run(aView, aOperator, DefaultForEachPolicy<dimension<TView>::value>{}, aCudaStream);
-}
+	TOperator mOperator;
+};
+
+template<typename TOperator>
+struct ForEachPositionFunctor {
+	template<typename TCoords, typename TView>
+	CUGIP_DECL_HYBRID
+	void operator()(TCoords aToCoords, TView aView) {
+		mOperator(aView[aToCoords], aToCoords);
+	}
+
+	TOperator mOperator;
+};
 
 template <typename TView, typename TFunctor, typename TPolicy>
 void
@@ -86,20 +97,14 @@ for_each(TView aView, TFunctor aOperator, TPolicy aPolicy, cudaStream_t aCudaStr
 
 
 	detail::UniversalRegionCoverImplementation<is_device_view<TView>::value>
-		::run([aOperator]CUGIP_DECL_HYBRID(auto aCoords, auto aView) { aOperator(aView[aCoords]); }, aPolicy, aCudaStream, aView);
+		::run(ForEachFunctor<TFunctor>{aOperator}, aPolicy, aCudaStream, aView);
 }
 
 template <typename TView, typename TFunctor>
 void
-for_each_position(TView aView, TFunctor aOperator, cudaStream_t aCudaStream = 0)
+for_each(TView aView, TFunctor aOperator, cudaStream_t aCudaStream = 0)
 {
-	static_assert(is_image_view<TView>::value, "Input view must be an image view");
-	if(isEmpty(aView)) {
-		return;
-	}
-
-	detail::ForEachPositionImplementation<
-		is_device_view<TView>::value>::run(aView, aOperator, DefaultForEachPolicy<dimension<TView>::value>{}, aCudaStream);
+	for_each(aView, aOperator, DefaultForEachPolicy<dimension<TView>::value>{}, aCudaStream);
 }
 
 template <typename TView, typename TFunctor, typename TPolicy>
@@ -111,9 +116,19 @@ for_each_position(TView aView, TFunctor aOperator, TPolicy aPolicy, cudaStream_t
 		return;
 	}
 
-	detail::ForEachPositionImplementation<
-		is_device_view<TView>::value>::run(aView, aOperator, aPolicy, aCudaStream);
+	detail::UniversalRegionCoverImplementation<is_device_view<TView>::value>
+		::run(ForEachPositionFunctor<TFunctor>{aOperator}, aPolicy, aCudaStream, aView);
+
 }
+
+
+template <typename TView, typename TFunctor>
+void
+for_each_position(TView aView, TFunctor aOperator, cudaStream_t aCudaStream = 0)
+{
+	for_each_position(aView, aOperator, DefaultForEachPolicy<dimension<TView>::value>{}, aCudaStream);
+}
+
 
 /**
  * @}

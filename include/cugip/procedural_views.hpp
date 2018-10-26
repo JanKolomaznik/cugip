@@ -9,29 +9,6 @@
 
 namespace cugip {
 
-/// Procedural image view, which returns same value for all indices.
-template<typename TElement, int tDimension>
-class ConstantDeviceImageView : public device_image_view_base<tDimension> {
-public:
-	typedef ConstantDeviceImageView<TElement, tDimension> this_t;
-	typedef device_image_view_base<tDimension> predecessor_type;
-	CUGIP_VIEW_TYPEDEFS_VALUE(TElement, tDimension)
-
-	ConstantDeviceImageView(TElement element, extents_t size) :
-		predecessor_type(size),
-		mElement(element)
-	{}
-
-	CUGIP_DECL_HYBRID
-	accessed_type operator[](coord_t /*index*/) const {
-		return mElement;
-	}
-
-protected:
-	value_type mElement;
-};
-
-CUGIP_DECLARE_HYBRID_VIEW_TRAITS((ConstantDeviceImageView<TElement, tDim>), tDim, typename TElement, int tDim);
 
 /// Procedural image view, which returns same value for all indices.
 template<typename TElement, int tDimension>
@@ -67,10 +44,10 @@ constantImage(TElement value, simple_vector<int, tDimension> size)
 
 /// Procedural image view, which generates checker board like image.
 template<typename TElement, int tDimension>
-class CheckerBoardImageView : public device_image_view_base<tDimension> {
+class CheckerBoardImageView : public hybrid_image_view_base<tDimension> {
 public:
 	typedef CheckerBoardImageView<TElement, tDimension> this_t;
-	typedef device_image_view_base<tDimension> predecessor_type;
+	typedef hybrid_image_view_base<tDimension> predecessor_type;
 	CUGIP_VIEW_TYPEDEFS_VALUE(TElement, tDimension)
 
 	CheckerBoardImageView(TElement white, TElement black, extents_t tile_size, extents_t size)
@@ -167,9 +144,36 @@ CUGIP_DECLARE_HYBRID_VIEW_TRAITS((UniqueIdDeviceImageView<tDimension, TId>), tDi
 /// View returning single coordinate mapping from grid
 /// Inspired by Matlab function 'meshgrid'
 template<int tDimension>
-class MeshGridView: public device_image_view_base<tDimension> {
+class CoordinatesView: public hybrid_image_view_base<tDimension> {
 public:
-	typedef device_image_view_base<tDimension> predecessor_type;
+	typedef hybrid_image_view_base<tDimension> predecessor_type;
+	CUGIP_VIEW_TYPEDEFS_VALUE(coord_t, tDimension)
+
+	CoordinatesView() :
+		predecessor_type(extents_t())
+	{}
+
+	CoordinatesView(extents_t aSize) :
+		predecessor_type(aSize)
+	{}
+
+	CUGIP_DECL_HYBRID
+	accessed_type operator[](coord_t index) const {
+		return index;
+	}
+
+};
+
+CUGIP_DECLARE_HYBRID_VIEW_TRAITS((CoordinatesView<tDimension>), tDimension, int tDimension);
+
+
+
+/// View returning single coordinate mapping from grid
+/// Inspired by Matlab function 'meshgrid'
+template<int tDimension>
+class MeshGridView: public hybrid_image_view_base<tDimension> {
+public:
+	typedef hybrid_image_view_base<tDimension> predecessor_type;
 	CUGIP_VIEW_TYPEDEFS_VALUE(int, tDimension)
 
 	MeshGridView() :
@@ -186,7 +190,7 @@ public:
 		mIncrement(signum(aTo[dimension] - aFrom[dimension]))
 	{}
 
-	CUGIP_DECL_DEVICE
+	CUGIP_DECL_HYBRID
 	accessed_type operator[](coord_t index) const {
 		return mStart + index[mDimension] * mIncrement;
 	}

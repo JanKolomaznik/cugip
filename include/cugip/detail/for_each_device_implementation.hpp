@@ -5,15 +5,7 @@
 namespace cugip {
 namespace detail {
 
-template<int tDimension>
-CUGIP_DECL_DEVICE simple_vector<int, tDimension>
-cornerFromBlockIndex(const simple_vector<int, tDimension> &aExtents, int aIdx)
-{
-	auto block = blockDimensions<tDimension>();
-
-	return product(block, index_from_linear_access_index(div_up(aExtents, block), aIdx));
-}
-
+/*
 template <typename TView, typename TFunctor, typename TPolicy>
 CUGIP_GLOBAL void
 kernel_for_each(TView aView, TFunctor aOperator, TPolicy aPolicy)
@@ -70,7 +62,7 @@ kernel_for_each_position(TView aView, TFunctor aOperator, TPolicy aPolicy)
 		blockIndex += blockCount;
 		__syncthreads();
 	}
-}
+}*/
 
 
 template <int tDimension, typename TFunctor/*, typename TPolicy*/>
@@ -90,14 +82,14 @@ kernel_for_each_position_implementation(region<tDimension> aRegion, TFunctor aOp
 template<>
 struct ForEachPositionImplementation<true> {
 
-	template <typename TInView, typename TFunctor, typename TPolicy>
+/*	template <typename TInView, typename TFunctor, typename TPolicy>
 	static void run(TInView aInView, TFunctor aOperator, TPolicy aPolicy, cudaStream_t aCudaStream) {
 		dim3 blockSize = aPolicy.blockSize();
 		dim3 gridSize = aPolicy.gridSize(active_region(aInView));
 
 		detail::kernel_for_each_position<TInView, TFunctor, TPolicy>
 			<<<gridSize, blockSize, 0, aCudaStream>>>(aInView, aOperator, aPolicy);
-	}
+	}*/
 
 	template <int tDimension, typename TFunctor/*, typename TPolicy*/>
 	static void run(region<tDimension> aRegion, TFunctor aOperator/*, TPolicy aPolicy, cudaStream_t aCudaStream*/) {

@@ -16,7 +16,7 @@
 
 using namespace cugip;
 
-static const float cEpsilon = 0.00001;
+//static const float cEpsilon = 0.00001;
 
 
 BOOST_AUTO_TEST_CASE(Subview)

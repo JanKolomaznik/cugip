@@ -3,7 +3,7 @@
 namespace cugip {
 namespace detail {
 
-
+/*
 template <typename TInView, typename TOutView, typename TFunctor, typename TAssignOperation, typename TPolicy>
 CUGIP_GLOBAL void
 kernel_transform(TInView aInView, TOutView aOutView, TFunctor aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy)
@@ -164,7 +164,7 @@ struct TransformLocatorImplementation<true> {
 		return 0;
 	}
 };
-
+*/
 
 } // namespace detail
 } // namespace cugip
