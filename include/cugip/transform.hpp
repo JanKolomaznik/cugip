@@ -220,6 +220,12 @@ struct PreloadingTransformLocatorPolicy : DefaultTransformPolicy<tDimension> {
 			dim3_to_vector<cDimension>(this->blockSize()) + simple_vector<int, cDimension>(2*tRadius, FillFlag())
 			};
 	}
+
+	CUGIP_DECL_HYBRID
+	vect3i_t corner1()
+	{
+       		return vect3i_t(-tRadius, FillFlag{});
+	}
 #endif //defined(__CUDACC__)
 
 	template<typename TOutView, typename TFirstView, typename... TViews>

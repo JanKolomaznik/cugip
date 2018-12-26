@@ -9,11 +9,17 @@ namespace detail {
 
 template<int tDimension>
 CUGIP_DECL_DEVICE simple_vector<int, tDimension>
+cornerFromTileIndex(const simple_vector<int, tDimension> &aExtents, const simple_vector<int, tDimension> &aTileSize, int aIdx)
+{
+	return product(aTileSize, index_from_linear_access_index(div_up(aExtents, aTileSize), aIdx));
+}
+
+template<int tDimension>
+CUGIP_DECL_DEVICE simple_vector<int, tDimension>
 cornerFromBlockIndex(const simple_vector<int, tDimension> &aExtents, int aIdx)
 {
 	auto block = blockDimensions<tDimension>();
-
-	return product(block, index_from_linear_access_index(div_up(aExtents, block), aIdx));
+	return cornerFromTileIndex(aExtents, block, aIdx);
 }
 
 template<bool tRunOnDevice>
@@ -61,19 +67,35 @@ universal_region_cover_preload_kernel(TFunctor aOperator, TPolicy aPolicy, TFirs
 		auto corner = cornerFromBlockIndex(extents, blockIndex);
 		auto coord = corner + threadIndex;
 
-		auto preloadCoords = coord - corner;// current element coords in the preload buffer
+		auto preloadCoords = coord - corner - aPolicy.corner1();// current element coords in the preload buffer
 
 
 		auto dataView = buffer.view();
 		typedef decltype(dataView) DataView;
-		buffer.load(aPolicy.GetViewForLoading(aFirstView, aViews...), corner);
+		buffer.load(aPolicy.GetViewForLoading(aFirstView, aViews...), corner + aPolicy.corner1());
 
 		__syncthreads();
 
 		if (coord < extents) {
+			// if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0 && blockIdx.y > 0) {
+			// 	auto v = vect3i_t(0, 1, 0);
+			// 	printf("[%d, %d, %d], [%d, %d, %d], %d -> %d\n", preloadCoords[0], preloadCoords[1], preloadCoords[2], coord[0], coord[1], coord[2], dataView[preloadCoords], aPolicy.GetViewForLoading(aFirstView, aViews...)[coord - v]);
+			// }
 			aOperator(preloadCoords, dataView, coord, aFirstView, aViews...);
 		}
 		blockIndex += blockCount;
+
+		// if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0 && blockIdx.y == 0) {
+		// 	for (int k = 0; k < dataView.dimensions()[2]; ++k) {
+		// 		for (int j = 0; j < dataView.dimensions()[1]; ++j) {
+		// 			for (int i = 0; i < dataView.dimensions()[0]; ++i) {
+		// 				printf("%d ", dataView[vect3i_t(i, j, k)]);
+		// 			}
+		// 			printf("\n");
+		// 		}
+		// 		printf("\n----------------------------------\n");
+		// 	}
+		// }
 		__syncthreads();
 	}
 }
@@ -133,6 +155,96 @@ struct UniversalRegionCoverImplementation<false> {
 			(aOperator, aPolicy, aFirstView, aViews...);
 	}
 };
+
+//************************************************************************************************************
+//************************************************************************************************************
+//************************************************************************************************************
+
+#if defined(__CUDACC__)
+
+template <typename TFunctor, typename TPolicy, typename TFirstView, typename... TViews>
+CUGIP_GLOBAL void
+tiled_region_cover_preload_kernel(TFunctor aOperator, TPolicy aPolicy, TFirstView aFirstView, TViews... aViews)
+{
+	const auto blockCount = gridSize();
+	const auto extents = aFirstView.dimensions();
+	using HaloTileSize = typename TPolicy::HaloTileSize;
+	using TileSize = typename TPolicy::TileSize;
+
+	__shared__ cugip::detail::SharedMemory<typename TFirstView::value_type, HaloTileSize> buffer;
+	//__shared__ cugip::detail::SharedMemory<typename TPolicy::shmem_value_type, Size> buffer;
+
+	const auto requiredTileCount = multiply(div_up(extents, to_vector(TileSize())));
+	auto tileIndex = blockOrderFromIndex();
+
+	//auto loadedRegion = aPolicy.regionForBlock();
+
+	auto threadIndex = currentThreadIndexDim<dimension<TFirstView>::value>();
+	while (tileIndex < requiredTileCount) {
+		auto tileCorner = cornerFromTileIndex(extents, to_vector(TileSize{}), tileIndex);
+		auto haloTileCorner = tileCorner + aPolicy.corner1(); //TODO
+
+		//auto corner = cornerFromBlockIndex(extents, blockIndex);
+		//auto coord = corner + threadIndex;
+
+		//auto preloadCoords = coord - corner + aPolicy.corner1();// current element coords in the preload buffer
+
+
+		auto dataView = buffer.view();
+		typedef decltype(dataView) DataView;
+		buffer.load(aFirstView, haloTileCorner);
+
+		__syncthreads();
+
+		if (tileCorner < extents) {
+			aOperator(tileCorner, haloTileCorner, dataView, aFirstView, aViews...);
+		}
+		tileIndex += blockCount;
+
+		__syncthreads();
+	}
+}
+
+#endif // defined(__CUDACC__)
+
+struct TileCoverImplementation {
+	template <typename TFunctor, typename TPolicy, typename TFirstView, typename... TViews>
+	static void
+	run(TFunctor aOperator, TPolicy aPolicy, cudaStream_t aCudaStream, TFirstView aFirstView, TViews... aViews) {
+#		if defined(__CUDACC__)
+		// TODO assert on region sizes
+		dim3 blockSize = aPolicy.blockSize();
+		dim3 gridSize = aPolicy.gridSize(active_region(aFirstView));
+
+		detail::tiled_region_cover_preload_kernel<TFunctor, TPolicy, TFirstView, TViews...>
+			<<<gridSize, blockSize, 0, aCudaStream>>>(aOperator, aPolicy, aFirstView, aViews...);
+#		endif // defined(__CUDACC__)
+	}
+};
+//
+//
+// template <typename TFunctor, typename TPolicy, typename TFirstView, typename... TViews>
+// void
+// universal_region_cover_host(TFunctor aOperator, TPolicy aPolicy, TFirstView aFirstView, TViews... aViews)
+// {
+// 	for (int i = 0; i < elementCount(aFirstView); ++i) {
+// 		auto coord = index_from_linear_access_index(aFirstView);
+// 		aOperator(coord, coord, aFirstView, aViews...);
+// 	}
+// }
+//
+// template<>
+// struct UniversalRegionCoverImplementation<false> {
+// 	template <typename TFunctor, typename TPolicy, typename TFirstView, typename... TViews>
+// 	static void run(TFunctor aOperator, TPolicy aPolicy, cudaStream_t aCudaStream, TFirstView aFirstView, TViews... aViews) {
+// 		// TODO assert on region sizes
+// 		detail::universal_region_cover_host<TFunctor, TPolicy, TFirstView, TViews...>
+// 			(aOperator, aPolicy, aFirstView, aViews...);
+// 	}
+// };
+
+
+
 
 
 } // namespace detail

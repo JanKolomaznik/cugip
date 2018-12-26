@@ -1,0 +1,4 @@
+clang-tidy watershed_transformation.cpp -header-filter='.*' -- -I/home/johny/programming/git/cugip/include -I/usr/include/ITK-4.12/
+
+
+
