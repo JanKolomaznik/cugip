@@ -16,6 +16,7 @@ typedef boost::error_info<struct tag_message, std::string> MessageErrorInfo;
 
 /// Error info containing file path.
 typedef boost::error_info<struct tag_filename, boost::filesystem::path> FilenameErrorInfo;
+typedef boost::error_info<struct tag_dirname, boost::filesystem::path> DirNameErrorInfo;
 
 class ExceptionBase: public virtual boost::exception, public virtual std::exception {};
 

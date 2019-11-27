@@ -1,12 +1,17 @@
 #pragma once
 
 #include <cugip/math.hpp>
-#include <cugip/detail/shared_memory.hpp>
+#include <cugip/access_utils.hpp>
+
+#if defined(__CUDACC__)
+	#include <cugip/detail/shared_memory.hpp>
+#endif //defined(__CUDACC__)
 
 
 namespace cugip {
 namespace detail {
 
+#if defined(__CUDACC__)
 template<int tDimension>
 CUGIP_DECL_DEVICE simple_vector<int, tDimension>
 cornerFromTileIndex(const simple_vector<int, tDimension> &aExtents, const simple_vector<int, tDimension> &aTileSize, int aIdx)
@@ -21,6 +26,7 @@ cornerFromBlockIndex(const simple_vector<int, tDimension> &aExtents, int aIdx)
 	auto block = blockDimensions<tDimension>();
 	return cornerFromTileIndex(aExtents, block, aIdx);
 }
+#endif //defined(__CUDACC__)
 
 template<bool tRunOnDevice>
 struct UniversalRegionCoverImplementation;
@@ -141,8 +147,8 @@ void
 universal_region_cover_host(TFunctor aOperator, TPolicy aPolicy, TFirstView aFirstView, TViews... aViews)
 {
 	for (int i = 0; i < elementCount(aFirstView); ++i) {
-		auto coord = index_from_linear_access_index(aFirstView);
-		aOperator(coord, coord, aFirstView, aViews...);
+		auto coord = index_from_linear_access_index(aFirstView, i);
+		aOperator(coord, /*coord,*/ aFirstView, aViews...);
 	}
 }
 

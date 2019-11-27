@@ -119,7 +119,7 @@ public:
 	CUGIP_DECL_HYBRID constexpr
 	simple_vector(std::initializer_list<TCoordinateType> aList)
 	{
-		CUGIP_ASSERT(aList.size() == tDim);
+		//CUGIP_ASSERT(aList.size() == tDim);
 		TCoordinateType *result = mValues;
 		auto first = aList.begin();
 		auto last = aList.end();

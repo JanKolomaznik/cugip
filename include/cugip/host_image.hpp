@@ -3,7 +3,7 @@
 #include <cugip/detail/include.hpp>
 #include <cugip/image_view.hpp>
 #include <cugip/utils.hpp>
-#include <cugip/cuda_utils.hpp>
+//#include <cugip/cuda_utils.hpp>
 #include <cugip/host_image_view.hpp>
 
 namespace cugip {
@@ -12,11 +12,11 @@ namespace cugip {
 //Forward declarations
 template <typename TImage>
 typename TImage::view_t
-view(TImage &aImage);
+view(const TImage &aImage);
 
 template <typename TImage>
 typename TImage::const_view_t
-const_view(TImage &aImage);
+const_view(const TImage &aImage);
 //**************************************************************************
 
 /// \return Strides for memory without padding.
@@ -74,7 +74,7 @@ public:
 	{ return mSize; }
 
 	view_t
-	view()
+	view() const
 	{
 		return view_t(mHostPtr.get(), mSize, mStrides);
 	}
@@ -113,7 +113,7 @@ protected:
 //Image view construction
 template<typename TElement, int tDim>
 typename host_image<TElement, tDim>::view_t
-view(host_image<TElement, tDim> &aImage)
+view(const host_image<TElement, tDim> &aImage)
 {
 	return aImage.view();
 }

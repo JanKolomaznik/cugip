@@ -11,11 +11,11 @@ namespace cugip {
 //Forward declarations
 template <typename TImage>
 typename TImage::view_t
-view(TImage &aImage);
+view(const TImage &aImage);
 
 template <typename TImage>
 typename TImage::const_view_t
-const_view(TImage &aImage);
+const_view(const TImage &aImage);
 //**************************************************************************
 
 
@@ -63,7 +63,7 @@ public:
 	{ return mData.dimensions(); }
 
 	view_t
-	view()
+	view() const
 	{
 		//return view_t(mData);
 		return view_t(pointer(), dimensions(), strides());
@@ -111,14 +111,14 @@ protected:
 //Image view construction
 template <typename TImage>
 typename TImage::view_t
-view(TImage &aImage)
+view(const TImage &aImage)
 {
 	return aImage.view();
 }
 
 template <typename TImage>
 typename TImage::const_view_t
-const_view(TImage &aImage)
+const_view(const TImage &aImage)
 {
 	return aImage.const_view();
 }

@@ -23,6 +23,10 @@ public:
 	typedef const TElement const_value_type;
 	typedef value_type & accessed_type;
 
+	host_image_view()
+		: mHostPtr(nullptr)
+	{}
+
 	host_image_view(TElement *host_ptr, extents_t size, extents_t strides)
 		: mSize(size)
 		, mHostPtr(host_ptr)
@@ -66,6 +70,13 @@ protected:
 	extents_t mStrides;
 };
 
+template<typename TElement, int tDim>
+host_image_view<TElement, tDim>
+view(const host_image_view<TElement, tDim> &aView)
+{
+	return aView;
+}
+
 template<typename TElement, int tDim = 2>
 class const_host_image_view
 {
@@ -78,6 +89,10 @@ public:
 	typedef TElement value_type;
 	typedef const TElement const_value_type;
 	typedef const_value_type & accessed_type;
+
+	const_host_image_view()
+		: mHostPtr(nullptr)
+	{}
 
 	const_host_image_view(TElement *host_ptr, extents_t size, extents_t strides)
 		: mSize(size)
@@ -121,6 +136,22 @@ protected:
 	TElement *mHostPtr;
 	extents_t mStrides;
 };
+
+template<typename TElement, int tDim>
+const_host_image_view<TElement, tDim>
+const_view(const host_image_view<TElement, tDim> &aView)
+{
+	return const_host_image_view<TElement, tDim>(aView.pointer(), aView.dimensions(), aView.strides());
+}
+
+
+template<typename TElement, int tDim>
+const_host_image_view<TElement, tDim>
+const_view(const const_host_image_view<TElement, tDim> &aView)
+{
+	return aView;
+}
+
 
 CUGIP_DECLARE_HOST_VIEW_TRAITS((host_image_view<TElement, tDim>), tDim, typename TElement, int tDim);
 CUGIP_DECLARE_HOST_VIEW_TRAITS((const_host_image_view<TElement, tDim>), tDim, typename TElement, int tDim);

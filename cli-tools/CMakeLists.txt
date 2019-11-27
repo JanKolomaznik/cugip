@@ -69,3 +69,9 @@ TARGET_LINK_LIBRARIES(objectness_measure ${cugip_CLI_TOOLS_DEPENDENCIES})
 
 ADD_EXECUTABLE(create_random_seed_distance_field create_random_seed_distance_field.cpp create_random_seed_distance_field.cu)
 TARGET_LINK_LIBRARIES(create_random_seed_distance_field ${cugip_CLI_TOOLS_DEPENDENCIES})
+
+
+
+
+ADD_EXECUTABLE(corner_detection corner_detection.cpp)
+TARGET_LINK_LIBRARIES(corner_detection cugip Boost::program_options Boost::system Boost::filesystem Boost::timer Boost::chrono freeimage)

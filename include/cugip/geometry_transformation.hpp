@@ -46,6 +46,7 @@ makeTransformationFunctor(TInputView aInput, TOutputView aOutput, TInverseTransf
 template<typename TInputView, typename TOutputView, typename TInverseTransformation>
 void geometry_transformation(TInputView aInput, TOutputView aOutput, TInverseTransformation aInverseTransformation)
 {
+	static_assert(is_interpolated_view<TInputView>::value, "Input view must provide interpolated access for the geometry transformation!");
 	for_each_position(aOutput, makeTransformationFunctor(aInput, aOutput, aInverseTransformation));
 }
 
@@ -98,6 +99,15 @@ template<typename TInputView, typename TOutputView, typename TOffsetCoordinates,
 void scale(TInputView aInput, TOutputView aOutput, TOffsetCoordinates aAnchor, TScaleVector aScaleVector)
 {
 	geometry_transformation(aInput, aOutput, getInverseScaling(aAnchor, aScaleVector));
+}
+
+template<typename TInputView, typename TOutputView>
+void scale(TInputView aInput, TOutputView aOutput, float aFactor)
+{
+	static constexpr int cDimension = dimension<TInputView>::value;
+	simple_vector<float, cDimension> anchor;
+	simple_vector<float, cDimension> scalingVector(aFactor, FillFlag());
+	geometry_transformation(aInput, aOutput, getInverseScaling(anchor, scalingVector));
 }
 
 }  // namespace cugip

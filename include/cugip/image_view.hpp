@@ -114,6 +114,14 @@ protected:
 	extents_t mStrides;
 };
 
+template<typename TElement, int tDim>
+device_image_view<TElement, tDim>
+view(const device_image_view<TElement, tDim> &aView)
+{
+	return aView;
+}
+
+
 template<typename TElement, int tDim = 2>
 class const_device_image_view
 {
@@ -230,6 +238,22 @@ protected:
 	extents_t mStrides;
 
 };
+
+template<typename TElement, int tDim>
+const_device_image_view<TElement, tDim>
+const_view(const device_image_view<TElement, tDim> &aView)
+{
+	return const_device_image_view<TElement, tDim>(aView.pointer(), aView.dimensions(), aView.strides());
+}
+
+
+template<typename TElement, int tDim>
+const_device_image_view<TElement, tDim>
+const_view(const const_device_image_view<TElement, tDim> &aView)
+{
+	return aView;
+}
+
 
 CUGIP_DECLARE_DEVICE_VIEW_TRAITS((device_image_view<TElement, tDim>), tDim, typename TElement, int tDim);
 CUGIP_DECLARE_DEVICE_VIEW_TRAITS((const_device_image_view<TElement, tDim>), tDim, typename TElement, int tDim);

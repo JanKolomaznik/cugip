@@ -7,6 +7,7 @@
 
 namespace cugip {
 
+class DirectoryNotCreated: public ExceptionBase {};
 
 template<typename TView>
 void dump_view_to_file(TView aView, boost::filesystem::path aFile)

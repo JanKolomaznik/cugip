@@ -73,6 +73,7 @@ struct TransformFunctor {
 	template<typename TCoords, typename TOutView, typename... TInViews>
 	CUGIP_DECL_HYBRID
 	void operator()(TCoords aToCoords, TOutView aOutView, TInViews... aInViews) {
+		static_assert(is_image_view<TOutView>::value, "Output view must be image view");
 		mAssignOperator(aOutView[aToCoords], mOperator(aInViews[aToCoords]...));
 	}
 
