@@ -1,4 +1,5 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 PROJECT(cugip_examples)
 
-add_subdirectory(cellular)
+# add_subdirectory(cellular)
+add_subdirectory(feature_points)

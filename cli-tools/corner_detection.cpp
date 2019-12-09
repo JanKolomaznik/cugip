@@ -24,54 +24,6 @@ namespace fs = boost::filesystem;
 
 using namespace cugip;
 
-void runConnectedComponentLabeling(
-		const_host_image_view<const int8_t, 2> aInput,
-		host_image_view<int32_t, 2> aOutput,
-		const std::string &aName);
-
-void runConnectedComponentLabeling(
-		const_host_image_view<const int8_t, 3> aInput,
-		host_image_view<int32_t, 3> aOutput,
-		const std::string &aName);
-
-
-/*template<int tDimension>
-void processImage(fs::path aInput, fs::path aOutput, std::string aMethodName)
-{
-	typedef itk::Image<int8_t, tDimension> InputImageType;
-	typedef itk::Image<int32_t, tDimension> OutputImageType;
-
-	typedef itk::ImageFileReader<InputImageType>  ReaderType;
-	typedef itk::ImageFileWriter<OutputImageType> WriterType;
-
-	typename ReaderType::Pointer reader = ReaderType::New();
-	reader->SetFileName(aInput.string());
-	reader->Update();
-
-	typename InputImageType::Pointer image = reader->GetOutput();
-
-	typename OutputImageType::Pointer output_image = OutputImageType::New();
-	output_image->SetRegions(image->GetLargestPossibleRegion());
-	output_image->Allocate();
-	output_image->SetSpacing(image->GetSpacing());
-
-	cugip::simple_vector<int, tDimension> size;
-	for (int i = 0; i < tDimension; ++i) {
-		size[i] = image->GetLargestPossibleRegion().GetSize()[i];
-	}
-
-	auto inView = makeConstHostImageView(image->GetPixelContainer()->GetBufferPointer(), size);
-	auto outView = makeHostImageView(output_image->GetPixelContainer()->GetBufferPointer(), size);
-
-	runConnectedComponentLabeling(inView, outView, aMethodName);
-
-	typename WriterType::Pointer writer = WriterType::New();
-	writer->SetFileName(aOutput.string());
-	writer->SetInput(output_image);
-	writer->Update();
-}*/
-
-
 
 //struct ProcessImage : public boost::static_visitor<>
 

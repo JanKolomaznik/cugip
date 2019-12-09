@@ -49,7 +49,7 @@ struct ComputeSalience
 		float upperCount = 0;
 		float lowerCount = 0;
 
-		for (int i = 0; i < 4; ++i) {
+		for (int i = 0; i < 4; ++i) {  //TODO correct
 			for (int j = 0; j < 4; ++j) {
 				auto offset = product(cOffsets[j], cQuadrants[i]);
 				auto testedValue = locator[offset];
@@ -84,7 +84,7 @@ struct ComputeSalience
 
 template<typename TInput, typename TSaliency, typename TRunConfig>
 void fast_corner_saliency(TInput aInput, TSaliency aSaliency, TRunConfig aConfig) {
-	transform_locator(aInput, aSaliency, ComputeSalience{ 5 }); // TODO set threshold
+	transform_locator(aInput, aSaliency, ComputeSalience{ 5 }); // TODO set threshold, run policy
 }
 
 } //namespace cugip
