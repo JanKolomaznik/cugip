@@ -70,6 +70,19 @@ generate_multiresolution_octaves_and_intra_octaves(TPyramidView &aPyramid)
 	}
 }
 
+template<typename TImageView, typename TOutputListView>
+struct non_maxima_suppression_ftor
+{
+
+};
+
+template<typename TImageView, typename TOutputListView>
+void
+non_maxima_suppression(const std::array<TImageView, 3> &levels, TOutputListView candidates)
+{
+	for_each_locator(levels[1]
+}
+
 
 struct ProcessImage : public boost::static_visitor<>
 {
@@ -95,10 +108,13 @@ struct ProcessImage : public boost::static_visitor<>
 		multiresolution_pyramid<Image> pyramid(std::move(intensity), scalingConfig);
 		multiresolution_pyramid<Image> processedPyramid(scalingConfig);
 
+		// ************ PYRAMID COMPUTATION *****************
 		auto pyramidView = view(pyramid);
 		generate_multiresolution_octaves_and_intra_octaves(pyramidView);
 		dump_pyramid(pyramidView, "./testPyramid");
 
+
+		// ************ CORNER SALIENCY COMPUTATION *****************
 		auto pyramidView2 = view(processedPyramid);
 		apply_to_all_levels(
 			pyramidView,
@@ -109,6 +125,17 @@ struct ProcessImage : public boost::static_visitor<>
 			});
 		dump_pyramid(pyramidView2, "./saliencePyramid");
 
+		// ************ NON-MAXIMA SUPPRESSION *****************
+
+		// TODO
+
+		// ************ SUBPIXEL REFINEMENT *****************
+
+		// TODO
+
+		// ************ INTEGRAL IMAGE *****************
+
+		// TODO
 			/*host_image<float, 2> salience(aInput.dimensions());
 			fast_corner_saliency(const_view(intensity), view(salience), 0);
 
