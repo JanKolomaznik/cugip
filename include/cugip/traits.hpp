@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cugip/utils.hpp>
+#include <cugip/detail/defines.hpp>
 
 namespace cugip {
 
@@ -28,28 +28,28 @@ template<>
 struct dimension_helper<1>
 {
 	typedef dimension_1d_tag type;
-	static const int value = 1;
+	static constexpr int value = 1;
 };
 
 template<>
 struct dimension_helper<2>
 {
 	typedef dimension_2d_tag type;
-	static const int value = 2;
+	static constexpr int value = 2;
 };
 
 template<>
 struct dimension_helper<3>
 {
 	typedef dimension_3d_tag type;
-	static const int value = 3;
+	static constexpr int value = 3;
 };
 
 template<>
 struct dimension_helper<4>
 {
 	typedef dimension_4d_tag type;
-	static const int value = 4;
+	static constexpr int value = 4;
 };
 
 
@@ -64,9 +64,9 @@ struct dimension;
 template <int tWidth>
 struct intraits_1d
 {
-	static const int dimension = 1;
-	static const int size = tWidth;
-	static const int width = tWidth;
+	static constexpr int dimension = 1;
+	static constexpr int size = tWidth;
+	static constexpr int width = tWidth;
 
 	template <typename TCoords>
 	CUGIP_DECL_HYBRID static int
@@ -86,10 +86,10 @@ struct intraits_1d
 template <int tWidth, int tHeight>
 struct intraits_2d
 {
-	static const int dimension = 2;
-	static const int size = tWidth * tHeight;
-	static const int width = tWidth;
-	static const int height = tHeight;
+	static constexpr int dimension = 2;
+	static constexpr int size = tWidth * tHeight;
+	static constexpr int width = tWidth;
+	static constexpr int height = tHeight;
 
 	template <typename TCoords>
 	CUGIP_DECL_HYBRID static int
@@ -109,12 +109,12 @@ struct intraits_2d
 template <int tWidth, int tHeight, int tDepth>
 struct intraits_3d
 {
-	static const int dimension = 3;
+	static constexpr int dimension = 3;
 
-	static const int size = tWidth * tHeight * tDepth;
-	static const int width = tWidth;
-	static const int height = tHeight;
-	static const int depth = tDepth;
+	static constexpr int size = tWidth * tHeight * tDepth;
+	static constexpr int width = tWidth;
+	static constexpr int height = tHeight;
+	static constexpr int depth = tDepth;
 
 	template <typename TCoords>
 	CUGIP_DECL_HYBRID static int
@@ -142,6 +142,25 @@ struct dimension<intraits_2d<tWidth, tHeight> >: dimension_helper<2>
 template <int tWidth, int tHeight, int tDepth>
 struct dimension<intraits_3d<tWidth, tHeight, tDepth> >: dimension_helper<3>
 {};
+
+template<typename TView>
+struct is_array_view: public std::false_type {};
+
+template<typename TView>
+struct is_device_view: public std::false_type {};
+
+template<typename TView>
+struct is_host_view: public std::false_type {};
+
+template<typename TView>
+struct is_memory_based: public std::false_type {};
+
+template<typename TView>
+struct is_image_view: public std::false_type {};
+
+template<typename TView>
+struct is_interpolated_view: public std::false_type {};
+
 
 /**
  * @}

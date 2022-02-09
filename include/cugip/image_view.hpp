@@ -48,6 +48,8 @@ public:
 	CUGIP_DECL_HYBRID accessed_type
 	operator[](coord_t aCoords) const
 	{
+		CUGIP_ASSERT(aCoords >= extents_t());
+		CUGIP_ASSERT(aCoords < this->dimensions());
 		return *reinterpret_cast<value_type *>(reinterpret_cast<char *>(mDevicePtr) + offset_in_strided_memory(mStrides, aCoords));
 		//return mData[aCoords];
 	}
@@ -170,6 +172,8 @@ public:
 	CUGIP_DECL_HYBRID accessed_type &
 	operator[](coord_t aCoords) const
 	{
+		CUGIP_ASSERT(aCoords >= extents_t());
+		CUGIP_ASSERT(aCoords < this->dimensions());
 		return *reinterpret_cast<const_value_type *>(reinterpret_cast<const char *>(mDevicePtr) + offset_in_strided_memory(mStrides, aCoords));
 	//	return mData[aCoords];
 	}
@@ -228,7 +232,6 @@ public:
 				remove_dimension(this->mSize, tSliceDimension),
 				remove_dimension(this->mStrides, tSliceDimension));
 	}
-
 
 protected:
 	//memory_t mData;
@@ -347,7 +350,7 @@ view(device_ptr<TElement> aData, typename dim_traits<2>::extents_t aExtents)
 {
 	CUGIP_ASSERT(aData);
 	return device_image_view<TElement, 2>(
-			typename memory_management<TElement, 2>::device_memory(aData, aExtents, get<0>(aExtents)*sizeof(TElement)));
+			typename memory_management<TElement, 2>::device_memory(aData, aExtents, aExtents[0]*sizeof(TElement)));
 }
 
 /**

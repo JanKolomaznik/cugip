@@ -4,6 +4,7 @@
 #include <cugip/math.hpp>
 #include <cugip/utils.hpp>
 #include <cugip/exception.hpp>
+#include <cugip/cuda_error_check.hpp>
 
 namespace cugip {
 
@@ -646,10 +647,10 @@ struct device_memory_1d_owner: public device_memory_1d<TType>
 		this->mExtents = aExtents;
 		this->mData = reinterpret_cast<TType*>(devPtr);
 
-		/*D_PRINT(boost::str(boost::format("GPU allocation: 1D memory - %1% items, %2% bytes per item, address %3$#x")
-					% this->mExtents
-					% sizeof(TType)
-					% int(this->mData.p)));*/
+		CUGIP_DFORMAT("GPU allocation: 1D memory - %1% items, %2% bytes per item, address %3$#x",
+				this->mExtents,
+				sizeof(TType),
+				reinterpret_cast<uint64_t>(this->mData.p));
 		CUGIP_ASSERT(this->mData.p);
 	}
 #endif //defined(__CUDACC__)
@@ -706,6 +707,7 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 	reallocate(extents_t aExtents)
 	{
 		if (this->mData) {
+			CUGIP_DPRINT("Releasing memory at: " << this->mData);
 			CUGIP_CHECK_RESULT(cudaFree(this->mData.p));
 		}
 		void *devPtr = NULL;
@@ -720,10 +722,10 @@ struct device_memory_2d_owner: public device_memory_2d<TType>
 		this->mExtents = aExtents;
 		this->mData = reinterpret_cast<TType*>(devPtr);
 
-		D_PRINT(boost::str(boost::format("GPU allocation: 2D memory - %1% items, %2% bytes pitch, %3% item size")
-					% this->mExtents
-					% this->mPitch
-					% sizeof(TType)));
+		CUGIP_DFORMAT("GPU allocation: 2D memory - %1% items, %2% bytes pitch, %3% item size",
+					this->mExtents,
+					this->mPitch,
+					sizeof(TType));
 		CUGIP_ASSERT(this->mData.p);
 	}
 #endif //defined(__CUDACC__)
@@ -776,6 +778,7 @@ struct device_memory_3d_owner: public device_memory_3d<TType>
 	reallocate(extents_t aExtents)
 	{
 		if (this->mData) {
+			CUGIP_DPRINT("Releasing memory at: " << this->mData);
 			CUGIP_CHECK_RESULT(cudaFree(this->mData.p));
 		}
 		cudaPitchedPtr pitchedDevPtr = {0};
@@ -787,11 +790,11 @@ struct device_memory_3d_owner: public device_memory_3d<TType>
 		this->mData = reinterpret_cast<TType*>(pitchedDevPtr.ptr);
 		this->mPitch = pitchedDevPtr.pitch;
 
-		D_PRINT(boost::str(boost::format("GPU allocation: 3D memory - %1% items, %2% bytes pitch, %3% item size, address: %4$#x")
-					% this->mExtents
-					% this->mPitch
-					% sizeof(TType)
-					% reinterpret_cast<size_t>(this->mData.p)));
+		CUGIP_DFORMAT("GPU allocation: 3D memory - %1% items, %2% bytes pitch, %3% item size, address: %4$#x",
+					this->mExtents,
+					this->mPitch,
+					sizeof(TType),
+					reinterpret_cast<size_t>(this->mData.p));
 
 		CUGIP_ASSERT(this->mData.p);
 		//CUGIP_CHECK_RESULT(cudaMemset(pitchedDevPtr.ptr, 0, this->mPitch * aExtents[1] * aExtents[2]));

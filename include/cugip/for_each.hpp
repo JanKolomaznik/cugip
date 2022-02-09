@@ -4,6 +4,7 @@
 #include <cugip/meta_algorithm.hpp>
 #include <cugip/exception.hpp>
 #include <cugip/image_view.hpp>
+#include <cugip/view_utils.hpp>
 
 #if defined(__CUDACC__)
 #include <cugip/cuda_utils.hpp>
@@ -49,6 +50,8 @@ for_each_in_region(region<tDimension> aRegion, TFunctor aOperator, BoolValue<tRu
 
 template<int tDimension>
 struct DefaultForEachPolicy {
+	using BorderHandling = BorderHandlingTraits<border_handling_enum::REPEAT>;
+
 	static constexpr bool cPreload = false;
 #if defined(__CUDACC__)
 	CUGIP_DECL_HYBRID dim3 blockSize() const
@@ -66,6 +69,7 @@ struct DefaultForEachPolicy {
 
 template<typename TOperator>
 struct ForEachFunctor {
+	CUGIP_HD_WARNING_DISABLE
 	template<typename TCoords, typename TView>
 	CUGIP_DECL_HYBRID
 	void operator()(TCoords aToCoords, TView aView) {
@@ -77,6 +81,7 @@ struct ForEachFunctor {
 
 template<typename TOperator>
 struct ForEachPositionFunctor {
+	CUGIP_HD_WARNING_DISABLE
 	template<typename TCoords, typename TView>
 	CUGIP_DECL_HYBRID
 	void operator()(TCoords aToCoords, TView aView) {
@@ -86,11 +91,23 @@ struct ForEachPositionFunctor {
 	TOperator mOperator;
 };
 
+template<typename TOperator, typename TBorderHandling>
+struct ForEachLocatorFunctor {
+	CUGIP_HD_WARNING_DISABLE
+	template<typename TCoords, typename TView>
+	CUGIP_DECL_HYBRID
+	void operator()(TCoords aToCoords, TView aView) {
+		mOperator(create_locator<TView, TBorderHandling>(aView, aToCoords));
+	}
+
+	TOperator mOperator;
+};
+
 template <typename TView, typename TFunctor, typename TPolicy>
 void
 for_each(TView aView, TFunctor aOperator, TPolicy aPolicy, cudaStream_t aCudaStream = 0)
 {
-	static_assert(is_image_view<TView>::value, "Input view must be an image view");
+	static_assert(is_image_view<TView>::value || is_array_view<TView>::value, "Input view must be an image or array view");
 	if(isEmpty(aView)) {
 		return;
 	}
@@ -111,7 +128,7 @@ template <typename TView, typename TFunctor, typename TPolicy>
 void
 for_each_position(TView aView, TFunctor aOperator, TPolicy aPolicy, cudaStream_t aCudaStream = 0)
 {
-	static_assert(is_image_view<TView>::value, "Input view must be an image view");
+	static_assert(is_image_view<TView>::value || is_array_view<TView>::value, "Input view must be an image or array view");
 	if(isEmpty(aView)) {
 		return;
 	}
@@ -129,53 +146,30 @@ for_each_position(TView aView, TFunctor aOperator, cudaStream_t aCudaStream = 0)
 	for_each_position(aView, aOperator, DefaultForEachPolicy<dimension<TView>::value>{}, aCudaStream);
 }
 
-
-/**
- * @}
- **/
-
-#if 0
-
-//*************************************************************************************************************
-namespace detail {
-
-template <typename TView, typename TFunctor>
-CUGIP_GLOBAL void
-kernel_for_each_locator(TView aView, TFunctor aOperator)
+template <typename TView, typename TFunctor, typename TPolicy>
+void
+for_each_locator(TView aView, TFunctor aOperator, TPolicy aPolicy, cudaStream_t aCudaStream = 0)
 {
-	typename TView::coord_t coord = mapBlockIdxAndThreadIdxToViewCoordinates<dimension<TView>::value>();
-	typename TView::extents_t extents = aView.dimensions();
-
-	if (coord < extents) {
-		aOperator(aView.template locator<cugip::border_handling_repeat_t>(coord));
+	static_assert(is_image_view<TView>::value || is_array_view<TView>::value, "Input view must be an image or array view");
+	if(isEmpty(aView)) {
+		return;
 	}
+
+	detail::UniversalRegionCoverImplementation<is_device_view<TView>::value>
+		::run(ForEachLocatorFunctor<TFunctor, typename TPolicy::BorderHandling>{aOperator}, aPolicy, aCudaStream, aView);
+
 }
 
-} // namespace detail
 
-/** \ingroup meta_algorithm
- * @{
- **/
 template <typename TView, typename TFunctor>
 void
-for_each_locator(TView aView, TFunctor aOperator)
+for_each_locator(TView aView, TFunctor aOperator, cudaStream_t aCudaStream = 0)
 {
-	dim3 blockSize = detail::defaultBlockDimForDimension<dimension<TView>::value>();
-	dim3 gridSize = detail::defaultGridSizeForBlockDim(aView.dimensions(), blockSize);
-
-	D_PRINT("Executing kernel: for_each_locator(); blockSize = "
-		       << blockSize
-		       << "; gridSize = "
-		       << gridSize
-	       );
-	detail::kernel_for_each_locator<TView, TFunctor>
-		<<<gridSize, blockSize>>>(aView, aOperator);
-	CUGIP_CHECK_ERROR_STATE("kernel_for_each_locator");
+	for_each_locator(aView, aOperator, DefaultForEachPolicy<dimension<TView>::value>{}, aCudaStream);
 }
 
 /**
  * @}
  **/
-#endif
 
 }//namespace cugip

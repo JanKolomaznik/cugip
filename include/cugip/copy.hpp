@@ -6,6 +6,8 @@
 #include <cugip/math.hpp>
 #include <cugip/memory_view.hpp>
 #include <cugip/meta_algorithm.hpp>
+#include <cugip/traits.hpp>
+#include <cugip/view_utils.hpp>
 
 #if defined(__CUDACC__)
 #include <cugip/cuda_utils.hpp>
@@ -125,7 +127,7 @@ struct copy_methods_impl<false, true>
 			      aFrom.width()*sizeof(typename TFrom::value_type),
 			      aFrom.height(),
 			      cudaMemcpyHostToDevice));
-		cudaThreadSynchronize();
+		cudaDeviceSynchronize();
 	}
 };
 
@@ -290,11 +292,24 @@ void copyDeviceToDeviceAsync(
 }
 #endif //defined(__CUDACC__)
 
+// template<typename TView>
+// size_t occupied_memory_size(TView aView)
+// {
+// 		// TODO implement
+// 	auto p1 = aView.pointer();
+// 	auto p2 =
+// }
+
 template <typename TFromView, typename TToView>
 void copyHostToHost(
 	TFromView from_view,
 	TToView to_view)
 {
+	// if constexpr(is_memory_based<TFromView>::value && is_memory_based<TToView>::value) {
+	// 	if (from_view.strides() == to_view.strides()) {
+	// 		std::memcpy(to_view.pointer(), from_view.pointer(), /*TODO count */);
+	// 	}
+	// }
 	// TODO(johny) - use memcpy for memory based views
 
 	for (int64_t i = 0; i < elementCount(from_view); ++i) {
@@ -321,7 +336,7 @@ void copyDeviceToHostAsync(
 	parameters.dstPtr = stridesToPitchedPtr(to_view.pointer(), to_view.dimensions(), to_view.strides());
 	parameters.extent = makeCudaExtent(sizeof(typename TFromView::value_type), from_view.dimensions());
 	parameters.kind = cudaMemcpyDeviceToHost;
-	CUGIP_DFORMAT("Copy pitched data: \n  src: %1%\n  dst: %2%\n  extent: %3%", parameters.srcPtr, parameters.dstPtr, parameters.extent);
+	// CUGIP_DFORMAT("Copy pitched data: \n  src: %1%\n  dst: %2%\n  extent: %3%", parameters.srcPtr, parameters.dstPtr, parameters.extent);
 	CUGIP_CHECK_RESULT(cudaMemcpy3DAsync(&parameters, cuda_stream));
 }
 
@@ -344,7 +359,7 @@ void copyHostToDeviceAsync(
 	parameters.extent = makeCudaExtent(sizeof(typename TFromView::value_type), from_view.dimensions());
 	parameters.kind = cudaMemcpyHostToDevice;
 
-	CUGIP_DFORMAT("Copy pitched data: \n  src: %1%\n  dst: %2%\n  extent: %3%", parameters.srcPtr, parameters.dstPtr, parameters.extent);
+	// CUGIP_DFORMAT("Copy pitched data: \n  src: %1%\n  dst: %2%\n  extent: %3%", parameters.srcPtr, parameters.dstPtr, parameters.extent);
 	CUGIP_CHECK_RESULT(cudaMemcpy3DAsync(&parameters, cuda_stream));
 }
 
@@ -436,9 +451,9 @@ void copy_async(
 	cudaStream_t cuda_stream)
 {
 	//static_assert(is_device_view<TToView>::value != is_host_view<TToView>::value, "Target view is usable on device and host. Ambiguous copy direction.");
-	CUGIP_DFORMAT("Copy sizes: \n  src: %1%\n  dst: %2%", from_view.dimensions(), to_view.dimensions());
+	// CUGIP_DFORMAT("Copy sizes: \n  src: %1%\n  dst: %2%", from_view.dimensions(), to_view.dimensions());
 	if (from_view.dimensions() != to_view.dimensions()) {
-		CUGIP_THROW(IncompatibleViewSizes() /*<< GetViewPairSizesErrorInfo(from_view.dimensions(), to_view.dimensions()))*/);
+		CUGIP_THROW(EIncompatibleViewSizes() /*<< GetViewPairSizesErrorInfo(from_view.dimensions(), to_view.dimensions()))*/);
 	}
 
 	//static_assert(is_device_view<TFromView>::value || is_device_view<TToView>::value, "Host to host copy not yet implemented - decide sycnhronous/asynchronous behavior");
@@ -470,7 +485,7 @@ void copy(
 	copy_async(from_view, to_view);
 
 #if defined(__CUDACC__)
-	CUGIP_CHECK_RESULT(cudaThreadSynchronize());
+	CUGIP_CHECK_RESULT(cudaDeviceSynchronize());
 #endif //defined(__CUDACC__)
 }
 

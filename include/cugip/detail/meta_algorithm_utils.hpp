@@ -19,8 +19,16 @@ cornerFromTileIndex(const simple_vector<int, tDimension> &aExtents, const simple
 	return product(aTileSize, index_from_linear_access_index(div_up(aExtents, aTileSize), aIdx));
 }
 
+CUGIP_DECL_DEVICE auto
+cornerFromBlockIndex(int64_t aExtents, int aIdx)
+{
+	// TODO - handle dimension 1 differently?
+	auto block = blockDimensions<1>();
+	return block * aIdx;
+}
+
 template<int tDimension>
-CUGIP_DECL_DEVICE simple_vector<int, tDimension>
+CUGIP_DECL_DEVICE auto
 cornerFromBlockIndex(const simple_vector<int, tDimension> &aExtents, int aIdx)
 {
 	auto block = blockDimensions<tDimension>();
@@ -115,28 +123,28 @@ struct UniversalRegionCoverImplementation<true> {
 	template <typename TFunctor, typename TPolicy, typename TFirstView, typename... TViews>
 	static typename std::enable_if<!TPolicy::cPreload, int>::type
 	run(TFunctor aOperator, TPolicy aPolicy, cudaStream_t aCudaStream, TFirstView aFirstView, TViews... aViews) {
-#		if defined(__CUDACC__)
+		#if defined(__CUDACC__)
 		// TODO assert on region sizes
 		dim3 blockSize = aPolicy.blockSize();
 		dim3 gridSize = aPolicy.gridSize(active_region(aFirstView));
 
 		detail::universal_region_cover_kernel<TFunctor, TPolicy, TFirstView, TViews...>
 			<<<gridSize, blockSize, 0, aCudaStream>>>(aOperator, aPolicy, aFirstView, aViews...);
-#		endif // defined(__CUDACC__)
+		#endif // defined(__CUDACC__)
 		return 0;
 	}
 
 	template <typename TFunctor, typename TPolicy, typename TFirstView, typename... TViews>
 	static typename std::enable_if<TPolicy::cPreload, int>::type
 	run(TFunctor aOperator, TPolicy aPolicy, cudaStream_t aCudaStream, TFirstView aFirstView, TViews... aViews) {
-#		if defined(__CUDACC__)
+		#if defined(__CUDACC__)
 		// TODO assert on region sizes
 		dim3 blockSize = aPolicy.blockSize();
 		dim3 gridSize = aPolicy.gridSize(active_region(aFirstView));
 
 		detail::universal_region_cover_preload_kernel<TFunctor, TPolicy, TFirstView, TViews...>
 			<<<gridSize, blockSize, 0, aCudaStream>>>(aOperator, aPolicy, aFirstView, aViews...);
-#		endif // defined(__CUDACC__)
+		#endif // defined(__CUDACC__)
 		return 0;
 	}
 };
@@ -217,14 +225,14 @@ struct TileCoverImplementation {
 	template <typename TFunctor, typename TPolicy, typename TFirstView, typename... TViews>
 	static void
 	run(TFunctor aOperator, TPolicy aPolicy, cudaStream_t aCudaStream, TFirstView aFirstView, TViews... aViews) {
-#		if defined(__CUDACC__)
+		#if defined(__CUDACC__)
 		// TODO assert on region sizes
 		dim3 blockSize = aPolicy.blockSize();
 		dim3 gridSize = aPolicy.gridSize(active_region(aFirstView));
 
 		detail::tiled_region_cover_preload_kernel<TFunctor, TPolicy, TFirstView, TViews...>
 			<<<gridSize, blockSize, 0, aCudaStream>>>(aOperator, aPolicy, aFirstView, aViews...);
-#		endif // defined(__CUDACC__)
+		#endif // defined(__CUDACC__)
 	}
 };
 //

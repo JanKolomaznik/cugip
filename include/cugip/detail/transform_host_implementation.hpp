@@ -1,3 +1,4 @@
+#pragma once
 
 namespace cugip {
 namespace detail {

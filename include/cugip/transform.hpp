@@ -36,6 +36,7 @@ struct TransformLocatorImplementation;
 namespace cugip {
 
 struct transform_update_assign {
+	CUGIP_HD_WARNING_DISABLE
 	template<typename TOutput, typename TValue>
 	CUGIP_DECL_HYBRID
 	void operator()(TOutput &aOutput, const TValue &aValue) const {
@@ -44,6 +45,7 @@ struct transform_update_assign {
 };
 
 struct transform_update_add {
+	CUGIP_HD_WARNING_DISABLE
 	template<typename TOutput, typename TValue>
 	CUGIP_DECL_HYBRID
 	void operator()(TOutput &aOutput, const TValue &aValue) const {
@@ -70,10 +72,11 @@ struct DefaultTransformPolicy {
 
 template<typename TOperator, typename TAssignOperator>
 struct TransformFunctor {
+	CUGIP_HD_WARNING_DISABLE
 	template<typename TCoords, typename TOutView, typename... TInViews>
 	CUGIP_DECL_HYBRID
 	void operator()(TCoords aToCoords, TOutView aOutView, TInViews... aInViews) {
-		static_assert(is_image_view<TOutView>::value, "Output view must be image view");
+		static_assert(is_image_view<TOutView>::value || is_array_view<TOutView>::value, "Output view must be an image or array view");
 		mAssignOperator(aOutView[aToCoords], mOperator(aInViews[aToCoords]...));
 	}
 
@@ -83,6 +86,7 @@ struct TransformFunctor {
 
 template<typename TOperator, typename TAssignOperator>
 struct TransformPositionFunctor {
+	CUGIP_HD_WARNING_DISABLE
 	template<typename TCoords, typename TOutView, typename... TInViews>
 	CUGIP_DECL_HYBRID
 	void operator()(TCoords aToCoords, TOutView aOutView, TInViews... aInViews) {
@@ -95,6 +99,7 @@ struct TransformPositionFunctor {
 
 template<typename TOperator, typename TAssignOperator, typename TBorderHandling>
 struct TransformLocatorFunctor {
+	CUGIP_HD_WARNING_DISABLE
 	template<typename TCoords, typename TOutView, typename... TInViews>
 	CUGIP_DECL_HYBRID
 	void operator()(TCoords aToCoords, TOutView aOutView, TInViews... aInViews) {
@@ -121,8 +126,8 @@ template <typename TInView, typename TOutView, typename TFunctor, typename TPoli
 void
 transform(TInView aInView, TOutView aOutView, TFunctor aOperator, TPolicy aPolicy, cudaStream_t aCudaStream = 0)
 {
-	static_assert(is_image_view<TInView>::value, "Input view must be image view");
-	static_assert(is_image_view<TOutView>::value, "Output view must be image view");
+	static_assert(is_image_view<TInView>::value || is_array_view<TInView>::value, "Input view must be an image or array view");
+	static_assert(is_image_view<TOutView>::value || is_array_view<TOutView>::value, "Output view must be an image or array view");
 	CUGIP_ASSERT(aInView.dimensions() == aOutView.dimensions());
 
 	if(isEmpty(aInView)) {
@@ -145,9 +150,9 @@ template  <typename TInView1, typename TInView2, typename TOutView, typename TFu
 void
 transform2(TInView1 aInView1, TInView2 aInView2, TOutView aOutView, TFunctor aOperator, TPolicy aPolicy, cudaStream_t aCudaStream = 0)
 {
-	static_assert(is_image_view<TInView1>::value, "Input view 1 must be image view");
-	static_assert(is_image_view<TInView2>::value, "Input view 2 must be image view");
-	static_assert(is_image_view<TOutView>::value, "Output view must be image view");
+	static_assert(is_image_view<TInView1>::value || is_array_view<TInView1>::value, "Input view 1 must be an image or array view");
+	static_assert(is_image_view<TInView2>::value || is_array_view<TInView1>::value, "Input view 2 must be an image or array view");
+	static_assert(is_image_view<TOutView>::value || is_array_view<TOutView>::value, "Output view must be an image or array view");
 	CUGIP_ASSERT(aInView1.dimensions() == aOutView.dimensions());
 	CUGIP_ASSERT(aInView2.dimensions() == aOutView.dimensions());
 
@@ -170,8 +175,8 @@ template <typename TInView, typename TOutView, typename TFunctor, typename TPoli
 void
 transform_position(TInView aInView, TOutView aOutView, TFunctor aOperator, TPolicy aPolicy, cudaStream_t aCudaStream = 0)
 {
-	static_assert(is_image_view<TInView>::value, "Input view must be image view");
-	static_assert(is_image_view<TOutView>::value, "Output view must be image view");
+	static_assert(is_image_view<TInView>::value || is_array_view<TInView>::value, "Input view must be an image or array view");
+	static_assert(is_image_view<TOutView>::value || is_array_view<TOutView>::value, "Output view must be an image or array view");
 	CUGIP_ASSERT(aInView.dimensions() == aOutView.dimensions());
 
 	if(isEmpty(aInView)) {
@@ -239,8 +244,8 @@ template <typename TInView, typename TOutView, typename TOperator, typename TPol
 void
 transform_locator(TInView aInView, TOutView aOutView, TOperator aOperator, TPolicy aPolicy, cudaStream_t aCudaStream = 0)
 {
-	static_assert(is_image_view<TInView>::value, "Input view must be image view");
-	static_assert(is_image_view<TOutView>::value, "Output view must be image view");
+	static_assert(is_image_view<TInView>::value || is_array_view<TInView>::value, "Input view must be an image or array view");
+	static_assert(is_image_view<TOutView>::value || is_array_view<TOutView>::value, "Output view must be an image or array view");
 	CUGIP_ASSERT(aInView.dimensions() == aOutView.dimensions());
 
 	if(isEmpty(aInView)) {
@@ -265,8 +270,8 @@ void
 transform_locator_assign(TInView aInView, TOutView aOutView, TOperator aOperator, TAssignOperation aAssignOperation, TPolicy aPolicy, cudaStream_t aCudaStream = 0)
 {
 
-	static_assert(is_image_view<TInView>::value, "Input view must be image view");
-	static_assert(is_image_view<TOutView>::value, "Output view must be image view");
+	static_assert(is_image_view<TInView>::value || is_array_view<TInView>::value, "Input view must be an image or array view");
+	static_assert(is_image_view<TOutView>::value || is_array_view<TOutView>::value, "Output view must be an image or array view");
 	CUGIP_ASSERT(aInView.dimensions() == aOutView.dimensions());
 
 	if(isEmpty(aInView)) {

@@ -1,27 +1,22 @@
 #pragma once
 
-#include <cugip/math.hpp>
-#include <cugip/utils.hpp>
+#include <cugip/math/vector.hpp>
+// #include <cugip/utils.hpp>
 
 namespace cugip {
-
-namespace detail {
-
-
-} //namespace detail
 
 
 /// \return Strides for memory without padding.
 CUGIP_DECL_HYBRID
-inline Int2 stridesFromSize(Int2 size) {
-	return Int2(1, size[0]);
+inline cugip::vect2i_t stridesFromSize(cugip::vect2i_t aSize) {
+	return cugip::vect2i_t(1, aSize[0]);
 }
 
 
 /// \return Strides for memory without padding.
 CUGIP_DECL_HYBRID
-inline Int3 stridesFromSize(Int3 size) {
-	return Int3(1, size[0], size[0] * size[1]);
+inline cugip::vect3i_t stridesFromSize(cugip::vect3i_t aSize) {
+	return cugip::vect3i_t(1, aSize[0], aSize[0] * aSize[1]);
 }
 
 /// \return Strides for memory without padding.
@@ -30,25 +25,31 @@ inline int stridesFromSize(int64_t size) {
 	return 1;
 }
 
+CUGIP_DECL_HYBRID
+inline int64_t
+index_from_linear_access_index(int64_t aExtents, int64_t aIdx) {
+	return aIdx;
+}
+
 CUGIP_HD_WARNING_DISABLE
 template<int tDimension>
 CUGIP_DECL_HYBRID simple_vector<int, tDimension>
 index_from_linear_access_index(const simple_vector<int, tDimension> &aExtents, int64_t aIdx)
 {
-	CUGIP_ASSERT(product(coord_cast<int64_t>(aExtents)) > aIdx);
-	CUGIP_ASSERT(aIdx >= 0);
+	CUGIP_ACCESS_ASSERT(product(coord_cast<int64_t>(aExtents)) > aIdx);
+	CUGIP_ACCESS_ASSERT(aIdx >= 0);
 	simple_vector<int, tDimension> coords;
 	for(int i = 0; i < tDimension; ++i) {
 		coords[i] = aIdx % aExtents[i];
 		aIdx /= aExtents[i];
 	}
-	#ifndef __CUDA_ARCH__
-	if (aIdx >= 536870912) {
-		// TODO - remove
-		std::cout << coords <<"\n";
-		assert(false);
-	}
-	#endif
+	// #ifndef __CUDA_ARCH__
+	// if (aIdx >= 536870912) {
+	// 	// TODO - remove
+	// 	std::cout << coords <<"\n";
+	// 	assert(false);
+	// }
+	// #endif
 	return coords;
 }
 
@@ -180,34 +181,6 @@ get_zorder_access_index(
 	return answer;
 }
 
-/*template<typename TExtents, typename TCoordinates>
-CUGIP_DECL_HYBRID int
-get_blocked_order_access_index(
-		TExtents aExtents,
-		TCoordinates aCoordinates)
-{
-	static_assert(dimension<TExtents>::value == 3, "TODO: 2 dimensions");
-	TCoordinates corner = 2 * div(aCoordinates, 2);
-	int offset = aExtents[0] * aExtents[1] * corner[2];
-	int zMultiplier = 2;
-	if ((aExtents[2] % 2) && (aCoordinates[2] == (aExtents[2] - 1))) {
-		zMultiplier = 1;
-	}
-	offset += aExtents[0] * corner[1] * zMultiplier;
-
-	int yMultiplier = 2;
-	if ((aExtents[1] % 2) && (aCoordinates[1] == (aExtents[1] - 1))) {
-		yMultiplier = 1;
-	}
-	offset += corner[0] * zMultiplier * yMultiplier;
-
-	auto blockSize = min_per_element(Int3(2, 2, 2), aExtents - corner);
-	auto blockPos = aCoordinates - corner;
-	offset += blockPos[0] + blockPos[1] * blockSize[0] + blockPos[2] * blockSize[0] * blockSize[1];
-	return offset;
-}*/
-
-
 template<int tBlockSize, typename TExtents, typename TCoordinates>
 CUGIP_DECL_HYBRID int64_t
 get_blocked_order_access_index(
@@ -229,7 +202,7 @@ get_blocked_order_access_index(
 	}
 	offset += corner[0] * zMultiplier * yMultiplier;*/
 
-	auto blockSize = min_per_element(Int3(tBlockSize, tBlockSize, tBlockSize), aExtents - corner);
+	auto blockSize = min_per_element(vect3i_t(tBlockSize, tBlockSize, tBlockSize), aExtents - corner);
 	auto blockPos = aCoordinates - corner;
 
 	offset += aExtents[0] * corner[1] * blockSize[2];

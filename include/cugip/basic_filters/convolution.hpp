@@ -5,6 +5,8 @@
 #include <cugip/static_int_sequence.hpp>
 #include <cugip/neighborhood_accessor.hpp>
 
+#include <type_traits>
+
 namespace cugip {
 
 template <typename TType, typename TSizeTraits>
@@ -39,6 +41,7 @@ template <typename TType, int tSize>
 struct convolution_kernel<TType, StaticSize<tSize>>
 {
 	static constexpr int cDimension = 1;
+	static constexpr int cSize = tSize;
 	typedef TType element_t;
 
 	CUGIP_DECL_HYBRID
@@ -62,6 +65,31 @@ struct convolution_kernel<TType, StaticSize<tSize>>
 	TType data[tSize];
 	int offset;
 };
+
+template <typename TType, typename TSizeTraits>
+CUGIP_DECL_HOST inline std::ostream &
+operator<<( std::ostream &stream, const convolution_kernel<TType, TSizeTraits> &kernel )
+{
+	//TODO - for all dimension
+	if constexpr(TSizeTraits::cDimension == 1) {
+
+		stream << "|\t";
+		for (int i = 0; i < TSizeTraits::last(); ++i) {
+			stream << kernel.data[i] << "\t";
+		}
+		stream << "|";
+	}
+	if constexpr(TSizeTraits::cDimension == 2) {
+		// for (int i = 0; i < TSizeTraits::height; ++i) {
+		// 	stream << "|\t";
+		// 	for (int j = 0; j < TSizeTraits::width; ++j) {
+		// 		stream << kernel.data[i*TSizeTraits::width + j] << "\t";
+		// 	}
+		// 	stream << "|\n";
+		// }
+	}
+	return stream;
+}
 
 
 template<int tDimension>
@@ -105,13 +133,13 @@ gaussian_kernel()
 
 	float sigmaSqr = sqr((2 * tRadius + 1) / 4.0f);
 	float sum = 0.0f;
-	for (int i = -tRadius; i < tRadius; ++i) {
+	for (int i = -tRadius; i <= tRadius; ++i) {
 		float value = exp(-(sqr(i)/(2*sigmaSqr)));
 		sum += value;
 		kernel.get(i) = value;
 	}
 	auto factor = 1.0f / sum;
-	for (int i = -tRadius; i < tRadius; ++i) {
+	for (int i = -tRadius; i <= tRadius; ++i) {
 		kernel.get(i) *= factor;
 	}
 
@@ -123,6 +151,7 @@ CUGIP_DECL_HYBRID
 void apply_convolution_kernel(TLocator aLocator, TKernel aKernel, TResult &aResult)
 {
 	typedef simple_vector<int, TKernel::cDimension> Index;
+	static_assert(std::is_same<Index, typename TLocator::diff_t>::value);
 	for_each_neighbor(
 		-aKernel.offset,
 		aKernel.size() - aKernel.offset,
@@ -154,12 +183,14 @@ struct separable_convolution_operator
 	operator()(TLocator aLocator) const
 		-> typename TLocator::const_value_type
 	{
-		auto result = zero<typename TLocator::const_value_type>();
-		typename TLocator::diff_t offset;
+		//auto result = zero<typename TLocator::const_value_type>();
+		float result = zero<typename TLocator::const_value_type>();
+		typename TLocator::diff_t offset{};
 		for (offset[tDimension] = -kernel.offset; offset[tDimension] < kernel.size() - kernel.offset; ++offset[tDimension]) {
 			result += aLocator[offset] * kernel.get(offset[tDimension]);
 		}
-		return result;
+		auto res = safe_numeric_cast<typename TLocator::const_value_type>(result);
+		return res;
 	}
 	TKernel kernel;
 };
@@ -171,40 +202,29 @@ convolution(TInputView aInView, TOutputView aOutView, TKernel aKernel)
 	transform_locator(aInView, aOutView, convolution_operator<TKernel>{aKernel});
 }
 
-namespace detail {
-template<int tDimension>
-struct separable_convolution_impl;
-
-template<>
-struct separable_convolution_impl<2> {
-	template<typename TInputView, typename TOutputView, typename TTmpView, typename TKernel>
-	static void
-	run(TInputView aInView, TOutputView aOutView, TTmpView aTmpView, TKernel aKernel)
-	{
-		transform_locator(aInView, aTmpView, separable_convolution_operator<TKernel, 0>{ aKernel });
-		transform_locator(aTmpView, aOutView, separable_convolution_operator<TKernel, 1>{ aKernel });
-	}
-};
-
-template<>
-struct separable_convolution_impl<3> {
-	template<typename TInputView, typename TOutputView, typename TTmpView, typename TKernel>
-	static void
-	run(TInputView aInView, TOutputView aOutView, TTmpView aTmpView, TKernel aKernel)
-	{
-		transform_locator(aInView, aOutView, separable_convolution_operator<TKernel, 0>{ aKernel });
-		transform_locator(aOutView, aTmpView, separable_convolution_operator<TKernel, 1>{ aKernel });
-		transform_locator(aTmpView, aOutView, separable_convolution_operator<TKernel, 2>{ aKernel });
-	}
-};
-
-} // namespace detail
-
 template<typename TInputView, typename TOutputView, typename TTmpView, typename TKernel>
 void
 separable_convolution(TInputView aInView, TOutputView aOutView, TTmpView aTmpView, TKernel aKernel)
 {
-	detail::separable_convolution_impl<dimension<TInputView>::value>::run(aInView, aOutView, aTmpView, aKernel);
+	static_assert(
+		dimension<TInputView>::value == 2 || dimension<TInputView>::value == 3,
+		"Only views of dimensions 2 and 3 currently supported for separable convolution.");
+	CUGIP_TFORMAT("%1%D separable convolution { \"inview\": %2%, \"outview\": %3%, \"tmpview\": %4%",
+			dimension<TInputView>::value,
+			::cugip::info(aInView),
+			::cugip::info(aOutView),
+			::cugip::info(aTmpView)
+			);
+	if constexpr(2 == dimension<TInputView>::value) {
+		transform_locator(aInView, aTmpView, separable_convolution_operator<TKernel, 0>{ aKernel });
+		transform_locator(aTmpView, aOutView, separable_convolution_operator<TKernel, 1>{ aKernel });
+	}
+	if constexpr(3 == dimension<TInputView>::value) {
+		// TODO - check for overlaps between input and output
+		transform_locator(aInView, aOutView, separable_convolution_operator<TKernel, 0>{ aKernel });
+		transform_locator(aOutView, aTmpView, separable_convolution_operator<TKernel, 1>{ aKernel });
+		transform_locator(aTmpView, aOutView, separable_convolution_operator<TKernel, 2>{ aKernel });
+	}
 }
 
 /*template <typename TType, typename TSizeTraits>

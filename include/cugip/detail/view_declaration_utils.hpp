@@ -1,9 +1,11 @@
 #pragma once
 
 #include <cugip/detail/defines.hpp>
+#include <cugip/exception_error_info.hpp>
 #include <cugip/math.hpp>
 #include <cugip/image_locator.hpp>
 #include <cugip/region.hpp>
+#include <cugip/traits.hpp>
 
 #include <fstream>
 
@@ -48,62 +50,6 @@
 
 namespace cugip {
 
-/** \ingroup  traits
- * @{
- **/
-template<typename TView>
-struct is_device_view: public std::false_type {};
-
-template<typename TView>
-struct is_host_view: public std::false_type {};
-
-template<typename TView>
-struct is_memory_based: public std::false_type {};
-
-template<typename TView>
-struct is_image_view: public std::false_type {};
-
-template<typename TView>
-struct is_interpolated_view: public std::false_type {};
-
-
-/**
- * @}
- **/
-CUGIP_HD_WARNING_DISABLE
-template<typename TView>
-CUGIP_DECL_HYBRID
-region<dimension<TView>::value> valid_region(const TView &view) {
-	return region<dimension<TView>::value>{
-		typename TView::coord_t(),
-		view.dimensions() };
-}
-
-CUGIP_HD_WARNING_DISABLE
-template<typename TView>
-CUGIP_DECL_HYBRID
-region<dimension<TView>::value> active_region(const TView &view) {
-	return region<dimension<TView>::value>{
-		typename TView::coord_t(),
-		view.dimensions() };
-}
-
-
-CUGIP_HD_WARNING_DISABLE
-template<typename TView>
-CUGIP_DECL_HYBRID int64_t
-elementCount(const TView &aView)
-{
-	return product(coord_cast<int64_t>(aView.dimensions()));
-}
-
-CUGIP_HD_WARNING_DISABLE
-template<typename TView>
-CUGIP_DECL_HYBRID bool
-isEmpty(const TView &aView)
-{
-	return 0 == product(coord_cast<int64_t>(aView.dimensions()));
-}
 
 template<int tDimension>
 class device_image_view_base

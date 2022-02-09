@@ -10,13 +10,13 @@ namespace cugip {
 
 //**************************************************************************
 //Forward declarations
-template <typename TImage>
-typename TImage::view_t
-view(const TImage &aImage);
-
-template <typename TImage>
-typename TImage::const_view_t
-const_view(const TImage &aImage);
+// template <typename TImage>
+// typename TImage::view_t
+// view(const TImage &aImage);
+//
+// template <typename TImage>
+// typename TImage::const_view_t
+// const_view(const TImage &aImage);
 //**************************************************************************
 
 /// \return Strides for memory without padding.
@@ -96,6 +96,13 @@ public:
 	{
 		return mStrides;
 	}
+
+	void
+	resize(extents_t aExtents)
+	{
+		reallocate(aExtents);
+	}
+
 protected:
         void reallocate(const extents_t &aSize)
         {

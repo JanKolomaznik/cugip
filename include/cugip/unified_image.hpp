@@ -11,13 +11,13 @@ namespace cugip {
 
 //**************************************************************************
 //Forward declarations
-template <typename TImage>
-typename TImage::view_t
-view(TImage &aImage);
-
-template <typename TImage>
-typename TImage::const_view_t
-const_view(TImage &aImage);
+// template <typename TImage>
+// typename TImage::view_t
+// view(TImage &aImage);
+//
+// template <typename TImage>
+// typename TImage::const_view_t
+// const_view(TImage &aImage);
 //**************************************************************************
 
 template<typename TElement, int tDim>

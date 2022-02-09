@@ -16,6 +16,7 @@ struct Accessor {
 	using value_type = typename TView::value_type;
 
 	template<typename TIndex>
+	CUGIP_DECL_HYBRID
 	value_type operator[](TIndex aIndex) {
 		return TBoundaryHandler::access(view, aIndex, TIndex());
 	}
@@ -23,6 +24,7 @@ struct Accessor {
 };
 
 template<typename TBoundaryHandler, typename TView>
+CUGIP_DECL_HYBRID
 Accessor<TBoundaryHandler, TView>
 make_accessor(TView view) {
 	return Accessor<TBoundaryHandler, TView>{ view };
@@ -33,6 +35,7 @@ template<int tDimension>
 struct LinearInterpolationImpl
 {
 	template<typename TAccessor, typename TWeight, typename TIndex>
+	CUGIP_DECL_HYBRID
 	static typename TAccessor::value_type compute(TAccessor accessor, TWeight weight, TIndex corner1, TIndex corner2) {
 		auto tmp_corner2 = corner2;
 		tmp_corner2[tDimension - 1] = corner1[tDimension - 1];
@@ -57,6 +60,7 @@ struct LinearInterpolationImpl<1, TBorderHandling> {
 template<>
 struct LinearInterpolationImpl<1> {
 	template<typename TAccessor, typename TWeight, typename TIndex>
+	CUGIP_DECL_HYBRID
 	static typename TAccessor::value_type compute(TAccessor accessor, TWeight weight, TIndex corner1, TIndex corner2) {
 		//std::cout << corner1 << "-" << corner2 << ";";
 		return lerp(accessor[corner1], accessor[corner2], weight[0]);
@@ -102,7 +106,7 @@ struct LinearInterpolationImpl<3> {
 
 }  // namespace detail
 
-template<typename TBoundaryHandler>
+template<typename TBoundaryHandler = BorderHandlingTraits<border_handling_enum::REPEAT>>
 struct NearestNeighborInterpolator {
 	template<typename TView, typename TOffset, typename TIndex>
 	CUGIP_DECL_HYBRID
@@ -116,7 +120,7 @@ struct NearestNeighborInterpolator {
 	}
 };
 
-template<typename TBoundaryHandler>
+template<typename TBoundaryHandler = BorderHandlingTraits<border_handling_enum::REPEAT>>
 struct LinearInterpolator {
 	CUGIP_HD_WARNING_DISABLE
 	template<typename TView, typename TOffset, typename TIndex>

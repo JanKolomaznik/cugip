@@ -147,10 +147,16 @@ simple_vector<int, 3> dim3_to_vector<3>(dim3 aValue)
 
 template<int tDimension>
 CUGIP_DECL_DEVICE
-simple_vector<int, tDimension>
+auto
 blockDimensions()
 {
-	return dim3_to_vector<tDimension>(blockDim);
+	if constexpr (1 == tDimension) {
+		CUGIP_ASSERT(blockDim.z == 0 || blockDim.z == 1);
+		CUGIP_ASSERT(blockDim.y == 0 || blockDim.y == 1);
+		return blockDim.x;
+	} else {
+		return dim3_to_vector<tDimension>(blockDim);
+	}
 }
 
 CUGIP_DECL_DEVICE
@@ -168,10 +174,14 @@ inline vect3i_t currentThreadIndex()
 
 template<int tDimension>
 CUGIP_DECL_DEVICE
-simple_vector<int, tDimension>
+auto
 currentThreadIndexDim()
 {
-	return dim3_to_vector<tDimension>(threadIdx);
+	if constexpr (1 == tDimension) {
+		return threadIdx.x;
+	} else {
+		return dim3_to_vector<tDimension>(threadIdx);
+	}
 }
 
 CUGIP_DECL_DEVICE

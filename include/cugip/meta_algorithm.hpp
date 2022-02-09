@@ -16,10 +16,22 @@ template<int tDimension>
 CUGIP_DECL_HYBRID dim3 defaultBlockDimForDimension();
 
 template<>
+inline CUGIP_DECL_HYBRID dim3 defaultBlockDimForDimension<1>() { return dim3(256, 1, 1); }
+
+template<>
 inline CUGIP_DECL_HYBRID dim3 defaultBlockDimForDimension<2>() { return dim3(32, 16, 1); }
 
 template<>
 inline CUGIP_DECL_HYBRID dim3 defaultBlockDimForDimension<3>() { return dim3(32, 4, 4); }
+
+inline CUGIP_DECL_HYBRID dim3
+defaultGridSizeForBlockDim(int64_t aSize, dim3 aBlockSize)
+{
+	return dim3(
+		(aSize - 1) / aBlockSize.x + 1,
+		1,
+		1);
+}
 
 template<int tDimension>
 CUGIP_DECL_HYBRID dim3 defaultGridSizeForBlockDim(cugip::simple_vector<int, tDimension> aViewDimensions, dim3 aBlockSize);

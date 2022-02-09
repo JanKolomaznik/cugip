@@ -4,7 +4,9 @@
 #include <type_traits>
 
 #include <cugip/traits.hpp>
-#include <cugip/utils.hpp>
+#include <cugip/math/functions.hpp>
+#include <cugip/detail/get_policy.hpp>
+// #include <cugip/utils.hpp>
 #include <cmath>
 
 namespace cugip {
@@ -15,20 +17,20 @@ namespace cugip {
  **/
 
 template<typename TType>
-CUGIP_DECL_HYBRID constexpr TType
+CUGIP_DECL_HYBRID inline constexpr TType
 zero()
 {
 	return TType();
 }
 
 template<>
-inline constexpr int zero<int>()
+CUGIP_DECL_HYBRID inline constexpr int zero<int>()
 {
 	return 0;
 }
 
 template<>
-inline constexpr float zero<float>()
+CUGIP_DECL_HYBRID inline constexpr float zero<float>()
 {
 	return 0.0f;
 }
@@ -416,15 +418,18 @@ dot(const TType &aValue1, const TType &aValue2)
 	return aValue1 * aValue2;
 }
 
-template<typename TCoordType, int tDim>
-inline CUGIP_DECL_HYBRID simple_vector<TCoordType, tDim>
-product(simple_vector<TCoordType, tDim> aVector1, const simple_vector<TCoordType, tDim> &aVector2)
+template<typename TCoordType1, typename TCoordType2, int tDim>
+inline CUGIP_DECL_HYBRID auto
+product(const simple_vector<TCoordType1, tDim> &aVector1, const simple_vector<TCoordType2, tDim> &aVector2)
 {
+	using Result = simple_vector<decltype(TCoordType1{} * TCoordType2{}), tDim>;
+
+	Result result;
 	//TODO - optimize
 	for (int i = 0; i < tDim; ++i) {
-		aVector1[i] *= aVector2[i];
+		result[i] = aVector1[i] * aVector2[i];
 	}
-	return aVector1;
+	return result;
 }
 
 /*template<typename TCoordType>

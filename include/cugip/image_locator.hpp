@@ -65,10 +65,10 @@ struct BorderHandlingTraits<border_handling_enum::MIRROR> {
 				const typename TView::coord_t &coordinates,
 				const simple_vector<int, dimension<TView>::value> &offset)
 	{
-		typedef typename TView::IndexType IndexType;
-		auto region = ValidRegion(view);
+		typedef typename TView::coord_t coord_t;
+		auto region = valid_region(view);
 		auto minimum = region.corner; //IndexType();
-		auto maximum = minimum + region.size - IndexType::Fill(1);
+		auto maximum = minimum + region.size - coord_t(1, FillFlag());
 		auto coords_in_view = coordinates + offset;
 		for (int i = 0; i < dimension<TView>::value; ++i) {
 			if (coords_in_view[i] < minimum[i]) {
@@ -101,6 +101,36 @@ struct BorderHandlingTraits<border_handling_enum::REPEAT> {
 		auto maximum = region.size - coord_t(1, FillFlag());
 		auto coords = min_per_element(maximum, max_per_element(minimum, coordinates + offset));
 		return view[coords];
+	}
+};
+
+template <>
+struct BorderHandlingTraits<border_handling_enum::PERIODIC> {
+	static constexpr border_handling_enum cValue = border_handling_enum::PERIODIC;
+
+	CUGIP_HD_WARNING_DISABLE
+	template<typename TView>
+	CUGIP_DECL_HYBRID
+	static typename TView::accessed_type access(
+				TView &view,
+				const typename TView::coord_t &coordinates,
+				const simple_vector<int, dimension<TView>::value> &offset)
+	{
+		typedef typename TView::coord_t coord_t;
+		auto region = valid_region(view);
+		auto minimum = region.corner;
+		auto maximum = minimum + region.size - coord_t(1, FillFlag());
+		auto coords_in_view = coordinates + offset;
+		for (int i = 0; i < dimension<TView>::value; ++i) {
+			if (coords_in_view[i] < minimum[i]) {
+				coords_in_view[i] = region.size[i] - (minimum[i] - coords_in_view[i]);
+			} else {
+				if (coords_in_view[i] > maximum[i]) {
+					coords_in_view[i] = minimum[i] + (coords_in_view[i] - region.size[i]);
+				}
+			}
+		}
+		return view[coords_in_view];
 	}
 };
 

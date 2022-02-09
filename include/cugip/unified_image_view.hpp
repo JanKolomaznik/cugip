@@ -28,7 +28,7 @@ public:
 	typedef typename dim_traits<tDim>::coord_t coord_t;
 	typedef typename dim_traits<tDim>::diff_t diff_t;
 	//typedef typename memory_management<TElement, tDim>::const_unified_memory memory_t;
-	typedef const_unified_image_view<TElement, tDim> this_t;
+	typedef unified_image_view<TElement, tDim> this_t;
 	typedef TElement value_type;
 	typedef const TElement const_value_type;
 	typedef value_type & accessed_type;

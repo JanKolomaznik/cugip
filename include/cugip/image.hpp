@@ -9,13 +9,13 @@ namespace cugip {
 
 //**************************************************************************
 //Forward declarations
-template <typename TImage>
-typename TImage::view_t
-view(const TImage &aImage);
-
-template <typename TImage>
-typename TImage::const_view_t
-const_view(const TImage &aImage);
+// template <typename TImage>
+// typename TImage::view_t
+// view(const TImage &aImage);
+//
+// template <typename TImage>
+// typename TImage::const_view_t
+// const_view(const TImage &aImage);
 //**************************************************************************
 
 
@@ -101,6 +101,16 @@ public:
 		mData.reset();
 	}
 
+	std::string
+	info() const
+	{
+		std::ostringstream s;
+		s 	<< boost::typeindex::type_id_runtime(*this).pretty_name()
+			<< " :"
+			<< dimensions();
+		return s.str();
+	}
+
 protected:
 
 	typename memory_management<TElement, tDim>::device_memory_owner mData;
@@ -109,16 +119,16 @@ protected:
 
 //**************************************************************************
 //Image view construction
-template <typename TImage>
-typename TImage::view_t
-view(const TImage &aImage)
+template<typename TElement, int tDim>
+typename device_image<TElement, tDim>::view_t
+view(const device_image<TElement, tDim> &aImage)
 {
 	return aImage.view();
 }
 
-template <typename TImage>
-typename TImage::const_view_t
-const_view(const TImage &aImage)
+template<typename TElement, int tDim>
+typename device_image<TElement, tDim>::const_view_t
+const_view(const device_image<TElement, tDim> &aImage)
 {
 	return aImage.const_view();
 }

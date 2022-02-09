@@ -4,6 +4,7 @@
 #pragma once
 
 #include <type_traits>
+
 #include <cugip/detail/view_declaration_utils.hpp>
 
 namespace cugip {
@@ -259,14 +260,14 @@ auto subview(
 	const simple_vector<int, dimension<TView>::value> &size)
 	-> typename detail::SubviewGenerator<TView, is_memory_based<TView>::value>::ResultView
 {
+	static_assert(is_image_view<TView>::value, "Subview can be generated only for image views.");
 	//D_FORMAT("Generating subview: corner: %1%, size: %2%, original size: %3%", corner, size, view.Size());
 	//CUGIP_ASSERT((corner >= Vector<int, TView::kDimension>()));
 	//CUGIP_ASSERT(corner < aView.Size());
 	//CUGIP_ASSERT((corner + size) <= aView.Size());
 	bool cornerInside = corner >= simple_vector<int, dimension<TView>::value>() && corner < aView.dimensions();
 	if (!cornerInside || !((corner + size) <= aView.dimensions())) {
-		CUGIP_THROW(100);
-		//CUGIP_THROW(InvalidNDRange() << GetOriginalRegionErrorInfo(aView.GetRegion()) << GetWrongRegionErrorInfo(CreateRegion(corner, size)));
+		CUGIP_THROW(EInvalidRange() << sourceRegionErrorInfo(active_region(aView)) << targetRegionErrorInfo(region<dimension<TView>::value>{corner, size}));
 	}
 	return detail::SubviewGenerator<TView, is_memory_based<TView>::value>::invoke(aView, corner, size);
 }
@@ -284,14 +285,14 @@ auto bordered_subview(
 	const simple_vector<int, dimension<TView>::value> &size)
 	-> bordered_subimage_view<TView>
 {
+	static_assert(is_image_view<TView>::value, "Subview can be generated only for image views.");
 	//D_FORMAT("Generating subview: corner: %1%, size: %2%, original size: %3%", corner, size, aView.Size());
 	//CUGIP_ASSERT((corner >= Vector<int, TView::kDimension>()));
 	//CUGIP_ASSERT(corner < aView.Size());
 	//CUGIP_ASSERT((corner + size) <= aView.Size());
 	bool cornerInside = corner >= simple_vector<int, dimension<TView>::value>() && corner < aView.dimensions();
 	if (!cornerInside || !((corner + size) <= aView.dimensions())) {
-		CUGIP_THROW(100);
-		//CUGIP_THROW(InvalidNDRange() << GetOriginalRegionErrorInfo(aView.GetRegion()) << GetWrongRegionErrorInfo(CreateRegion(corner, size)));
+		CUGIP_THROW(EInvalidRange() << sourceRegionErrorInfo(active_region(aView)) << targetRegionErrorInfo(region<dimension<TView>::value>{corner, size}));
 	}
 	return bordered_subimage_view<TView>(aView, corner, size);
 }
@@ -306,11 +307,11 @@ auto slice(
 	int slice)
 	-> typename detail::SliceGenerator<TView, tSliceDimension, is_memory_based<TView>::value>::ResultView
 {
+	static_assert(is_image_view<TView>::value, "Only image view can be sliced.");
 	CUGIP_ASSERT(slice >= 0);
 	CUGIP_ASSERT(slice < aView.dimensions()[tSliceDimension]);
 	if (slice < 0 || slice >= aView.dimensions()[tSliceDimension]) {
-		CUGIP_THROW(100);
-		//CUGIP_THROW(SliceOutOfRange() << GetOriginalRegionErrorInfo(aView.GetRegion()) << WrongSliceErrorInfo(Int2(slice, tSliceDimension)));
+		CUGIP_THROW(ESliceOutOfRange() << sourceRegionErrorInfo(active_region(aView)) << InvalidSliceErrorInfo(vect2i_t{slice, tSliceDimension}));
 	}
 	return detail::SliceGenerator<TView, tSliceDimension, is_memory_based<TView>::value>::invoke(aView, slice);
 }
@@ -323,6 +324,7 @@ auto strided_subview(
 	typename TView::coord_t aStrides)
 	-> strided_subimage_view<TView>
 {
+	static_assert(is_image_view<TView>::value, "Subview can be generated only for image views.");
 	//TODO memory based
 	return strided_subimage_view<TView>(aView, aOffset, aStrides);
 }

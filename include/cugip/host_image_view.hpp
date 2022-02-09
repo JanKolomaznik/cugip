@@ -64,6 +64,13 @@ public:
 		return mStrides;
 	}
 
+	host_image_view<TElement, tDim> subview(const coord_t &corner, const extents_t &size) const {
+		CUGIP_ASSERT(corner >= extents_t());
+		CUGIP_ASSERT(corner < this->dimensions());
+		CUGIP_ASSERT((corner + size) <= this->dimensions());
+		auto ptr = reinterpret_cast<value_type *>(reinterpret_cast<char *>(mHostPtr) + offset_in_strided_memory(mStrides, corner));
+		return host_image_view<TElement, tDim>(ptr, size, this->mStrides);
+	}
 protected:
 	extents_t mSize;
 	TElement *mHostPtr;
@@ -94,7 +101,7 @@ public:
 		: mHostPtr(nullptr)
 	{}
 
-	const_host_image_view(TElement *host_ptr, extents_t size, extents_t strides)
+	const_host_image_view(const TElement *host_ptr, extents_t size, extents_t strides)
 		: mSize(size)
 		, mHostPtr(host_ptr)
 		, mStrides(strides)
@@ -119,7 +126,7 @@ public:
 		return image_locator<this_t, TBorderHandling>(*this, aCoordinates);
 	}*/
 
-	value_type *
+	const_value_type *
 	pointer() const
 	{
 		return mHostPtr;
@@ -131,9 +138,19 @@ public:
 		return mStrides;
 	}
 
+	// TODO - add slice/subview
+
+	const_host_image_view<TElement, tDim> subview(const coord_t &corner, const extents_t &size) const {
+		CUGIP_ASSERT(corner >= extents_t());
+		CUGIP_ASSERT(corner < this->dimensions());
+		CUGIP_ASSERT((corner + size) <= this->dimensions());
+		auto ptr = reinterpret_cast<const value_type *>(reinterpret_cast<const char *>(mHostPtr) + offset_in_strided_memory(mStrides, corner));
+		return const_host_image_view<TElement, tDim>(ptr, size, this->mStrides);
+	}
+
 protected:
 	extents_t mSize;
-	TElement *mHostPtr;
+	const TElement *mHostPtr;
 	extents_t mStrides;
 };
 

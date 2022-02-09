@@ -4,6 +4,7 @@
 #include <cugip/traits.hpp>
 #include <cugip/utils.hpp>
 #include <cugip/device_flag.hpp>
+#include <cugip/array_view.hpp>
 #include <limits>
 
 #include <thrust/device_vector.h>
@@ -30,6 +31,7 @@ public:
 	CUGIP_DECL_DEVICE int
 	append(const TType &aItem)
 	{
+		CUGIP_ASSERT(device_size() < mSizeLimit);
 		int index = atomicAdd(mSize.get(), 1);
 		mData[index] = aItem;
 		return index;
@@ -42,7 +44,7 @@ public:
 	}
 
 	CUGIP_DECL_HYBRID int
-	size()
+	size() const
 	{
 		#if __CUDA_ARCH__
 			return device_size();
@@ -52,14 +54,14 @@ public:
 	}
 
 	CUGIP_DECL_HOST int
-	host_size()
+	host_size() const
 	{
-		cudaThreadSynchronize();
+		cudaDeviceSynchronize();
 		return mSize.retrieve_host();
 	}
 
 	CUGIP_DECL_DEVICE int
-	device_size()
+	device_size() const
 	{
 		return mSize.retrieve_device();
 	}
@@ -107,8 +109,22 @@ public:
 		return mData[aIndex];
 	}
 
+	CUGIP_DECL_HYBRID
+	TType *pointer() const {
+		return mData;
+	}
+
+	DeviceArrayView<TType> array_view() {
+		return DeviceArrayView<TType>(this->pointer(), this->size());
+	}
+
+	DeviceArrayConstView<TType> const_array_view() const {
+		return DeviceArrayConstView<TType>(this->pointer(), this->size());
+	}
+
 	TType *mData;
 	device_ptr<int> mSize;
+	int mSizeLimit = 0;
 };
 
 
@@ -120,6 +136,7 @@ public:
 		: mSizePointer(1)
 	{
 		mView.mSize = mSizePointer.mData;
+		clear();
 	}
 
 	ParallelQueueView<TType> &
@@ -129,9 +146,8 @@ public:
 	}
 
 	int
-	size()
+	size() const
 	{
-		cudaThreadSynchronize();
 		return mView.size();
 	}
 
@@ -147,12 +163,14 @@ public:
 		if (aSize > mBuffer.size()) {
 			mBuffer.resize(aSize);
 			mView.mData = thrust::raw_pointer_cast(&(mBuffer[0]));
+			mView.mSizeLimit = mBuffer.size();
 		}
 	}
 
 	void
 	resize(int aSize)
 	{
+		// TODO - check for correctness
 		device_ptr<int> size = mSizePointer.mData;
 		size.assign_host(aSize);
 	}
@@ -172,13 +190,33 @@ public:
 		thrust::copy(mBuffer.begin(), mBuffer.begin() + s, v.data());
 	}
 
+	DeviceArrayView<TType> array_view() {
+		return mView.array_view();
+	}
+
+	DeviceArrayConstView<TType> const_array_view() const {
+		return mView.const_array_view();
+
+	}
+
 //protected:
 	ParallelQueue(const ParallelQueue &);
+	//TODO move constructor
 
 	ParallelQueueView<TType> mView;
 	thrust::device_vector<TType> mBuffer;
 	device_memory_1d_owner<int> mSizePointer;
 };
 
+template<typename TType>
+auto view(ParallelQueue<TType> &aQueue) {
+	return aQueue.view();
+}
+
+template<typename TType>
+auto const_view(ParallelQueue<TType> &aQueue) {
+	// TODO do we need special const view?
+	return aQueue.view();
+}
 
 } // namespace cugip
