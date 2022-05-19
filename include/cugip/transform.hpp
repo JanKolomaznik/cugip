@@ -213,7 +213,9 @@ struct PreloadingTransformLocatorPolicy : DefaultTransformPolicy<tDimension> {
 	//typedef detail::defaultBlockSize<cDimension>::type BlockSize;
 	//typedef detail::defaultBlockSize<cDimension>::type PreloadedBlockSize;
 
-	typedef StaticSize<32+2*tRadius, 4+2*tRadius, 4+2*tRadius> RegionSize;
+	// TODO - Dimension
+	typedef StaticSize<32+2*tRadius, 16+2*tRadius> RegionSize;
+	// typedef StaticSize<32+2*tRadius, 4+2*tRadius, 4+2*tRadius> RegionSize;
 	//static constexpr vect3i_t cRegionSize(32+2*tRadius, 4+2*tRadius, 4+2*tRadius);
 
 	static constexpr bool cPreload = true;
@@ -228,9 +230,9 @@ struct PreloadingTransformLocatorPolicy : DefaultTransformPolicy<tDimension> {
 	}
 
 	CUGIP_DECL_HYBRID
-	vect3i_t corner1()
+	simple_vector<int, tDimension> corner1()
 	{
-       		return vect3i_t(-tRadius, FillFlag{});
+       		return simple_vector<int, tDimension>(-tRadius, FillFlag{});
 	}
 #endif //defined(__CUDACC__)
 
